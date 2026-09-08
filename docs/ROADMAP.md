@@ -118,6 +118,24 @@ Goal: talk to people privately.
 - [ ] Creator storefront (digital goods, merch via partners)
 - [ ] Community memberships (paid)
 
+## Phase 9 — Peak Video (a searchable video destination)
+
+A dedicated place to publish and discover longer-form video — the YouTube-shaped
+pillar. Distinct from feed video clips: these are titled, described, searchable,
+and have their own watch page. Detail: [PRODUCT.md §13](PRODUCT.md).
+
+- [ ] `video` schema: title, description, tags, duration, chapters, captions, visibility
+- [ ] Upload pipeline: resumable upload, transcode to adaptive renditions (HLS),
+      poster frames, auto-captions, thumbnail selection
+- [ ] Storage + CDN for video (this is the point Supabase Storage alone stops being enough)
+- [ ] Watch page: adaptive player, chapters, captions, description, comments (reuse `post` replies), up-next
+- [ ] Channels: a creator's video collection on their profile; subscribe
+- [ ] Video search (title/description/caption/tag) + a Video tab in Discover
+- [ ] Ranking that stays honest: no autoplay-into-the-void, no "recommended" rabbit
+      holes by default; "why this video?" like the feed
+- [ ] Monetization ties into Phase 6 (subscriptions, tips, paid videos) — never ads
+- [ ] Playlists; watch-later; resume-where-you-left-off (local-first)
+
 ---
 
 ## Cross-cutting, every phase

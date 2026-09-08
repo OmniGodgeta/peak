@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(24);
+select plan(28);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -165,6 +165,35 @@ select is(
 select is(
   (select is_following from profile_view('alice')),
   true, 'profile_view reflects the follow relationship');
+
+-- ── replies / threads ──────────────────────────────────────────────────────
+-- alice has a public post (alice_pub_id). kid replies to it.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+insert into post (author_id, persona_id, body, visibility, reply_to, root_id)
+select '00000000-0000-0000-0000-00000000000c',
+       (select id from persona where account_id='00000000-0000-0000-0000-00000000000c'),
+       'a reply from kid', 'public', :'alice_pub_id', :'alice_pub_id'
+returning id as kid_reply_id \gset
+
+select is(
+  (select count(*)::int from post_thread(:'alice_pub_id')),
+  2, 'post_thread returns the root plus one reply');
+select is(
+  (select depth from post_thread(:'alice_pub_id') where id = :'kid_reply_id'),
+  1, 'the reply is at depth 1');
+select is(
+  (select reply_count from feed_latest(now() + interval '1h')
+   where id = :'alice_pub_id'),
+  1::bigint, 'feed_latest reflects the new reply count');
+
+-- bob blocked alice earlier; bob replying then viewing sees the thread minus
+-- alice's own posts is out of scope here — just check bob can't open a thread
+-- rooted on a post he can't see (alice_pub is public, so he can). Instead:
+-- a circles post kid can't see yields an empty thread.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(
+  (select count(*)::int from post_thread(:'bob_fr_post_id')),
+  0, 'post_thread is empty when the viewer cannot see the root');
 
 select finish();
 rollback;

@@ -258,7 +258,35 @@ Reddit × Discord hybrid. A community has:
 
 ---
 
-## 12. Explicitly rejected
+## 12. Peak Video — *Phase 9*
+
+A dedicated destination for longer-form video: publish, describe, and **search**.
+YouTube-shaped, on Peak's terms. Separate from the short clips people drop in the
+feed — these have a title, a description, a watch page, and a shelf life.
+
+- **Publish**: resumable upload; pick a thumbnail (or auto-generated frames);
+  title, description, tags, language; visibility (public / followers / circle /
+  unlisted); chapters; auto-captions the author can edit.
+- **Watch page**: adaptive-bitrate player (HLS), captions on by default, chapters,
+  playback speed, description, and comments (the same `post` reply threads reused).
+  **No autoplay into a recommendation rabbit hole** — an "up next" list you choose
+  to use, and a "why this video?" explainer like the feed.
+- **Channels**: a creator's videos live on their profile under a Videos tab;
+  viewers subscribe (a follow with a "notify" option).
+- **Discovery**: a Video tab in Discover; full-text search over title,
+  description, captions, and tags; filters (length, date, language, has-captions).
+- **Wellbeing**: watch history is local-first and easy to clear; no "recommended
+  for you" feed that runs without input; session-time awareness carries over.
+- **Money**: ties into §7 — channel subscriptions, tips, pay-per-video, early
+  access. Never pre-roll ads, never mid-roll ads.
+- **Infra note**: this is the point Supabase Storage alone isn't enough — needs a
+  real object store + video CDN + a transcode pipeline (see
+  [ARCHITECTURE.md](ARCHITECTURE.md) scaling path and [ROADMAP.md](ROADMAP.md)
+  Phase 9).
+
+---
+
+## 13. Explicitly rejected
 
 - Advertising, "sponsored posts", influencer-marketing infrastructure aimed at users.
 - Selling or brokering user data; "data partnerships".

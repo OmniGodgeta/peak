@@ -3,8 +3,41 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_providers.dart';
 
-/// A row from the `feed_latest` RPC: a post plus its author's public identity
-/// and the viewer's own like/repost state.
+/// One attachment on a post. `kind` is 'image' | 'video' | 'audio'; for Phase 1
+/// only images (including animated GIFs) are produced.
+class PostMedia {
+  const PostMedia({
+    required this.kind,
+    required this.storagePath,
+    required this.altText,
+    required this.width,
+    required this.height,
+    required this.durationMs,
+  });
+
+  final String kind;
+  final String storagePath;
+  final String? altText;
+  final int? width;
+  final int? height;
+  final int? durationMs;
+
+  double? get aspectRatio => (width != null && height != null && height! > 0)
+      ? width! / height!
+      : null;
+
+  factory PostMedia.fromMap(Map<String, dynamic> m) => PostMedia(
+    kind: (m['kind'] as String?) ?? 'image',
+    storagePath: m['storage_path'] as String,
+    altText: m['alt_text'] as String?,
+    width: (m['width'] as num?)?.toInt(),
+    height: (m['height'] as num?)?.toInt(),
+    durationMs: (m['duration_ms'] as num?)?.toInt(),
+  );
+}
+
+/// A row from the feed / thread RPCs: a post plus its author's public identity,
+/// media, and the viewer's own like/repost state.
 class FeedPost {
   const FeedPost({
     required this.id,
@@ -24,6 +57,9 @@ class FeedPost {
     required this.repostCount,
     required this.viewerReacted,
     required this.viewerReposted,
+    required this.media,
+    this.replyTo,
+    this.depth = 0,
   });
 
   final String id;
@@ -43,6 +79,9 @@ class FeedPost {
   final int repostCount;
   final bool viewerReacted;
   final bool viewerReposted;
+  final List<PostMedia> media;
+  final String? replyTo; // set in thread views
+  final int depth; // set in thread views
 
   String get authorName =>
       authorDisplayName.isNotEmpty ? authorDisplayName : authorHandle;
@@ -68,6 +107,12 @@ class FeedPost {
     repostCount: (m['repost_count'] as int?) ?? 0,
     viewerReacted: (m['viewer_reacted'] as bool?) ?? false,
     viewerReposted: (m['viewer_reposted'] as bool?) ?? false,
+    media: [
+      for (final e in (m['media'] as List? ?? const []))
+        PostMedia.fromMap(e as Map<String, dynamic>),
+    ],
+    replyTo: m['reply_to'] as String?,
+    depth: (m['depth'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -91,6 +136,18 @@ class FeedRepository {
     return await _db.rpc('toggle_repost', params: {'p_post_id': postId})
         as bool;
   }
+
+  /// A post plus its reply tree (up to 4 levels), ordered by depth then time.
+  Future<List<FeedPost>> thread(String rootId) async {
+    final rows = await _db.rpc('post_thread', params: {'p_root': rootId});
+    return (rows as List)
+        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Public URL for a `post-media` storage object.
+  String mediaUrl(String storagePath) =>
+      _db.storage.from('post-media').getPublicUrl(storagePath);
 }
 
 final feedRepositoryProvider = Provider<FeedRepository>((ref) {
