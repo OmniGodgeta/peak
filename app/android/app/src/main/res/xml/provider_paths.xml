@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paths the in-app updater's FileProvider may share with the system
+     installer. Covers the app-private external cache/files dirs where the
+     downloaded APK is written; nothing outside the app sandbox. -->
+<paths>
+    <external-cache-path name="update_cache" path="." />
+    <external-files-path name="update_files" path="." />
+    <cache-path name="internal_update_cache" path="." />
+</paths>
