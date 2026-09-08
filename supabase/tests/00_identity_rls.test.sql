@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(28);
+select plan(36);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -194,6 +194,53 @@ select tests.act_as('00000000-0000-0000-0000-00000000000c');
 select is(
   (select count(*)::int from post_thread(:'bob_fr_post_id')),
   0, 'post_thread is empty when the viewer cannot see the root');
+
+-- ── messaging ──────────────────────────────────────────────────────────────
+-- kid follows alice (from earlier). alice starts a DM with kid.
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select start_dm('00000000-0000-0000-0000-00000000000c') as dm_id \gset
+select ok(:'dm_id' is not null, 'start_dm returns a conversation id');
+select is(
+  (select start_dm('00000000-0000-0000-0000-00000000000c')),
+  :'dm_id'::uuid, 'start_dm is idempotent for the same pair');
+
+-- kid follows alice, so kid's side is active (not a request)
+select is(
+  (select my_state::text from conversations_list(true)
+   where id = :'dm_id'),
+  'active', 'recipient who follows the sender gets an active conversation');
+
+insert into message (conversation_id, sender_id, body)
+  values (:'dm_id', '00000000-0000-0000-0000-00000000000a', 'hi kid');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(
+  (select count(*)::int from messages_page(:'dm_id', now() + interval '1h')),
+  1, 'the recipient can read the message');
+-- backdate our read marker so the message (created "now") counts as unread;
+-- in real use last_read_at predates later messages naturally.
+update conversation_member set last_read_at = now() - interval '1 minute'
+  where conversation_id = :'dm_id' and member_id = '00000000-0000-0000-0000-00000000000c';
+select is(
+  (select unread_count from conversations_list(true) where id = :'dm_id'),
+  1::bigint, 'unread count reflects an unseen message');
+select mark_conversation_read(:'dm_id');
+select is(
+  (select unread_count from conversations_list(true) where id = :'dm_id'),
+  0::bigint, 'unread count is 0 after mark_conversation_read');
+
+-- bob is not a member → sees nothing and cannot send
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is(
+  (select count(*)::int from message where conversation_id = :'dm_id'),
+  0, 'a non-member cannot read the conversation''s messages');
+select throws_ok(
+  format(
+    $f$ insert into message (conversation_id, sender_id, body)
+        values (%L, '00000000-0000-0000-0000-00000000000b', 'butting in') $f$,
+    :'dm_id'
+  ),
+  null, 'a non-member cannot send into the conversation');
 
 select finish();
 rollback;

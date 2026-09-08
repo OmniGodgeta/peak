@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/feed_repository.dart';
+import '../../data/messaging_repository.dart';
 import '../../data/people_repository.dart';
 import '../feed/post_card.dart';
+import '../messaging/chat_screen.dart';
 
 /// Someone else's profile (or your own, viewed by handle): identity, a follow
 /// button, and their posts.
@@ -54,6 +56,27 @@ class _Header extends ConsumerStatefulWidget {
 class _HeaderState extends ConsumerState<_Header> {
   late bool _following = widget.profile.isFollowing;
   bool _busy = false;
+
+  Future<void> _message(ProfileView p) async {
+    setState(() => _busy = true);
+    try {
+      final convId = await ref.read(messagingRepositoryProvider).startDm(p.id);
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              ChatScreen(conversationId: convId, title: p.name, otherId: p.id),
+        ),
+      );
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _toggle() async {
     setState(() => _busy = true);
@@ -157,11 +180,18 @@ class _HeaderState extends ConsumerState<_Header> {
               ],
               _Count(label: 'posts', value: p.postCount),
               const Spacer(),
-              if (!p.isSelf)
+              if (!p.isSelf) ...[
+                IconButton.outlined(
+                  tooltip: 'Message',
+                  icon: const Icon(Icons.mail_outline, size: 18),
+                  onPressed: _busy ? null : () => _message(p),
+                ),
+                const SizedBox(width: 8),
                 FilledButton.tonal(
                   onPressed: _busy ? null : _toggle,
                   child: Text(_following ? 'Following' : 'Follow'),
                 ),
+              ],
             ],
           ),
         ],
