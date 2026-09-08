@@ -63,6 +63,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                 : null,
           );
       ref.invalidate(feedProvider);
+      ref.read(feedRevisionProvider.notifier).bump();
       if (mounted) Navigator.of(context).pop();
     } on Exception catch (e) {
       setState(() => _error = e.toString());

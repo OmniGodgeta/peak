@@ -111,7 +111,21 @@ class SelectedFeed extends Notifier<FeedKind> {
   void set(FeedKind kind) => state = kind;
 }
 
+/// Bumped whenever something that changes the feed happens elsewhere in the app
+/// (a new post, a follow/unfollow). Screens that can't easily reach the feed
+/// call `ref.read(feedRevisionProvider.notifier).bump()`.
+final feedRevisionProvider = NotifierProvider<FeedRevision, int>(
+  FeedRevision.new,
+);
+
+class FeedRevision extends Notifier<int> {
+  @override
+  int build() => 0;
+  void bump() => state++;
+}
+
 final feedProvider = FutureProvider<List<FeedPost>>((ref) async {
   ref.watch(selectedFeedProvider);
+  ref.watch(feedRevisionProvider);
   return ref.watch(feedRepositoryProvider).latest();
 });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/feed_repository.dart';
+import '../profile/user_profile_screen.dart';
 
 /// A single post in the feed. Counts stay hidden by default (docs/PRODUCT.md
 /// §2.6) — the icons show the viewer's own state, not a public tally.
@@ -17,6 +18,14 @@ class _PostCardState extends ConsumerState<PostCard> {
   late bool _reacted = widget.post.viewerReacted;
   late bool _reposted = widget.post.viewerReposted;
   bool _cwRevealed = false;
+
+  void _openProfile(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UserProfileScreen(handle: widget.post.authorHandle),
+      ),
+    );
+  }
 
   Future<void> _toggleReaction() async {
     setState(() => _reacted = !_reacted);
@@ -57,47 +66,53 @@ class _PostCardState extends ConsumerState<PostCard> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: scheme.primaryContainer,
-                child: Text(
-                  p.authorName.characters.first.toUpperCase(),
-                  style: TextStyle(color: scheme.onPrimaryContainer),
+              GestureDetector(
+                onTap: () => _openProfile(context),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: scheme.primaryContainer,
+                  child: Text(
+                    p.authorName.characters.first.toUpperCase(),
+                    style: TextStyle(color: scheme.onPrimaryContainer),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            p.authorName,
-                            style: theme.textTheme.titleSmall,
-                            overflow: TextOverflow.ellipsis,
+                child: GestureDetector(
+                  onTap: () => _openProfile(context),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              p.authorName,
+                              style: theme.textTheme.titleSmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        if (p.authorIsTeen) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.shield_outlined,
-                            size: 13,
-                            color: scheme.onSurfaceVariant,
-                          ),
+                          if (p.authorIsTeen) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.shield_outlined,
+                              size: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                    Text(
-                      '${p.authorFqHandle} · ${_relativeTime(p.createdAt)}'
-                      '${p.editedAt != null ? ' · edited' : ''}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                      Text(
+                        '${p.authorFqHandle} · ${_relativeTime(p.createdAt)}'
+                        '${p.editedAt != null ? ' · edited' : ''}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               _VisibilityChip(visibility: p.visibility),

@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(19);
+select plan(24);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -142,6 +142,29 @@ select tests.act_as('00000000-0000-0000-0000-00000000000b');
 select is(
   (select count(*)::int from post where id = :'bob_fr_post_id'),
   1, 'the author can still see their own circles post');
+
+-- ── people: search, follow, feed ───────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000c');  -- kid searches
+select is(
+  (select handle::text from search_people('alic') limit 1),
+  'alice', 'search_people finds a discoverable adult by handle prefix');
+
+select is(
+  (select count(*)::int from search_people('a')),
+  0, 'search needs at least 2 characters');
+
+select is((select count(*)::int from feed_latest(now() + interval '1h')), 0,
+  'feed is empty before following anyone');
+insert into follow (follower_id, followee_id)
+  values ('00000000-0000-0000-0000-00000000000c','00000000-0000-0000-0000-00000000000a');
+select is(
+  (select count(*)::int from feed_latest(now() + interval '1h')
+   where author_handle = 'alice'),
+  1, 'after following, the followee''s public posts appear in the feed');
+
+select is(
+  (select is_following from profile_view('alice')),
+  true, 'profile_view reflects the follow relationship');
 
 select finish();
 rollback;

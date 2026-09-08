@@ -60,12 +60,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const PeakLogo(size: 88),
-                const SizedBox(height: 8),
+                const PeakLogo(size: 88, showTagline: false),
+                const SizedBox(height: 10),
                 Text(
-                  'Your attention is yours.',
+                  'Share anything.\nConnect with everyone.',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    height: 1.3,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 TextField(
