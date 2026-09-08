@@ -1,0 +1,178 @@
+name: Release
+
+# Tag a version to cut a signed Android release:
+#   1. bump `version:` in app/pubspec.yaml  (e.g. 0.4.0+4)
+#   2. commit, then:  git tag v0.4.0 && git push origin v0.4.0
+#
+# The APK is signed with the upload keystore (GitHub secrets), attached to a
+# GitHub Release, and — once the public backend exists — the app_release
+# manifest row is updated so the in-app updater picks it up.
+#
+# Secrets already set (Android signing):
+#   ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_PASSWORD / ANDROID_KEY_ALIAS
+# Needed before a tag build can produce a usable APK (Peak is LAN-only until
+# then, so a tag build fails fast with a clear message):
+#   vars.RELEASE_SUPABASE_URL          e.g. https://xxxx.supabase.co
+#   secrets.RELEASE_SUPABASE_ANON_KEY
+# Optional — enables the manifest auto-update step:
+#   secrets.SUPABASE_SERVICE_ROLE_KEY
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      supabase_url:
+        description: "Backend URL to bake into the APK (else vars.RELEASE_SUPABASE_URL)"
+        required: false
+      supabase_anon_key:
+        description: "Anon key (else secrets.RELEASE_SUPABASE_ANON_KEY)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Signed Android release
+    runs-on: ubuntu-latest
+    env:
+      IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      HAS_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version from pubspec
+        id: ver
+        run: |
+          line=$(grep '^version:' app/pubspec.yaml | awk '{print $2}')
+          name="${line%%+*}"
+          code="${line##*+}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "apk=peak-$name-release.apk" >> "$GITHUB_OUTPUT"
+          echo "Version $name ($code)"
+
+      - name: Check tag matches pubspec
+        if: env.IS_TAG == 'true'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "${{ steps.ver.outputs.name }}" ]; then
+            echo "::error::tag v$tag != pubspec version ${{ steps.ver.outputs.name }}. Bump app/pubspec.yaml first."
+            exit 1
+          fi
+
+      - name: Resolve backend config
+        id: backend
+        env:
+          IN_URL: ${{ github.event.inputs.supabase_url }}
+          IN_KEY: ${{ github.event.inputs.supabase_anon_key }}
+          VAR_URL: ${{ vars.RELEASE_SUPABASE_URL }}
+          SEC_KEY: ${{ secrets.RELEASE_SUPABASE_ANON_KEY }}
+        run: |
+          url="${IN_URL:-$VAR_URL}"
+          key="${IN_KEY:-$SEC_KEY}"
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "::error::No backend configured. Set vars.RELEASE_SUPABASE_URL + secrets.RELEASE_SUPABASE_ANON_KEY, or pass them to workflow_dispatch. (Peak is still LAN-only — this is expected until the public backend is up.)"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "::add-mask::$key"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          cache: true
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 secret is missing."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/peak-release.jks"
+          cat > app/android/key.properties <<EOF
+          storePassword=$STORE_PW
+          keyPassword=$KEY_PW
+          keyAlias=$KEY_ALIAS
+          storeFile=$GITHUB_WORKSPACE/peak-release.jks
+          EOF
+
+      - name: Build signed APK
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL='${{ steps.backend.outputs.url }}' \
+            --dart-define=SUPABASE_ANON_KEY='${{ steps.backend.outputs.key }}'
+
+      - name: Stage artifacts
+        id: art
+        run: |
+          mkdir -p dist
+          cp app/build/app/outputs/flutter-apk/app-release.apk "dist/${{ steps.ver.outputs.apk }}"
+          ( cd dist && sha256sum "${{ steps.ver.outputs.apk }}" | tee "${{ steps.ver.outputs.apk }}.sha256" )
+          echo "sha256=$(cut -d' ' -f1 < "dist/${{ steps.ver.outputs.apk }}.sha256")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify signature
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs "dist/${{ steps.ver.outputs.apk }}" | grep -i "certificate DN"
+
+      - name: Clean up signing material
+        if: always()
+        run: rm -f "$GITHUB_WORKSPACE/peak-release.jks" app/android/key.properties
+
+      - name: Publish GitHub Release
+        if: env.IS_TAG == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Peak $GITHUB_REF_NAME" \
+            --generate-notes \
+            "dist/${{ steps.ver.outputs.apk }}" \
+            "dist/${{ steps.ver.outputs.apk }}.sha256"
+
+      - name: Upload workflow artifact (dispatch runs)
+        if: env.IS_TAG != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.ver.outputs.apk }}
+          path: dist/*
+
+      - name: Update app_release manifest
+        if: env.IS_TAG == 'true' && env.HAS_SERVICE_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SR_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BASE: ${{ steps.backend.outputs.url }}
+          APK_URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.ver.outputs.apk }}
+          VN: ${{ steps.ver.outputs.name }}
+          VC: ${{ steps.ver.outputs.code }}
+          SHA: ${{ steps.art.outputs.sha256 }}
+        run: |
+          notes=$(gh release view "$GITHUB_REF_NAME" --json body -q .body | head -c 280)
+          body=$(jq -n --arg vn "$VN" --argjson vc "$VC" --arg url "$APK_URL" \
+                       --arg sha "$SHA" --arg notes "$notes" \
+                 '{version_name:$vn, version_code:$vc, apk_url:$url, sha256:$sha, notes:$notes, published_at:(now|todateiso8601)}')
+          curl -sf -X PATCH "$BASE/rest/v1/app_release?platform=eq.android" \
+            -H "apikey: $SR_KEY" -H "Authorization: Bearer $SR_KEY" \
+            -H "Content-Type: application/json" -H "Prefer: return=representation" \
+            -d "$body"
