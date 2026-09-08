@@ -1,0 +1,17 @@
+-- Local development seed data.
+-- Applied by `supabase db reset`. Do NOT put anything real or sensitive here.
+--
+-- Creating auth users from SQL requires the service role; the Supabase local
+-- stack seeds them via the CLI. For now this file only documents the intended
+-- fixtures — the `supabase/tests/` suite creates users through the admin API.
+
+-- Example (enable once the local admin seeding helper lands):
+--
+-- select auth.uid();  -- no-op marker
+--
+-- The test suite will:
+--   1. create users  alice@example.test / bob@example.test / teen@example.test
+--   2. call bootstrap_account for each (handles: alice, bob, kid)
+--   3. alice follows bob; bob follows alice
+--   4. alice posts to 'public'; bob posts to 'friends' with alice in it
+--   5. assert feed_latest returns the right rows for each viewer

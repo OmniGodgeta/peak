@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Flutter app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Dependency denylist (no analytics / ad / tracking SDKs)
+        working-directory: .
+        run: bash tool/check_dependencies.sh
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: flutter analyze --fatal-infos
+      - run: flutter test --coverage
+      - name: Build web (PWA)
+        run: flutter build web --dart-define=SUPABASE_URL=https://example.invalid --dart-define=SUPABASE_ANON_KEY=ci
+
+  database:
+    name: Supabase schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local stack
+        run: supabase start
+      - name: Apply migrations from scratch
+        run: supabase db reset
+      - name: Lint schema
+        run: supabase db lint --level warning
+      - name: Run database tests
+        run: supabase test db
+      - name: Check migrations are up to date with the schema
+        run: |
+          supabase db diff --use-migra > /tmp/diff.sql || true
+          if [ -s /tmp/diff.sql ]; then
+            echo "::error::Uncommitted schema drift:"; cat /tmp/diff.sql; exit 1
+          fi
+
+  functions:
+    name: Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno fmt --check supabase/functions
+      - run: deno lint supabase/functions
+      - run: deno check supabase/functions/**/index.ts

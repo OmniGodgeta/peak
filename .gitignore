@@ -1,0 +1,42 @@
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Flutter / Dart
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.packages
+app/ios/Pods/
+app/ios/.symlinks/
+app/android/.gradle/
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+app/android/local.properties
+app/android/key.properties
+app/web/flutter_service_worker.js
+**/*.g.dart
+**/*.freezed.dart
+**/*.mocks.dart
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+supabase/logs/
+
+# Editors / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Misc
+node_modules/
+coverage/
+*.log
