@@ -66,4 +66,4 @@ jobs:
           deno-version: v2.x
       - run: deno fmt --check supabase/functions
       - run: deno lint supabase/functions
-      - run: deno check supabase/functions/**/index.ts
+      - run: find supabase/functions -name '*.ts' -print -exec deno check {} +

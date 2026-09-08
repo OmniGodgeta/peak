@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
   // if the client explicitly passed altText === "" (user tapped "post anyway").
   for (const m of input.media ?? []) {
     if (m.kind === "image" && m.altText === undefined) {
-      return json({ error: "each image needs altText (\"\" to skip)" }, 422);
+      return json({ error: 'each image needs altText ("" to skip)' }, 422);
     }
   }
 
