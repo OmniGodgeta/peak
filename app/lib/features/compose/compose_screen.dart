@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/circle_repository.dart';
+import '../../data/feed_repository.dart';
 import '../../data/post_repository.dart';
-import '../feed/feed_screen.dart';
 
 /// Phase 1 composer: text + a mandatory circle picker + optional content
 /// warning. Media, polls, reply/quote controls, drafts and scheduling come

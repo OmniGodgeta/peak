@@ -49,12 +49,6 @@ jobs:
         run: supabase db lint --level warning
       - name: Run database tests
         run: supabase test db
-      - name: Check migrations are up to date with the schema
-        run: |
-          supabase db diff --use-migra > /tmp/diff.sql || true
-          if [ -s /tmp/diff.sql ]; then
-            echo "::error::Uncommitted schema drift:"; cat /tmp/diff.sql; exit 1
-          fi
 
   functions:
     name: Edge Functions

@@ -1,24 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
-import '../../data/supabase_providers.dart';
+import '../../data/feed_repository.dart';
 import '../compose/compose_screen.dart';
+import 'post_card.dart';
 
-/// Named feeds live here. Phase 1 ships **Latest** (reverse-chronological) and
-/// **Friends first**; custom feeds arrive in Phase 5. There is deliberately no
-/// infinite autoplaying scroll — after a page you get a "You're caught up" card.
-enum FeedKind { latest, friendsFirst }
-
-final selectedFeedProvider = StateProvider<FeedKind>((_) => FeedKind.latest);
-
-final feedProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  ref.watch(selectedFeedProvider);
-  final db = ref.watch(supabaseProvider);
-  final rows = await db.rpc('feed_latest', params: {'p_limit': 30});
-  return (rows as List).cast<Map<String, dynamic>>();
-});
-
+/// Home. Phase 1 ships **Latest** (reverse-chronological) and **Friends first**;
+/// custom feeds arrive in Phase 5. No infinite autoplaying scroll — after a page
+/// you get a "You're caught up" card.
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
 
@@ -34,7 +23,7 @@ class FeedScreen extends ConsumerWidget {
             value: kind,
             onChanged: (v) => v == null
                 ? null
-                : ref.read(selectedFeedProvider.notifier).state = v,
+                : ref.read(selectedFeedProvider.notifier).set(v),
             items: const [
               DropdownMenuItem(value: FeedKind.latest, child: Text('Latest')),
               DropdownMenuItem(
@@ -66,81 +55,11 @@ class FeedScreen extends ConsumerWidget {
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 if (i == posts.length) return const _CaughtUp();
-                return _PostTile(post: posts[i]);
+                return PostCard(post: posts[i]);
               },
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-void _notImplemented(BuildContext context, String what) {
-  ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text('$what — not built yet')));
-}
-
-class _PostTile extends StatelessWidget {
-  const _PostTile({required this.post});
-  final Map<String, dynamic> post;
-
-  @override
-  Widget build(BuildContext context) {
-    final body = (post['body'] as String?) ?? '';
-    final cw = post['content_warning'] as String?;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (cw != null && cw.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(cw),
-            ),
-          Text(body),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _CountAction(icon: Icons.favorite_border, onTap: () {}),
-              const SizedBox(width: 16),
-              _CountAction(icon: Icons.mode_comment_outlined, onTap: () {}),
-              const SizedBox(width: 16),
-              _CountAction(icon: Icons.repeat, onTap: () {}),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.help_outline),
-                tooltip: 'Why am I seeing this?',
-                onPressed: () =>
-                    _notImplemented(context, 'Why am I seeing this — Phase 5'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CountAction extends StatelessWidget {
-  const _CountAction({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // Counts are private by default (see docs/PRODUCT.md §2.6) — no numbers here.
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(icon, size: 20),
       ),
     );
   }
