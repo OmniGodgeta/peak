@@ -70,7 +70,10 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
+          // NB: don't force a full-width minimumSize here — it breaks FilledButtons
+          // used in tight spaces like AppBar actions. Screens that want a
+          // full-width button size it themselves.
+          minimumSize: const Size(0, 44),
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),

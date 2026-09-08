@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+app/env.json
+supabase/.env
+supabase/.env.local
 *.pem
 *.key
 
