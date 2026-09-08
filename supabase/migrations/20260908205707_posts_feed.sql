@@ -1,4 +1,4 @@
--- ShadowChat — Phase 1: posts, media, reactions, replies, reposts
+-- Peak — Phase 1: posts, media, reactions, replies, reposts
 -- Chronological feed only in this phase. Ranking + fan-out index land in Phase 5.
 
 create type post_visibility as enum ('circles', 'public', 'mentioned', 'followers');

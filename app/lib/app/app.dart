@@ -4,18 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router.dart';
 import 'theme.dart';
 
-class ShadowChatApp extends ConsumerWidget {
-  const ShadowChatApp({super.key});
+class PeakApp extends ConsumerWidget {
+  const PeakApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'ShadowChat',
+      title: 'Peak',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      // Dark-first identity ("deep space"). A user-facing theme control lands
+      // with the Phase 5 wellbeing suite.
+      themeMode: ThemeMode.dark,
       routerConfig: router,
     );
   }

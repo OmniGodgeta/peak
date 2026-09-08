@@ -1,4 +1,4 @@
--- ShadowChat — Phase 0: identity, personas, circles, social graph
+-- Peak — Phase 0: identity, personas, circles, social graph
 -- Forward-only. Every table has RLS enabled and deny-by-default.
 
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
 
 **Do not open a public issue for security problems.**
 
-Email **security@shadowchat.example** (placeholder — set a real address before public
+Email **security@peak.social** (placeholder — set a real address before public
 launch) with:
 
 - a description of the issue and its impact,

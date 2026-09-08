@@ -11,21 +11,31 @@ accessible.
 Goal: a developer can clone, run the app against a local backend, and sign in.
 
 - [x] Repo, license, docs, CI skeleton
-- [ ] Supabase project + local dev (`supabase start`) + migration pipeline
-- [ ] Schema v1: `profile`, `persona`, `circle`, `circle_member`, `follow`, `block`, `mute`
-- [ ] RLS baseline + policy tests
-- [ ] Auth: passkey + email + OAuth; onboarding (handle, display name, first circles)
-- [ ] App shell: routing, theming (light/dark/high-contrast), Riverpod, Supabase wiring
-- [ ] Profile view + edit
-- [ ] CI: `flutter analyze`, tests, dependency denylist check, migration lint
+- [x] Branding: Peak mark → app icons; dark-first theme from the palette
+- [x] Schema: `profile`, `profile_private`, `persona`, `circle`, `circle_member`,
+      `follow`, `block`, `mute`, `mute_word` — all RLS deny-by-default
+- [x] `bootstrap_account` RPC: handle + DOB (13+ enforced) + 5 system circles
+- [x] Federation-shaped handles (`@name@peak.social`), age-derived teen accounts
+- [x] App shell: go_router, dark/light/high-contrast theme, Riverpod, Supabase wiring
+- [x] Auth (email) + onboarding (handle, display name, date of birth)
+- [x] Profile view (read)
+- [ ] Self-host the Supabase stack on `shadow` — see [SELF_HOSTING.md](SELF_HOSTING.md)
+- [ ] Apply migrations to that instance; wire the app's `env.json` to it
+- [ ] RLS policy tests (pgTAP) + `supabase test db` green in CI
+- [ ] Passkey + OAuth sign-in (email works today)
+- [ ] Profile edit (avatar, bio, links, pronouns)
+- [ ] CI running green (workflow needs `workflow` scope on the gh token to push)
 
 ## Phase 1 — MVP feed
 
 Goal: post to a circle, follow people, read a chronological feed. This is the smallest
 thing that is recognizably "a social network."
 
-- [ ] `post`, `post_media`, `reaction`, `reply`, `repost` tables + RLS
-- [ ] Composer: text + photos, alt-text flow, circle picker, reply/quote controls, CW/sensitive
+- [x] `post`, `post_audience`, `post_media`, `reaction`, `repost`, `mention` tables + RLS
+- [x] `feed_latest` RPC + `can_view_post` visibility function
+- [~] Composer: text + circle picker + CW done; photos, alt-text flow, reply/quote
+      controls, polls, drafts, scheduling still to do
+- [ ] Route posting through the `publish` Edge Function (mentions + fan-out server-side)
 - [ ] Media upload pipeline (EXIF strip, renditions, thumbnails)
 - [ ] **Latest** feed (reverse-chronological) + **Friends-first** feed
 - [ ] "You're caught up" marker; autoplay off; captions on

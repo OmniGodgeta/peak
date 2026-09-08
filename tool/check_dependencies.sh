@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fails if a known analytics / advertising / tracking SDK appears in the app's
-# resolved dependency tree. ShadowChat ships none — see docs/PRODUCT.md §9.1.
+# resolved dependency tree. Peak ships none — see docs/PRODUCT.md §9.1.
 set -euo pipefail
 
 LOCK="app/pubspec.lock"
@@ -26,7 +26,7 @@ done
 
 if [ "$fail" -ne 0 ]; then
   echo
-  echo "ShadowChat does not ship analytics/ad/tracking SDKs. If you believe an"
+  echo "Peak does not ship analytics/ad/tracking SDKs. If you believe an"
   echo "exception is warranted, raise it in an issue first — this check is policy."
   exit 1
 fi

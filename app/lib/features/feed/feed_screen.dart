@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../data/supabase_providers.dart';
+import '../compose/compose_screen.dart';
 
 /// Named feeds live here. Phase 1 ships **Latest** (reverse-chronological) and
 /// **Friends first**; custom feeds arrive in Phase 5. There is deliberately no
@@ -45,7 +46,9 @@ class FeedScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _notImplemented(context, 'Composer — Phase 1'),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const ComposeScreen())),
         child: const Icon(Icons.edit),
       ),
       body: feed.when(

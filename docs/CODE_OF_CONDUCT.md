@@ -2,7 +2,7 @@
 
 ## Our pledge
 
-We want ShadowChat's community — contributors, users, and everyone in between — to be a
+We want Peak's community — contributors, users, and everyone in between — to be a
 place where people are treated with respect regardless of age, body, disability,
 ethnicity, gender identity and expression, level of experience, nationality, personal
 appearance, race, religion, or sexual identity and orientation.
@@ -29,7 +29,7 @@ and any public space where someone is representing the project.
 
 ## Enforcement
 
-Report concerns to **conduct@shadowchat.example** (placeholder — set a real address before
+Report concerns to **conduct@peak.social** (placeholder — set a real address before
 public launch). All reports are reviewed and investigated promptly and fairly. Maintainers
 who don't uphold this code in good faith may face temporary or permanent repercussions as
 determined by other project leaders.

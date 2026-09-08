@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/brand.dart';
 import '../../data/supabase_providers.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
@@ -59,13 +60,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'ShadowChat',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium
-                      ?.copyWith(color: scheme.primary),
-                ),
-                const SizedBox(height: 4),
+                const PeakLogo(size: 88),
+                const SizedBox(height: 8),
                 Text(
                   'Your attention is yours.',
                   textAlign: TextAlign.center,

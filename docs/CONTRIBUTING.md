@@ -1,6 +1,6 @@
 # Contributing
 
-ShadowChat is built in the open. Contributions are welcome once Phase 0 lands; until then
+Peak is built in the open. Contributions are welcome once Phase 0 lands; until then
 the schema and app shell are moving fast.
 
 ## Ground rules
@@ -16,8 +16,8 @@ the schema and app shell are moving fast.
 Prereqs: Flutter ≥ 3.47, Dart ≥ 3.8, Node ≥ 20, Docker, Supabase CLI.
 
 ```bash
-git clone https://github.com/OmniGodgeta/shadowchat
-cd shadowchat/supabase && supabase start && supabase db reset
+git clone https://github.com/OmniGodgeta/peak
+cd peak/supabase && supabase start && supabase db reset
 cd ../app && cp .env.example .env   # paste the URL + anon key from `supabase start`
 flutter pub get && flutter run
 ```

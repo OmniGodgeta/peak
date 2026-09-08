@@ -1,4 +1,4 @@
-# ShadowChat app
+# Peak app
 
 Flutter client for iOS, Android, and Web. See the repo root
 [`README.md`](../README.md), [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md),

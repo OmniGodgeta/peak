@@ -45,10 +45,7 @@ class ProfileScreen extends ConsumerWidget {
                 p.displayName.isNotEmpty ? p.displayName : p.handle,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              Text(
-                '@${p.handle}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              Text(p.fqHandle, style: Theme.of(context).textTheme.bodyMedium),
               if (p.bio.isNotEmpty) ...[const SizedBox(height: 8), Text(p.bio)],
               const SizedBox(height: 8),
               if (p.accountKind == 'teen')

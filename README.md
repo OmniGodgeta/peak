@@ -1,9 +1,17 @@
-# ShadowChat
+<p align="center">
+  <img src="app/assets/brand/peak-icon.png" width="128" alt="Peak">
+</p>
+
+<h1 align="center">Peak</h1>
+<p align="center"><em>Higher together.</em></p>
 
 **An open, human-first social network.** Feed, messaging, and communities in one app —
 built to be everything Facebook and Instagram should have been, and none of what they became.
 
 > Status: **Phase 0 — Foundation.** Not usable yet. Building in the open from commit one.
+>
+> Reference instance: **peak.social** (self-hosted). Handles are `@name@peak.social`.
+> Minimum age 13; under-18 accounts are teen-safe by default.
 
 ---
 
@@ -14,13 +22,13 @@ outrage-amplifying feeds, infinite scroll, addictive notification loops, ads tha
 you across the web, opaque moderation, creators who don't own their audience, and a
 walled garden you can't leave with your data or your friends.
 
-ShadowChat is built on the opposite premise: **your attention is yours, your data is
+Peak is built on the opposite premise: **your attention is yours, your data is
 yours, and your social graph is yours.** We make money from people choosing to pay us,
 not from advertisers renting your behavior.
 
 ### What makes it different
 
-| | Facebook / Instagram | ShadowChat |
+| | Facebook / Instagram | Peak |
 |---|---|---|
 | **Business model** | Targeted ads, data brokering | No ads, ever. Optional subscription + low creator fees + self-host licensing |
 | **The feed** | One opaque algorithm optimizing engagement | You pick the feed. Chronological, Friends-first, or custom rule-based feeds. Ranking code is open source |
@@ -58,7 +66,7 @@ Roadmap: **[docs/ROADMAP.md](docs/ROADMAP.md)**
 ## Repo layout
 
 ```
-shadowchat/
+peak/
 ├── app/                 Flutter application (iOS / Android / Web)
 ├── supabase/            Database schema, migrations, Edge Functions, config
 ├── docs/                Vision, product spec, architecture, roadmap
@@ -92,7 +100,7 @@ standards, and how to pick up an issue.
 
 ## License
 
-**[AGPL-3.0](LICENSE).** If you run a modified ShadowChat server, you must share your
+**[AGPL-3.0](LICENSE).** If you run a modified Peak server, you must share your
 changes. This is deliberate: a social network that can be quietly closed isn't open.
 
 Security disclosures: **[docs/SECURITY.md](docs/SECURITY.md)**.

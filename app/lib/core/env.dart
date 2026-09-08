@@ -12,7 +12,7 @@ class Env {
   /// Deep-link / OAuth redirect target. Overridden per platform build.
   static const authRedirect = String.fromEnvironment(
     'AUTH_REDIRECT',
-    defaultValue: 'shadowchat://auth-callback',
+    defaultValue: 'peak://auth-callback',
   );
 
   static bool get isConfigured =>

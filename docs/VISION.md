@@ -2,7 +2,7 @@
 
 ## One sentence
 
-ShadowChat is a social network that treats attention, data, and relationships as
+Peak is a social network that treats attention, data, and relationships as
 belonging to the user — funded by people who choose to pay for it, not by advertisers.
 
 ## The problem we're reacting to
@@ -42,7 +42,7 @@ the company sells ads.
 
 ## What success looks like
 
-- A person can use ShadowChat for a year and feel it was **time well spent**, and say so.
+- A person can use Peak for a year and feel it was **time well spent**, and say so.
 - A creator can make a **living** on it and know the rules won't move against them overnight.
 - A user can **leave** — export everything, or move to another instance — in one afternoon,
   and we consider that a feature working as intended.

@@ -21,5 +21,5 @@ Future<void> main() async {
     );
   }
 
-  runApp(const ProviderScope(child: ShadowChatApp()));
+  runApp(const ProviderScope(child: PeakApp()));
 }

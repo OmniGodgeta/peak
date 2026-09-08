@@ -1,4 +1,4 @@
-package com.omnigodgeta.shadowchat
+package com.omnigodgeta.peak
 
 import io.flutter.embedding.android.FlutterActivity
 

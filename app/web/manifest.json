@@ -1,11 +1,11 @@
 {
-    "name": "shadowchat",
-    "short_name": "shadowchat",
+    "name": "Peak",
+    "short_name": "Peak",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "ShadowChat — an open, human-first social network",
+    "background_color": "#010B22",
+    "theme_color": "#010B22",
+    "description": "Peak — an open, human-first social network",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
