@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(36);
+select plan(42);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -241,6 +241,41 @@ select throws_ok(
     :'dm_id'
   ),
   null, 'a non-member cannot send into the conversation');
+
+-- ── groups + edit/delete + read receipts ───────────────────────────────────
+-- alice + bob are blocked (from earlier), so create_group must skip bob and
+-- keep only alice + kid.
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select create_group('Test group', array['00000000-0000-0000-0000-00000000000b',
+                                         '00000000-0000-0000-0000-00000000000c']::uuid[]) as grp \gset
+select is(
+  (select count(*)::int from conversation_members(:'grp')),
+  2, 'create_group adds the creator + unblocked members (bob is skipped)');
+select is(
+  (select is_group from conversation where id = :'grp'),
+  true, 'a created group is flagged is_group');
+
+insert into message (conversation_id, sender_id, body)
+  values (:'grp', '00000000-0000-0000-0000-00000000000a', 'draft')
+  returning id as gmsg \gset
+select edit_message(:'gmsg', 'final');
+select is((select body from message where id = :'gmsg'), 'final',
+  'edit_message updates the body');
+select delete_message(:'gmsg');
+select is((select deleted_at is not null from message where id = :'gmsg'), true,
+  'delete_message tombstones the row');
+
+-- read receipts: hidden until both members opt in
+select is((select count(*)::int from conversation_read_state(:'grp')), 0,
+  'read receipts are hidden by default');
+
+-- a member can leave (RLS allows deleting your own membership)
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select leave_conversation(:'grp');
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is(
+  (select count(*)::int from conversation_members(:'grp')),
+  1, 'leave_conversation removes the caller from the group');
 
 select finish();
 rollback;

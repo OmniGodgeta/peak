@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/messaging_repository.dart';
 import 'chat_screen.dart';
+import 'new_conversation_screen.dart';
 
 /// The Messages tab: your conversations, with a separate section for requests
 /// from people you don't follow. End-to-end encryption (MLS) arrives in
@@ -16,6 +17,14 @@ class MessagingScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Messages')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const NewConversationScreen(),
+          ),
+        ),
+        child: const Icon(Icons.edit_square),
+      ),
       body: convos.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
@@ -113,6 +122,7 @@ class _ConversationTile extends ConsumerWidget {
               conversationId: convo.id,
               title: convo.displayTitle,
               otherId: convo.otherId,
+              isGroup: convo.isGroup,
               isRequest: convo.isRequest,
             ),
           ),
