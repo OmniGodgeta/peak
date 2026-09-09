@@ -94,9 +94,12 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       full-screen viewer (tap to step, hold to pause, auto-advance); a plain
       viewer list for the author. No filters, no streaks. `purge_expired_stories()`
       sweep (hourly cron).
-- [ ] Profile shelves / highlights
+- [x] Profile highlights — pin up to 5 of your own posts to the top of your profile
+- [x] Data-light mode — per-device toggle; images load on tap
 - [ ] Video posts (transcode, adaptive playback), audio posts — needs `shadow` + CDN
-- [ ] Data-light mode
+
+Phase 3 is complete bar video/audio, which is gated on real media storage + a
+CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
 
 ## Phase 4 — Communities
 
