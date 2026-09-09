@@ -138,7 +138,13 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       `event_attendees`; can be scoped to a channel; going/maybe/not-going;
       client-side .ics + Google Calendar link; an events list, a detail page
       with the RSVP bar + attendee list, and a create/edit form). Voice later.
-- [ ] **4-5** — community wiki + pinned resources
+- [x] **4-5** — community wiki + pinned resources (`community_wiki_page` +
+      `community_wiki_revision`; every save snapshots a revision; a page can be
+      pinned to the community front page; moderators edit, members read;
+      `community_wiki_pages` / `wiki_page` / `wiki_page_history` /
+      `save_wiki_page` / `delete_wiki_page` / `set_wiki_pinned`; a wiki list, a
+      page view reusing the tiny Markdown renderer, an editor, and a history
+      view; a "Resources" block on the community page)
 - [ ] Richer discovery directory (topic tags, activity, language, SFW filter)
 
 ## Phase 5 — Ranking, custom feeds, discovery, moderation depth

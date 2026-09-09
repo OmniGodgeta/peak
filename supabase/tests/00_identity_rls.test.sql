@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(148);
+select plan(157);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -817,6 +817,40 @@ select is((select canceled from community_events(:'sid') where id = :'ev'),
 select throws_ok(
   format($$select rsvp_event(%L, 'going')$$, :'ev'),
   'no such event', 'a canceled event cannot be RSVP''d');
+
+-- ── Phase 4-5: community wiki ──────────────────────────────────────────
+-- bob is admin of secret-club (:'sid'); kid is a plain member.
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select save_wiki_page(:'sid', 'welcome', 'Welcome', E'# Hi\n\nRead the rules.')
+  as wp \gset
+select is((select count(*)::int from community_wiki_pages(:'sid')), 1,
+  'save_wiki_page creates a page');
+select is((select title from wiki_page(:'sid', 'welcome')), 'Welcome',
+  'wiki_page returns the page by slug');
+
+select save_wiki_page(:'sid', 'welcome', 'Welcome!', 'Updated body', 'fixed title');
+select is((select count(*)::int from wiki_page_history(:'wp')), 2,
+  'each save snapshots a revision');
+select is((select count(*)::int from community_wiki_pages(:'sid')), 1,
+  'editing an existing slug does not create a second page');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is((select can_edit from wiki_page(:'sid', 'welcome')), false,
+  'a plain member cannot edit the wiki');
+select is((select title from wiki_page(:'sid', 'welcome')), 'Welcome!',
+  'a member can read the wiki');
+select throws_ok(
+  format($$select save_wiki_page(%L, 'sneak', 'Sneak', '')$$, :'sid'),
+  'only a moderator can edit the wiki',
+  'a plain member cannot save a wiki page');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select set_wiki_pinned(:'wp', true);
+select is((select is_pinned from wiki_page(:'sid', 'welcome')), true,
+  'set_wiki_pinned pins the page');
+select delete_wiki_page(:'wp');
+select is((select count(*)::int from community_wiki_pages(:'sid')), 0,
+  'delete_wiki_page removes the page');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

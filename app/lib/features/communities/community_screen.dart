@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/community_repository.dart';
 import '../../data/supabase_providers.dart';
+import '../../data/wiki_repository.dart';
 import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
 import 'community_manage_screen.dart';
 import 'events/community_events_screen.dart';
 import 'mod_log_screen.dart';
+import 'wiki/community_wiki_screen.dart';
+import 'wiki/wiki_page_screen.dart';
 import 'modmail/start_modmail_sheet.dart';
 
 /// One community: its header, join/leave control, and its feed.
@@ -325,6 +328,67 @@ class _HeaderState extends ConsumerState<_Header> {
             _FlairChip(community: c),
           ],
           _RulesSection(community: c),
+          _WikiSection(community: c),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pinned wiki pages on the community front page + a link to the full wiki.
+class _WikiSection extends ConsumerWidget {
+  const _WikiSection({required this.community});
+  final Community community;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pages = ref.watch(communityWikiPagesProvider(community.id));
+    final all = pages.asData?.value ?? const [];
+    if (all.isEmpty) return const SizedBox.shrink();
+    final pinned = all.where((p) => p.isPinned).toList();
+    final theme = Theme.of(context);
+
+    void openWiki([String? slug]) => Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => slug == null
+            ? CommunityWikiScreen(community: community)
+            : WikiPageScreen(community: community, slug: slug),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Resources', style: theme.textTheme.titleSmall),
+              const Spacer(),
+              TextButton(
+                onPressed: () => openWiki(),
+                child: Text('Wiki (${all.length})'),
+              ),
+            ],
+          ),
+          for (final p in (pinned.isEmpty ? all.take(3) : pinned))
+            InkWell(
+              onTap: () => openWiki(p.slug),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Icon(
+                      p.isPinned ? Icons.push_pin : Icons.article_outlined,
+                      size: 15,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(p.title)),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
