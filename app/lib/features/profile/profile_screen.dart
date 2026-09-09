@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/profile_repository.dart';
+import '../../data/settings_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../settings/devices_screen.dart';
 import '../settings/your_data_screen.dart';
@@ -158,6 +159,13 @@ class ProfileScreen extends ConsumerWidget {
                     builder: (_) => const YourDataScreen(),
                   ),
                 ),
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.data_saver_off_outlined),
+                title: const Text('Data-light mode'),
+                subtitle: const Text('Don’t load images until you tap them'),
+                value: ref.watch(dataLightProvider),
+                onChanged: (v) => ref.read(dataLightProvider.notifier).set(v),
               ),
               const _ComingSoonTile(
                 label: 'Wellbeing & screen-time',

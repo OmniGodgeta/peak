@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/feed_repository.dart';
+import '../../data/settings_repository.dart';
 
 /// Renders a post's images (animated GIFs included — `Image.network` animates
 /// them). One image fills the width at its aspect ratio; 2–4 form a grid.
@@ -46,19 +47,54 @@ class PostMediaView extends ConsumerWidget {
   }
 }
 
-class _Img extends StatelessWidget {
+class _Img extends ConsumerStatefulWidget {
   const _Img({required this.url, this.alt});
   final String url;
   final String? alt;
 
   @override
+  ConsumerState<_Img> createState() => _ImgState();
+}
+
+class _ImgState extends ConsumerState<_Img> {
+  bool _tappedToLoad = false;
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final alt = widget.alt;
+
+    if (ref.watch(dataLightProvider) && !_tappedToLoad) {
+      return GestureDetector(
+        onTap: () => setState(() => _tappedToLoad = true),
+        child: Container(
+          color: scheme.surfaceContainerHigh,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.download_outlined, color: scheme.onSurfaceVariant),
+              const SizedBox(height: 4),
+              Text(
+                alt?.isNotEmpty == true ? alt! : 'Tap to load image',
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Semantics(
       label: alt,
       image: true,
       child: Image.network(
-        url,
+        widget.url,
         fit: BoxFit.cover,
         loadingBuilder: (context, child, progress) => progress == null
             ? child
