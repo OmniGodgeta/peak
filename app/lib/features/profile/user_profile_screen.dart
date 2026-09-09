@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/avatar.dart';
 import '../../data/feed_repository.dart';
 import '../../data/messaging_repository.dart';
 import '../../data/people_repository.dart';
@@ -114,17 +115,7 @@ class _HeaderState extends ConsumerState<_Header> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: scheme.primaryContainer,
-                child: Text(
-                  p.name.characters.first.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 26,
-                    color: scheme.onPrimaryContainer,
-                  ),
-                ),
-              ),
+              AvatarCircle(name: p.name, path: p.avatarPath, radius: 32),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

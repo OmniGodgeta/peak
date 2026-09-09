@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/feed_repository.dart';
+import '../../app/avatar.dart';
 import '../compose/compose_screen.dart';
 import '../profile/user_profile_screen.dart';
 import 'post_media_view.dart';
@@ -94,13 +95,9 @@ class _PostCardState extends ConsumerState<PostCard> {
               children: [
                 GestureDetector(
                   onTap: () => _openProfile(context),
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: scheme.primaryContainer,
-                    child: Text(
-                      p.authorName.characters.first.toUpperCase(),
-                      style: TextStyle(color: scheme.onPrimaryContainer),
-                    ),
+                  child: AvatarCircle(
+                    name: p.authorName,
+                    path: p.authorAvatarPath,
                   ),
                 ),
                 const SizedBox(width: 10),

@@ -52,6 +52,7 @@ class FeedPost {
     required this.authorDomain,
     required this.authorDisplayName,
     required this.authorIsTeen,
+    required this.authorAvatarPath,
     required this.reactionCount,
     required this.replyCount,
     required this.repostCount,
@@ -74,6 +75,7 @@ class FeedPost {
   final String authorDomain;
   final String authorDisplayName;
   final bool authorIsTeen;
+  final String? authorAvatarPath;
   final int reactionCount;
   final int replyCount;
   final int repostCount;
@@ -102,6 +104,7 @@ class FeedPost {
     authorDomain: (m['author_domain'] as String?) ?? 'peak.social',
     authorDisplayName: (m['author_display_name'] as String?) ?? '',
     authorIsTeen: (m['author_is_teen'] as bool?) ?? false,
+    authorAvatarPath: m['author_avatar_path'] as String?,
     reactionCount: (m['reaction_count'] as int?) ?? 0,
     replyCount: (m['reply_count'] as int?) ?? 0,
     repostCount: (m['repost_count'] as int?) ?? 0,

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/profile_repository.dart';
 import '../../data/supabase_providers.dart';
+import 'edit_profile_screen.dart';
+import 'user_profile_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -27,39 +30,113 @@ class ProfileScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('$e')),
         data: (p) {
           if (p == null) return const Center(child: Text('No profile.'));
+          final repo = ref.read(profileRepositoryProvider);
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               CircleAvatar(
                 radius: 36,
-                child: Text(
-                  (p.displayName.isNotEmpty ? p.displayName : p.handle)
-                      .characters
-                      .first
-                      .toUpperCase(),
-                  style: const TextStyle(fontSize: 28),
-                ),
+                backgroundImage: p.avatarPath != null
+                    ? NetworkImage(repo.avatarUrl(p.avatarPath!))
+                    : null,
+                child: p.avatarPath == null
+                    ? Text(
+                        p.displayNameOrHandle.characters.first.toUpperCase(),
+                        style: const TextStyle(fontSize: 28),
+                      )
+                    : null,
               ),
               const SizedBox(height: 12),
-              Text(
-                p.displayName.isNotEmpty ? p.displayName : p.handle,
-                style: Theme.of(context).textTheme.titleLarge,
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.displayNameOrHandle,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        Text(
+                          p.fqHandle,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        if (p.pronouns != null && p.pronouns!.isNotEmpty)
+                          Text(
+                            p.pronouns!,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => EditProfileScreen(profile: p),
+                      ),
+                    ),
+                    child: const Text('Edit'),
+                  ),
+                ],
               ),
-              Text(p.fqHandle, style: Theme.of(context).textTheme.bodyMedium),
               if (p.bio.isNotEmpty) ...[const SizedBox(height: 8), Text(p.bio)],
+              if (p.locationCoarse != null && p.locationCoarse!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.place_outlined,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      p.locationCoarse!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+              if (p.links.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (final l in p.links)
+                      ActionChip(
+                        avatar: const Icon(Icons.link, size: 14),
+                        label: Text(l.label.isNotEmpty ? l.label : l.url),
+                        onPressed: () {
+                          final uri = Uri.tryParse(l.url);
+                          if (uri != null) {
+                            launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 8),
-              if (p.accountKind == 'teen')
+              if (p.isTeen)
                 const Chip(label: Text('Teen account — private by default')),
               const Divider(height: 32),
-              const _ComingSoonTile(
-                label: 'Edit profile, avatar, links',
-                phase: 'Phase 0',
+              ListTile(
+                leading: const Icon(Icons.article_outlined),
+                title: const Text('Your profile & posts'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => UserProfileScreen(handle: p.handle),
+                  ),
+                ),
               ),
               const _ComingSoonTile(
                 label: 'Circles & who is in them',
                 phase: 'Phase 1',
               ),
-              const _ComingSoonTile(label: 'Your posts', phase: 'Phase 1'),
               const _ComingSoonTile(
                 label: 'Data export & real delete',
                 phase: 'Phase 3',

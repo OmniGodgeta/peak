@@ -1,7 +1,22 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'supabase_providers.dart';
+
+class ProfileLink {
+  const ProfileLink({required this.label, required this.url});
+  final String label;
+  final String url;
+
+  Map<String, String> toJson() => {'label': label, 'url': url};
+  factory ProfileLink.fromJson(Map<String, dynamic> m) => ProfileLink(
+    label: (m['label'] as String?) ?? '',
+    url: (m['url'] as String?) ?? '',
+  );
+}
 
 /// A Peak account. Mirrors the `profile` table.
 class Profile {
@@ -11,8 +26,13 @@ class Profile {
     required this.domain,
     required this.displayName,
     required this.bio,
+    required this.pronouns,
+    required this.locationCoarse,
+    required this.avatarPath,
+    required this.links,
     required this.accountKind,
     required this.showFollowCounts,
+    required this.isDiscoverable,
   });
 
   final String id;
@@ -20,13 +40,20 @@ class Profile {
   final String domain;
   final String displayName;
   final String bio;
+  final String? pronouns;
+  final String? locationCoarse;
+  final String? avatarPath;
+  final List<ProfileLink> links;
   final String accountKind; // 'adult' | 'teen'
   final bool showFollowCounts;
+  final bool isDiscoverable;
 
   /// Federation-shaped handle, shown everywhere: `@name@peak.social`.
   String get fqHandle => '@$handle@$domain';
 
   bool get isTeen => accountKind == 'teen';
+  String get displayNameOrHandle =>
+      displayName.isNotEmpty ? displayName : handle;
 
   factory Profile.fromMap(Map<String, dynamic> m) => Profile(
     id: m['id'] as String,
@@ -34,8 +61,16 @@ class Profile {
     domain: (m['domain'] as String?) ?? 'peak.social',
     displayName: (m['display_name'] as String?) ?? '',
     bio: (m['bio'] as String?) ?? '',
+    pronouns: m['pronouns'] as String?,
+    locationCoarse: m['location_coarse'] as String?,
+    avatarPath: m['avatar_path'] as String?,
+    links: [
+      for (final e in (m['links'] as List? ?? const []))
+        ProfileLink.fromJson(e as Map<String, dynamic>),
+    ],
     accountKind: (m['account_kind'] as String?) ?? 'adult',
     showFollowCounts: (m['show_follow_counts'] as bool?) ?? false,
+    isDiscoverable: (m['is_discoverable'] as bool?) ?? true,
   );
 }
 
@@ -85,6 +120,60 @@ class ProfileRepository {
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
+
+  /// Public URL for an `avatars` storage object.
+  String avatarUrl(String path) =>
+      _db.storage.from('avatars').getPublicUrl(path);
+
+  Future<String> uploadAvatar(Uint8List bytes, String mime) async {
+    final uid = _db.auth.currentUser!.id;
+    final ext = switch (mime) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      'image/gif' => 'gif',
+      _ => 'jpg',
+    };
+    final path = '$uid/${const Uuid().v4()}.$ext';
+    await _db.storage
+        .from('avatars')
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: mime, upsert: true),
+        );
+    return path;
+  }
+
+  Future<void> updateProfile({
+    required String displayName,
+    required String bio,
+    String? pronouns,
+    String? locationCoarse,
+    String? avatarPath,
+    List<ProfileLink> links = const [],
+    bool? showFollowCounts,
+    bool? isDiscoverable,
+  }) async {
+    final uid = _db.auth.currentUser!.id;
+    await _db
+        .from('profile')
+        .update({
+          'display_name': displayName.trim(),
+          'bio': bio.trim(),
+          'pronouns': (pronouns ?? '').trim().isEmpty ? null : pronouns!.trim(),
+          'location_coarse': (locationCoarse ?? '').trim().isEmpty
+              ? null
+              : locationCoarse!.trim(),
+          'avatar_path': ?avatarPath,
+          'links': links
+              .where((l) => l.url.trim().isNotEmpty)
+              .map((l) => l.toJson())
+              .toList(),
+          'show_follow_counts': ?showFollowCounts,
+          'is_discoverable': ?isDiscoverable,
+        })
+        .eq('id', uid);
+  }
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {

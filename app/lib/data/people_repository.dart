@@ -12,6 +12,7 @@ class PersonSummary {
     required this.domain,
     required this.displayName,
     required this.bio,
+    required this.avatarPath,
     required this.isTeen,
     required this.isFollowing,
   });
@@ -21,6 +22,7 @@ class PersonSummary {
   final String domain;
   final String displayName;
   final String bio;
+  final String? avatarPath;
   final bool isTeen;
   final bool isFollowing;
 
@@ -33,6 +35,7 @@ class PersonSummary {
     domain: (m['domain'] as String?) ?? 'peak.social',
     displayName: (m['display_name'] as String?) ?? '',
     bio: (m['bio'] as String?) ?? '',
+    avatarPath: m['avatar_path'] as String?,
     isTeen: (m['is_teen'] as bool?) ?? false,
     isFollowing: (m['is_following'] as bool?) ?? false,
   );
@@ -47,6 +50,7 @@ class ProfileView {
     required this.displayName,
     required this.bio,
     required this.pronouns,
+    required this.avatarPath,
     required this.locationCoarse,
     required this.isTeen,
     required this.createdAt,
@@ -65,6 +69,7 @@ class ProfileView {
   final String displayName;
   final String bio;
   final String? pronouns;
+  final String? avatarPath;
   final String? locationCoarse;
   final bool isTeen;
   final DateTime createdAt;
@@ -86,6 +91,7 @@ class ProfileView {
     displayName: (m['display_name'] as String?) ?? '',
     bio: (m['bio'] as String?) ?? '',
     pronouns: m['pronouns'] as String?,
+    avatarPath: m['avatar_path'] as String?,
     locationCoarse: m['location_coarse'] as String?,
     isTeen: (m['is_teen'] as bool?) ?? false,
     createdAt: DateTime.parse(m['created_at'] as String),
