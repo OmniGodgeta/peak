@@ -78,9 +78,10 @@ supabase secrets set KEY=value   # any function secrets
 
 - [ ] Create the project — **pick the region closest to users** (permanent)
 - [ ] `supabase db push` — verify all migrations apply clean from scratch
-- [ ] Deploy edge functions (`publish`, and later `media`, `push`, …)
-- [ ] Recreate **storage buckets** in the cloud project (or as a migration) so
-      photo / alt-text uploads work
+- [ ] Deploy edge functions (`app-version`, `publish`, and later `push`, …)
+- [ ] Confirm **storage buckets** exist after `db push` — `post-media` (public)
+      and `message-media` (private) are created by migrations, so they carry
+      over automatically; just verify, and re-check their RLS policies
 - [ ] Skip or trim `seed.sql` for production
 - [ ] Free tier launches fine; move to **Pro ($25/mo)** for daily backups, no
       auto-pause, and real resource limits before real traffic
