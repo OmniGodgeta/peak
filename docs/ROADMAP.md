@@ -110,7 +110,9 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       `community_feed`. Communities tab (directory + your communities), a
       community page with its feed + join/leave, a "create community" flow,
       and community-scoped posting in the composer.
-- [ ] **4-1** — request approval + member roster + role management + ban/kick
+- [x] **4-1** — request approval, member roster, role management (mod / admin,
+      last-admin protection), remove / ban / unban; a Manage screen + admin
+      "edit community"
 - [ ] **4-2** — the transparent mod log; labels instead of silent removals
 - [ ] **4-3** — rules-on-join, flair, modmail
 - [ ] **4-4** — text channels (voice later); events (RSVP, calendar export)
