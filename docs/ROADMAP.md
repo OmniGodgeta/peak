@@ -113,7 +113,10 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
 - [x] **4-1** — request approval, member roster, role management (mod / admin,
       last-admin protection), remove / ban / unban; a Manage screen + admin
       "edit community"
-- [ ] **4-2** — the transparent mod log; labels instead of silent removals
+- [x] **4-2** — `community_mod_log` (member-readable, every mod action logged
+      with an optional reason); `post_label` — a moderator labels a post
+      ("off-topic", …) instead of removing it; `moderate_remove_post`; a mod
+      log screen + post-card label chip + moderator controls
 - [ ] **4-3** — rules-on-join, flair, modmail
 - [ ] **4-4** — text channels (voice later); events (RSVP, calendar export)
 - [ ] **4-5** — community wiki + pinned resources
