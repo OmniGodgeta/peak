@@ -56,6 +56,12 @@ class DataRepository {
   DataRepository(this._db);
   final SupabaseClient _db;
 
+  /// Start the 30-day account-deletion grace period. The app locks to the
+  /// closing screen until this is cancelled or the account is purged.
+  Future<void> requestAccountDeletion() => _db.rpc('request_account_deletion');
+
+  Future<void> cancelAccountDeletion() => _db.rpc('cancel_account_deletion');
+
   Future<void> deletePost(String postId) =>
       _db.rpc('delete_post', params: {'p_post_id': postId});
 

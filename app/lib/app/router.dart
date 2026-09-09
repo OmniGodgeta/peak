@@ -7,6 +7,7 @@ import '../data/profile_repository.dart';
 import '../data/supabase_providers.dart';
 import '../features/auth/onboarding_screen.dart';
 import '../features/auth/sign_in_screen.dart';
+import '../features/settings/account_closing_screen.dart';
 import '../features/communities/communities_screen.dart';
 import '../features/discovery/discovery_screen.dart';
 import '../features/feed/feed_screen.dart';
@@ -38,6 +39,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!profileAsync.isLoading && profileAsync.asData?.value == null) {
         return atOnboarding ? null : '/onboarding';
       }
+
+      // Account scheduled for deletion → locked to the closing screen.
+      final atClosing = loc == '/account-closing';
+      if (profileAsync.asData?.value?.deletionRequestedAt != null) {
+        return atClosing ? null : '/account-closing';
+      }
+      if (atClosing) return '/feed';
+
       if (atAuth || atOnboarding) return '/feed';
       return null;
     },
@@ -48,6 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/sign-in', builder: (_, _) => const SignInScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
+      GoRoute(
+        path: '/account-closing',
+        builder: (_, _) => const AccountClosingScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),
         branches: [

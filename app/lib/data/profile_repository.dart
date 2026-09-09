@@ -33,6 +33,7 @@ class Profile {
     required this.accountKind,
     required this.showFollowCounts,
     required this.isDiscoverable,
+    required this.deletionRequestedAt,
   });
 
   final String id;
@@ -47,6 +48,13 @@ class Profile {
   final String accountKind; // 'adult' | 'teen'
   final bool showFollowCounts;
   final bool isDiscoverable;
+
+  /// Set once the owner has asked to delete the account; the account is purged
+  /// 30 days after this. While set, the app is locked to the closing screen.
+  final DateTime? deletionRequestedAt;
+
+  DateTime? get deletionPurgeAt =>
+      deletionRequestedAt?.add(const Duration(days: 30));
 
   /// Federation-shaped handle, shown everywhere: `@name@peak.social`.
   String get fqHandle => '@$handle@$domain';
@@ -71,6 +79,9 @@ class Profile {
     accountKind: (m['account_kind'] as String?) ?? 'adult',
     showFollowCounts: (m['show_follow_counts'] as bool?) ?? false,
     isDiscoverable: (m['is_discoverable'] as bool?) ?? true,
+    deletionRequestedAt: m['deletion_requested_at'] == null
+        ? null
+        : DateTime.parse(m['deletion_requested_at'] as String),
   );
 }
 

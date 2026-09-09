@@ -83,7 +83,10 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       signed archive link; AS2-shaped posts, graph, messages, devices
 - [x] **Real delete** — `delete_post` → 30-day "recently deleted" bin →
       `restore_post`; `purge_expired_deletions()` sweep (needs a `pg_cron` schedule)
-- [ ] Account deletion: immediate-suspend + 30-day grace + purge
+- [x] Account deletion: request → profile hidden + can't post → 30-day grace
+      (sign back in to cancel) → `purge_due_accounts()` cascade. Hiding a
+      closing account's *old posts* mid-grace is a follow-up (shares the
+      moderation-suspend primitive, Phase 5).
 - [ ] Long-form articles in the composer
 - [ ] Stories (24h, circle-addressed, no face-retouch filters, no streaks)
 - [ ] Profile shelves / highlights

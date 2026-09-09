@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/data_repository.dart';
 import '../../data/feed_repository.dart';
+import '../../data/profile_repository.dart';
 import '../feed/post_media_view.dart';
 
 /// Settings → Your data: the Phase 3 controls — one-click export and the
@@ -102,9 +103,60 @@ class _YourDataScreenState extends ConsumerState<YourDataScreen> {
               ),
             ),
           ),
+          const Divider(height: 24),
+          ListTile(
+            leading: Icon(
+              Icons.no_accounts_outlined,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Delete account',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            subtitle: const Text('30-day grace period, then permanent'),
+            onTap: _confirmDeleteAccount,
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text(
+          'Your profile is hidden right away and you can’t post. You have '
+          '30 days to sign back in and cancel — after that everything you’ve '
+          'made is permanently deleted.\n\n'
+          'Consider downloading your data first.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(dataRepositoryProvider).requestAccountDeletion();
+      ref.invalidate(myProfileProvider);
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
   }
 
   static String _size(int bytes) {

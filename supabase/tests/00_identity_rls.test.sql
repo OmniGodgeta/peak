@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(66);
+select plan(72);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -397,6 +397,38 @@ select ok((select purge_expired_deletions()) >= 1,
   'purge_expired_deletions hard-deletes posts past the 30-day window');
 select is((select count(*)::int from my_deleted_posts() where id = :'del_test_id'), 0,
   'the purged post is gone for good');
+
+-- ── Phase 3: account deletion ─────────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select request_account_deletion();
+select is(
+  (select is_discoverable from profile where id = '00000000-0000-0000-0000-00000000000a'),
+  false, 'request_account_deletion turns off discovery');
+
+-- kid follows alice but a closing account is still hidden from profile_view
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is((select count(*)::int from profile_view('alice')), 0,
+  'a closing account is hidden from profile_view');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select cancel_account_deletion();
+select is(
+  (select deletion_requested_at from profile where id = '00000000-0000-0000-0000-00000000000a'),
+  null, 'cancel_account_deletion clears the request');
+
+-- purge only after the grace window
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select request_account_deletion();
+select is((select purge_due_accounts()), 0,
+  'purge_due_accounts spares accounts still inside the 30-day grace');
+set local role postgres;
+update profile set deletion_requested_at = now() - interval '31 days'
+  where id = '00000000-0000-0000-0000-00000000000c';
+select ok((select purge_due_accounts()) >= 1,
+  'purge_due_accounts removes accounts past the grace window');
+select is(
+  (select count(*)::int from profile where id = '00000000-0000-0000-0000-00000000000c'),
+  0, 'purging an account cascades away its profile row');
 
 select finish();
 rollback;
