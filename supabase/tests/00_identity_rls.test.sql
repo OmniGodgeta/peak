@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(72);
+select plan(75);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -429,6 +429,28 @@ select ok((select purge_due_accounts()) >= 1,
 select is(
   (select count(*)::int from profile where id = '00000000-0000-0000-0000-00000000000c'),
   0, 'purging an account cascades away its profile row');
+
+-- ── Phase 3: long-form articles ──────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select throws_ok(
+  $$ insert into post (author_id, persona_id, body, visibility, long_form)
+     select '00000000-0000-0000-0000-00000000000a',
+            (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
+            'no title', 'public', true $$,
+  'new row for relation "post" violates check constraint "post_article_needs_title"',
+  'a long_form post with no title is rejected');
+
+insert into post (author_id, persona_id, title, body, visibility, long_form)
+select '00000000-0000-0000-0000-00000000000a',
+       (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
+       'My First Article', 'A paragraph.', 'public', true
+returning id as art_id \gset
+select is(
+  (select long_form from feed_latest(now() + interval '1 hour', 100) where id = :'art_id'),
+  true, 'feed_latest carries the long_form flag');
+select is(
+  (select title from feed_latest(now() + interval '1 hour', 100) where id = :'art_id'),
+  'My First Article', 'feed_latest carries the article title');
 
 select finish();
 rollback;

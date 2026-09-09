@@ -7,6 +7,7 @@ import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
 import '../compose/compose_screen.dart';
 import '../profile/user_profile_screen.dart';
+import 'article_screen.dart';
 import 'post_media_view.dart';
 import 'thread_screen.dart';
 
@@ -40,10 +41,16 @@ class _PostCardState extends ConsumerState<PostCard> {
   }
 
   void _openThread() {
+    final p = widget.post;
+    if (p.longForm && p.replyTo == null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => ArticleScreen(article: p)),
+      );
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            ThreadScreen(rootId: widget.post.replyTo ?? widget.post.id),
+        builder: (_) => ThreadScreen(rootId: p.replyTo ?? p.id),
       ),
     );
   }
@@ -237,10 +244,14 @@ class _PostCardState extends ConsumerState<PostCard> {
                     ),
                   ),
                 ),
-              if (p.body.isNotEmpty) Text(p.body),
-              if (p.media.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                PostMediaView(media: p.media),
+              if (p.longForm && p.replyTo == null)
+                _ArticlePreview(post: p)
+              else ...[
+                if (p.body.isNotEmpty) Text(p.body),
+                if (p.media.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  PostMediaView(media: p.media),
+                ],
               ],
             ],
             const SizedBox(height: 4),
@@ -303,6 +314,70 @@ class _PostCardState extends ConsumerState<PostCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ArticlePreview extends StatelessWidget {
+  const _ArticlePreview({required this.post});
+  final FeedPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    // Strip the light markdown markers so the feed lede reads as prose.
+    final lede = post.body
+        .split('\n')
+        .map((l) => l.replaceFirst(RegExp(r'^\s*(#{1,2}\s+|[-*]\s+)'), ''))
+        .join(' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.article_outlined, size: 13, color: scheme.primary),
+            const SizedBox(width: 4),
+            Text(
+              'ARTICLE',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.primary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          post.title ?? 'Untitled',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (lede.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            lede,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+        if (post.media.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          PostMediaView(media: post.media),
+        ],
+        const SizedBox(height: 6),
+        Text(
+          'Read article →',
+          style: theme.textTheme.labelLarge?.copyWith(color: scheme.primary),
+        ),
+      ],
     );
   }
 }

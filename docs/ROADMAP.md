@@ -87,7 +87,9 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       (sign back in to cancel) → `purge_due_accounts()` cascade. Hiding a
       closing account's *old posts* mid-grace is a follow-up (shares the
       moderation-suspend primitive, Phase 5).
-- [ ] Long-form articles in the composer
+- [x] Long-form articles — a post with a title + a big body, its own reading
+      page with a tiny built-in Markdown renderer (headings, lists, paragraphs);
+      replies/reactions/circle visibility all inherited from `post`
 - [ ] Stories (24h, circle-addressed, no face-retouch filters, no streaks)
 - [ ] Profile shelves / highlights
 - [ ] Video posts (transcode, adaptive playback), audio posts — needs `shadow` + CDN

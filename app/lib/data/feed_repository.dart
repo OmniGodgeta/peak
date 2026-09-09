@@ -59,6 +59,8 @@ class FeedPost {
     required this.viewerReacted,
     required this.viewerReposted,
     required this.media,
+    this.title,
+    this.longForm = false,
     this.replyTo,
     this.depth = 0,
   });
@@ -82,6 +84,12 @@ class FeedPost {
   final bool viewerReacted;
   final bool viewerReposted;
   final List<PostMedia> media;
+
+  /// Long-form article title + flag. When [longForm] is true the card shows a
+  /// lede and opens a dedicated reading page instead of a thread.
+  final String? title;
+  final bool longForm;
+
   final String? replyTo; // set in thread views
   final int depth; // set in thread views
 
@@ -114,6 +122,8 @@ class FeedPost {
       for (final e in (m['media'] as List? ?? const []))
         PostMedia.fromMap(e as Map<String, dynamic>),
     ],
+    title: m['title'] as String?,
+    longForm: (m['long_form'] as bool?) ?? false,
     replyTo: m['reply_to'] as String?,
     depth: (m['depth'] as num?)?.toInt() ?? 0,
   );

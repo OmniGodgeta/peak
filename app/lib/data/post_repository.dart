@@ -81,7 +81,7 @@ class PostRepository {
     await _db.from('post_media').insert(rows);
   }
 
-  /// Create a top-level post.
+  /// Create a top-level post. Pass [title] + `longForm: true` for an article.
   Future<void> createPost({
     required String body,
     required PostVisibility visibility,
@@ -89,6 +89,8 @@ class PostRepository {
     List<PendingMedia> media = const [],
     String? contentWarning,
     bool isSensitive = false,
+    String? title,
+    bool longForm = false,
   }) async {
     final uid = _db.auth.currentUser!.id;
     final personaId = await _defaultPersonaId(uid);
@@ -102,6 +104,8 @@ class PostRepository {
           'visibility': visibility.name,
           'content_warning': contentWarning,
           'is_sensitive': isSensitive,
+          'long_form': longForm,
+          if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         })
         .select('id')
         .single();

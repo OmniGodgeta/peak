@@ -21,9 +21,11 @@ class ComposeScreen extends ConsumerStatefulWidget {
 class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   final _body = TextEditingController();
   final _cw = TextEditingController();
+  final _title = TextEditingController();
   final _selected = <String>{};
   final _media = <PendingMedia>[];
   bool _showCw = false;
+  bool _article = false;
   bool _busy = false;
   String? _error;
 
@@ -34,6 +36,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   void dispose() {
     _body.dispose();
     _cw.dispose();
+    _title.dispose();
     super.dispose();
   }
 
@@ -64,6 +67,10 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   Future<void> _submit(List<Circle> circles) async {
     if (_body.text.trim().isEmpty && _media.isEmpty) {
       setState(() => _error = 'Say something, or add a photo.');
+      return;
+    }
+    if (_article && _title.text.trim().isEmpty) {
+      setState(() => _error = 'An article needs a title.');
       return;
     }
     if (!_isReply && _selected.isEmpty) {
@@ -107,6 +114,8 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           circleIds: _selected.toList(),
           media: _media,
           contentWarning: cw,
+          longForm: _article,
+          title: _article ? _title.text.trim() : null,
         );
       }
       ref.invalidate(feedProvider);
@@ -186,14 +195,33 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
               ),
               const SizedBox(height: 12),
             ],
+            if (_article) ...[
+              TextField(
+                controller: _title,
+                textCapitalization: TextCapitalization.sentences,
+                style: Theme.of(context).textTheme.titleLarge,
+                maxLength: 200,
+                decoration: const InputDecoration(
+                  hintText: 'Title',
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
             TextField(
               controller: _body,
               autofocus: true,
-              minLines: 3,
-              maxLines: 10,
-              maxLength: 5000,
+              minLines: _article ? 10 : 3,
+              maxLines: _article ? 40 : 10,
+              maxLength: _article ? 100000 : 5000,
+              textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                hintText: _isReply ? 'Write a reply' : "What's happening?",
+                hintText: _isReply
+                    ? 'Write a reply'
+                    : _article
+                    ? 'Write your article. Blank lines start new paragraphs; '
+                          '“# ” and “## ” make headings; “- ” makes a list.'
+                    : "What's happening?",
               ),
             ),
             if (_media.isNotEmpty) ...[
@@ -221,6 +249,15 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                   icon: const Icon(Icons.warning_amber_outlined, size: 18),
                   label: Text(_showCw ? 'Remove warning' : 'Content warning'),
                 ),
+                if (!_isReply)
+                  TextButton.icon(
+                    onPressed: () => setState(() => _article = !_article),
+                    icon: Icon(
+                      _article ? Icons.notes : Icons.article_outlined,
+                      size: 18,
+                    ),
+                    label: Text(_article ? 'Simple post' : 'Article'),
+                  ),
               ],
             ),
             if (!_isReply) ...[
