@@ -9,10 +9,19 @@ import '../../data/post_repository.dart';
 /// New post or reply. Text + up to 4 photos/GIFs + a content warning. For a new
 /// post the circle picker is mandatory; a reply inherits the parent's audience.
 class ComposeScreen extends ConsumerStatefulWidget {
-  const ComposeScreen({super.key, this.replyTo});
+  const ComposeScreen({
+    super.key,
+    this.replyTo,
+    this.communityId,
+    this.communityName,
+  });
 
   /// When set, this composer posts a reply to that post.
   final FeedPost? replyTo;
+
+  /// When set, this composer posts into a community (no circle picker).
+  final String? communityId;
+  final String? communityName;
 
   @override
   ConsumerState<ComposeScreen> createState() => _ComposeScreenState();
@@ -30,6 +39,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   String? _error;
 
   bool get _isReply => widget.replyTo != null;
+  bool get _isCommunity => widget.communityId != null && !_isReply;
   static const _maxMedia = 4;
 
   @override
@@ -73,7 +83,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       setState(() => _error = 'An article needs a title.');
       return;
     }
-    if (!_isReply && _selected.isEmpty) {
+    if (!_isReply && !_isCommunity && _selected.isEmpty) {
       setState(() => _error = 'Pick at least one circle to post to.');
       return;
     }
@@ -98,6 +108,17 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           body: _body.text.trim(),
           media: _media,
           contentWarning: cw,
+        );
+      } else if (_isCommunity) {
+        await repo.createPost(
+          body: _body.text.trim(),
+          visibility: PostVisibility.public,
+          circleIds: const [],
+          media: _media,
+          contentWarning: cw,
+          longForm: _article,
+          title: _article ? _title.text.trim() : null,
+          communityId: widget.communityId,
         );
       } else {
         final publicIds = circles
@@ -185,6 +206,20 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             if (_isReply) _ReplyingTo(post: widget.replyTo!),
+            if (_isCommunity)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.groups_outlined, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Posting to ${widget.communityName ?? "this community"}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
             if (_showCw) ...[
               TextField(
                 controller: _cw,
@@ -260,7 +295,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                   ),
               ],
             ),
-            if (!_isReply) ...[
+            if (!_isReply && !_isCommunity) ...[
               const Divider(height: 24),
               Text(
                 'Who can see this?',

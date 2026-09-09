@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(87);
+select plan(97);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -494,6 +494,59 @@ select is(
   0, 'an expired story drops out of story_thread');
 select ok((select purge_expired_stories()) >= 1,
   'purge_expired_stories removes expired stories');
+
+-- ── Phase 4: communities ─────────────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select create_community(
+  'rust-lang', 'Rustaceans', 'All things Rust',
+  array['programming', 'rust'], 'open', false
+) as cid \gset
+select is((select my_role::text from community_view('rust-lang')), 'admin',
+  'the creator is an admin member');
+select is((select member_count from community_view('rust-lang')), 1,
+  'a new community has one member');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is((select count(*)::int from communities_browse('rust')), 1,
+  'communities_browse finds an open community');
+select is(join_community(:'cid')::text, 'active',
+  'joining an open community is immediate');
+select is(
+  (select count(*)::int from my_communities() where slug = 'rust-lang'),
+  1, 'the community shows in my_communities after joining');
+
+insert into post (author_id, persona_id, body, visibility, community_id)
+select '00000000-0000-0000-0000-00000000000c',
+       (select id from persona where account_id = '00000000-0000-0000-0000-00000000000c'),
+       'hello rust', 'public', :'cid'
+returning id as cpost \gset
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is(
+  (select count(*)::int from community_feed(:'cid', now() + interval '1 hour', 50)),
+  1, 'a community post shows in community_feed for members');
+select is(
+  (select count(*)::int from feed_latest(now() + interval '1 hour', 100)
+   where id = :'cpost'),
+  0, 'community posts stay out of the home feed');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select create_community('secret-club', 'Secret Club', '', '{}', 'request', false)
+  as sid \gset
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(join_community(:'sid')::text, 'request',
+  'joining a request-policy community creates a pending request');
+
+select leave_community(:'cid');
+select is(
+  (select count(*)::int from my_communities() where slug = 'rust-lang'),
+  0, 'leave_community removes membership');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select throws_ok(
+  format($$select leave_community(%L)$$, :'cid'),
+  'promote another admin before you leave',
+  'the last admin cannot leave');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

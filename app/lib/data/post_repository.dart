@@ -81,7 +81,8 @@ class PostRepository {
     await _db.from('post_media').insert(rows);
   }
 
-  /// Create a top-level post. Pass [title] + `longForm: true` for an article.
+  /// Create a top-level post. Pass [title] + `longForm: true` for an article,
+  /// or [communityId] to post into a community.
   Future<void> createPost({
     required String body,
     required PostVisibility visibility,
@@ -91,6 +92,7 @@ class PostRepository {
     bool isSensitive = false,
     String? title,
     bool longForm = false,
+    String? communityId,
   }) async {
     final uid = _db.auth.currentUser!.id;
     final personaId = await _defaultPersonaId(uid);
@@ -106,6 +108,7 @@ class PostRepository {
           'is_sensitive': isSensitive,
           'long_form': longForm,
           if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+          'community_id': ?communityId,
         })
         .select('id')
         .single();
@@ -133,14 +136,14 @@ class PostRepository {
 
     final parent = await _db
         .from('post')
-        .select('visibility, root_id')
+        .select('visibility, root_id, community_id')
         .eq('id', parentId)
         .single();
     final rootId = (parent['root_id'] as String?) ?? parentId;
 
-    // The reply carries the root's visibility value; `post_thread` gates the
-    // whole thread on the root's visibility, so a reply is seen exactly when
-    // the root is (Phase 1 model — revisited in Phase 4).
+    // The reply carries the root's visibility value (and community, if any);
+    // `post_thread` gates the whole thread on the root, so a reply is seen
+    // exactly when the root is.
     final reply = await _db
         .from('post')
         .insert({
@@ -152,6 +155,7 @@ class PostRepository {
           'root_id': rootId,
           'content_warning': contentWarning,
           'is_sensitive': isSensitive,
+          'community_id': ?parent['community_id'],
         })
         .select('id')
         .single();

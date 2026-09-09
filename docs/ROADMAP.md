@@ -101,15 +101,21 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
 Phase 3 is complete bar video/audio, which is gated on real media storage + a
 CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
 
-## Phase 4 — Communities
+## Phase 4 — Communities  ·  *in progress*
 
-- [ ] `community`, `community_member`, `community_role`, channels, `community_post`
-- [ ] Community feed + text/voice channels
-- [ ] Roles & permissions, flair, rules-on-join, modmail
-- [ ] **Transparent mod log** visible to members; labels-not-just-removals
-- [ ] Events (RSVP, reminders, calendar export)
-- [ ] Community wiki + pinned resources
-- [ ] Discovery directory for communities
+- [x] **4-0** — `community` / `community_member` (+ role/state enums); `post`
+      gains `community_id`; `can_view_post` + `post_insert` learn about
+      community posts; `create_community` / `join_community` / `leave_community`
+      / `community_view` / `communities_browse` / `my_communities` /
+      `community_feed`. Communities tab (directory + your communities), a
+      community page with its feed + join/leave, a "create community" flow,
+      and community-scoped posting in the composer.
+- [ ] **4-1** — request approval + member roster + role management + ban/kick
+- [ ] **4-2** — the transparent mod log; labels instead of silent removals
+- [ ] **4-3** — rules-on-join, flair, modmail
+- [ ] **4-4** — text channels (voice later); events (RSVP, calendar export)
+- [ ] **4-5** — community wiki + pinned resources
+- [ ] Richer discovery directory (topic tags, activity, language, SFW filter)
 
 ## Phase 5 — Ranking, custom feeds, discovery, moderation depth
 
