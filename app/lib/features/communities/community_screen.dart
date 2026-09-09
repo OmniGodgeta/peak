@@ -5,6 +5,7 @@ import '../../data/community_repository.dart';
 import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
 import 'community_manage_screen.dart';
+import 'mod_log_screen.dart';
 
 /// One community: its header, join/leave control, and its feed.
 class CommunityScreen extends ConsumerWidget {
@@ -20,6 +21,16 @@ class CommunityScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('c/$slug'),
         actions: [
+          if (c != null && c.isMember)
+            IconButton(
+              tooltip: 'Moderation log',
+              icon: const Icon(Icons.receipt_long_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ModLogScreen(communityId: c.id),
+                ),
+              ),
+            ),
           if (c != null && c.canModerate)
             IconButton(
               tooltip: 'Manage',
@@ -239,7 +250,10 @@ class _Feed extends ConsumerWidget {
         return SliverList.separated(
           itemCount: posts.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (_, i) => PostCard(post: posts[i]),
+          itemBuilder: (_, i) => PostCard(
+            post: posts[i],
+            moderatorControls: community.canModerate,
+          ),
         );
       },
     );

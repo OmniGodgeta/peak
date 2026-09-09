@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/community_repository.dart';
 import '../../data/data_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/people_repository.dart';
@@ -16,11 +17,20 @@ import 'thread_screen.dart';
 /// §2.6) for likes/reposts; reply count is shown because it's conversational
 /// context, not a vanity metric.
 class PostCard extends ConsumerStatefulWidget {
-  const PostCard({super.key, required this.post, this.tappable = true});
+  const PostCard({
+    super.key,
+    required this.post,
+    this.tappable = true,
+    this.moderatorControls = false,
+  });
   final FeedPost post;
 
   /// In a thread the current post shouldn't re-open the thread on tap.
   final bool tappable;
+
+  /// Shown in a community feed when the viewer moderates it — adds Label /
+  /// Remove to the overflow menu.
+  final bool moderatorControls;
 
   @override
   ConsumerState<PostCard> createState() => _PostCardState();
@@ -138,6 +148,62 @@ class _PostCardState extends ConsumerState<PostCard> {
     }
   }
 
+  Future<void> _moderate(String action) async {
+    final repo = ref.read(communityRepositoryProvider);
+    try {
+      if (action == 'remove') {
+        final reason = await _askReason('Remove this post?');
+        if (reason == null) return;
+        await repo.removePost(widget.post.id, reason: reason);
+        if (mounted) setState(() => _deleted = true);
+      } else if (action == 'unlabel') {
+        await repo.unlabelPost(widget.post.id);
+      } else {
+        // action is the label text
+        await repo.labelPost(widget.post.id, action);
+      }
+      ref.invalidate(feedRevisionProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(action == 'remove' ? 'Removed' : 'Done')),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<String?> _askReason(String title) async {
+    final c = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            hintText: 'Reason (shown in the mod log)',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, c.text.trim()),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _togglePin() async {
     final repo = ref.read(dataRepositoryProvider);
     try {
@@ -211,6 +277,31 @@ class _PostCardState extends ConsumerState<PostCard> {
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
+                  ],
+                ),
+              ),
+            if (p.communityLabel != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  children: [
+                    Chip(
+                      avatar: const Icon(Icons.label_outline, size: 14),
+                      label: Text(p.communityLabel!),
+                      visualDensity: VisualDensity.compact,
+                      side: BorderSide.none,
+                      backgroundColor: scheme.secondaryContainer,
+                    ),
+                    if (p.communityLabelNote != null &&
+                        p.communityLabelNote!.isNotEmpty)
+                      Text(
+                        p.communityLabelNote!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -332,6 +423,14 @@ class _PostCardState extends ConsumerState<PostCard> {
                         _togglePin();
                       case 'delete':
                         _confirmDelete();
+                      case 'mod-remove':
+                        _moderate('remove');
+                      case 'mod-unlabel':
+                        _moderate('unlabel');
+                      default:
+                        if (v.startsWith('label:')) {
+                          _moderate(v.substring(6));
+                        }
                     }
                   },
                   itemBuilder: (_) => [
@@ -354,6 +453,32 @@ class _PostCardState extends ConsumerState<PostCard> {
                           style: TextStyle(color: scheme.error),
                         ),
                       ),
+                    if (widget.moderatorControls) ...[
+                      const PopupMenuDivider(),
+                      if (p.communityLabel == null)
+                        for (final l in const [
+                          'off-topic',
+                          'unverified',
+                          'satire',
+                          'spoiler',
+                        ])
+                          PopupMenuItem(
+                            value: 'label:$l',
+                            child: Text('Label “$l”'),
+                          )
+                      else
+                        const PopupMenuItem(
+                          value: 'mod-unlabel',
+                          child: Text('Remove label'),
+                        ),
+                      PopupMenuItem(
+                        value: 'mod-remove',
+                        child: Text(
+                          'Remove (moderator)',
+                          style: TextStyle(color: scheme.error),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],

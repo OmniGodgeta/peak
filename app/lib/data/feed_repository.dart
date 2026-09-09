@@ -62,6 +62,8 @@ class FeedPost {
     this.title,
     this.longForm = false,
     this.isPinned = false,
+    this.communityLabel,
+    this.communityLabelNote,
     this.replyTo,
     this.depth = 0,
   });
@@ -94,6 +96,11 @@ class FeedPost {
   /// True when the author has pinned this post to their profile (only ever set
   /// by `posts_by`).
   final bool isPinned;
+
+  /// A community moderator's label on this post ("off-topic", …) + an optional
+  /// note. Only set by `community_feed`.
+  final String? communityLabel;
+  final String? communityLabelNote;
 
   final String? replyTo; // set in thread views
   final int depth; // set in thread views
@@ -130,6 +137,8 @@ class FeedPost {
     title: m['title'] as String?,
     longForm: (m['long_form'] as bool?) ?? false,
     isPinned: (m['is_pinned'] as bool?) ?? false,
+    communityLabel: m['label'] as String?,
+    communityLabelNote: m['label_note'] as String?,
     replyTo: m['reply_to'] as String?,
     depth: (m['depth'] as num?)?.toInt() ?? 0,
   );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/avatar.dart';
 import '../../data/community_repository.dart';
 import 'community_edit_screen.dart';
+import 'mod_log_screen.dart';
 
 /// Moderator tools for one community: join requests, the member roster with
 /// role controls, and the ban list. Admins also get "Edit community".
@@ -34,6 +35,16 @@ class CommunityManageScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('Moderation log'),
+              subtitle: const Text('Every mod action, visible to members'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ModLogScreen(communityId: community.id),
+                ),
+              ),
+            ),
             if (community.isAdmin)
               ListTile(
                 leading: const Icon(Icons.tune),

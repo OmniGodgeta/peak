@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(105);
+select plan(115);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -586,6 +586,59 @@ select tests.act_as('00000000-0000-0000-0000-00000000000c');
 select throws_ok(
   format($$select join_community(%L)$$, :'cid'),
   'you can''t join this community', 'a banned user cannot rejoin');
+
+-- ── Phase 4-2: mod log + labels ─────────────────────────────────────────
+-- alice has run set_role + ban on rust-lang by now.
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select ok((select count(*)::int from community_mod_log(:'cid')) >= 2,
+  'moderator actions are recorded in the mod log');
+select is(
+  (select count(*)::int from community_mod_log(:'cid') where action = 'ban_member'),
+  1, 'the ban is in the mod log');
+select is(
+  (select count(*)::int from community_mod_log(:'cid') where action = 'set_role'),
+  1, 'the role change is in the mod log');
+
+-- kid is banned → no longer a member → can't read the log
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is((select count(*)::int from community_mod_log(:'cid')), 0,
+  'a non-member sees no mod log');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+insert into post (author_id, persona_id, body, visibility, community_id)
+select '00000000-0000-0000-0000-00000000000a',
+       (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
+       'a community post', 'public', :'cid'
+returning id as cmp \gset
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select throws_ok(
+  format($$select label_post(%L, 'off-topic')$$, :'cmp'),
+  'not a moderator', 'a non-moderator cannot label a post');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select label_post(:'cmp', 'off-topic', 'Wrong place for this.');
+select is(
+  (select label from community_feed(:'cid', now() + interval '1 hour', 50)
+   where id = :'cmp'),
+  'off-topic', 'label_post shows a label in community_feed');
+select is(
+  (select count(*)::int from community_mod_log(:'cid') where action = 'label_post'),
+  1, 'labeling a post is logged');
+select unlabel_post(:'cmp');
+select is(
+  (select label from community_feed(:'cid', now() + interval '1 hour', 50)
+   where id = :'cmp'),
+  null, 'unlabel_post clears the label');
+
+select moderate_remove_post(:'cmp', 'spam');
+select is(
+  (select count(*)::int from community_feed(:'cid', now() + interval '1 hour', 50)
+   where id = :'cmp'),
+  0, 'moderate_remove_post takes the post out of the feed');
+select is(
+  (select count(*)::int from community_mod_log(:'cid') where action = 'remove_post'),
+  1, 'a moderator removal is logged');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

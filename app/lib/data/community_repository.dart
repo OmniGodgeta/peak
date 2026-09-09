@@ -163,6 +163,63 @@ class MyCommunity {
   );
 }
 
+/// One entry in a community's transparent moderation log.
+class ModLogEntry {
+  const ModLogEntry({
+    required this.id,
+    required this.action,
+    required this.label,
+    required this.reason,
+    required this.createdAt,
+    required this.actorName,
+    required this.targetName,
+    required this.targetPostId,
+  });
+
+  final String id;
+  final String action;
+  final String? label;
+  final String? reason;
+  final DateTime createdAt;
+  final String? actorName;
+  final String? targetName;
+  final String? targetPostId;
+
+  /// A plain-language summary, e.g. "Alice removed a post".
+  String describe() {
+    final actor = actorName ?? 'A moderator';
+    final target = targetName ?? 'someone';
+    return switch (action) {
+      'approve_request' => '$actor approved $target',
+      'decline_request' => '$actor declined $target',
+      'set_role' => '$actor set $target to ${label ?? "a new role"}',
+      'remove_member' => '$actor removed $target',
+      'ban_member' => '$actor banned $target',
+      'unban_member' => '$actor unbanned $target',
+      'label_post' => '$actor labelled a post "${label ?? ""}"',
+      'unlabel_post' => '$actor removed a label from a post',
+      'remove_post' => '$actor removed a post',
+      'edit_settings' => '$actor edited the community settings',
+      _ => '$actor did $action',
+    };
+  }
+
+  factory ModLogEntry.fromMap(Map<String, dynamic> m) => ModLogEntry(
+    id: m['id'] as String,
+    action: m['action'] as String,
+    label: m['label'] as String?,
+    reason: m['reason'] as String?,
+    createdAt: DateTime.parse(m['created_at'] as String),
+    actorName: (m['actor_display_name'] as String?)?.isNotEmpty == true
+        ? m['actor_display_name'] as String
+        : m['actor_handle'] as String?,
+    targetName: (m['target_display_name'] as String?)?.isNotEmpty == true
+        ? m['target_display_name'] as String
+        : m['target_handle'] as String?,
+    targetPostId: m['target_post_id'] as String?,
+  );
+}
+
 class CommunityRepository {
   CommunityRepository(this._db);
   final SupabaseClient _db;
@@ -256,10 +313,15 @@ class CommunityRepository {
     params: {'p_community_id': communityId, 'p_member_id': memberId},
   );
 
-  Future<void> decline(String communityId, String memberId) => _db.rpc(
-    'decline_request',
-    params: {'p_community_id': communityId, 'p_member_id': memberId},
-  );
+  Future<void> decline(String communityId, String memberId, {String? reason}) =>
+      _db.rpc(
+        'decline_request',
+        params: {
+          'p_community_id': communityId,
+          'p_member_id': memberId,
+          'p_reason': ?reason,
+        },
+      );
 
   Future<void> setRole(String communityId, String memberId, String role) =>
       _db.rpc(
@@ -275,12 +337,14 @@ class CommunityRepository {
     String communityId,
     String memberId, {
     bool ban = false,
+    String? reason,
   }) => _db.rpc(
     'remove_member',
     params: {
       'p_community_id': communityId,
       'p_member_id': memberId,
       'p_ban': ban,
+      'p_reason': ?reason,
     },
   );
 
@@ -288,6 +352,32 @@ class CommunityRepository {
     'unban_member',
     params: {'p_community_id': communityId, 'p_member_id': memberId},
   );
+
+  // ── labels + mod log (4-2) ──────────────────────────────────────────────
+
+  Future<void> labelPost(String postId, String label, {String? note}) =>
+      _db.rpc(
+        'label_post',
+        params: {'p_post_id': postId, 'p_label': label, 'p_note': ?note},
+      );
+
+  Future<void> unlabelPost(String postId) =>
+      _db.rpc('unlabel_post', params: {'p_post_id': postId});
+
+  Future<void> removePost(String postId, {String? reason}) => _db.rpc(
+    'moderate_remove_post',
+    params: {'p_post_id': postId, 'p_reason': ?reason},
+  );
+
+  Future<List<ModLogEntry>> modLog(String communityId) async {
+    final rows = await _db.rpc(
+      'community_mod_log',
+      params: {'p_community_id': communityId},
+    ) as List;
+    return [
+      for (final r in rows) ModLogEntry.fromMap(r as Map<String, dynamic>),
+    ];
+  }
 
   Future<void> saveSettings({
     required String communityId,
@@ -351,4 +441,9 @@ final communityPendingProvider =
 final communityBannedProvider =
     FutureProvider.family<List<CommunityPerson>, String>((ref, id) async {
       return ref.watch(communityRepositoryProvider).banned(id);
+    });
+
+final communityModLogProvider =
+    FutureProvider.family<List<ModLogEntry>, String>((ref, id) async {
+      return ref.watch(communityRepositoryProvider).modLog(id);
     });
