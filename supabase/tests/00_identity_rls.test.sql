@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(97);
+select plan(105);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -547,6 +547,45 @@ select throws_ok(
   format($$select leave_community(%L)$$, :'cid'),
   'promote another admin before you leave',
   'the last admin cannot leave');
+
+-- ── Phase 4-1: moderation ────────────────────────────────────────────────
+-- kid requested secret-club earlier; bob (its admin) approves.
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is((select count(*)::int from community_pending_requests(:'sid')), 1,
+  'a moderator sees the pending join request');
+select approve_request(:'sid', '00000000-0000-0000-0000-00000000000c');
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(
+  (select count(*)::int from my_communities() where slug = 'secret-club'),
+  1, 'approve_request makes the requester an active member');
+
+-- roles + removal on the open community
+select is(join_community(:'cid')::text, 'active', 'kid rejoins the open community');
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select set_member_role(:'cid', '00000000-0000-0000-0000-00000000000c', 'moderator');
+select is(
+  (select role::text from community_roster(:'cid')
+   where member_id = '00000000-0000-0000-0000-00000000000c'),
+  'moderator', 'set_member_role promotes a member');
+select throws_ok(
+  format($$select set_member_role(%L, %L, 'member')$$,
+         :'cid', '00000000-0000-0000-0000-00000000000a'),
+  'promote another admin first', 'the last admin cannot be demoted');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select throws_ok(
+  format($$select remove_member(%L, %L)$$,
+         :'cid', '00000000-0000-0000-0000-00000000000a'),
+  'you can only remove members', 'a moderator cannot remove an admin');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select remove_member(:'cid', '00000000-0000-0000-0000-00000000000c', true);
+select is((select count(*)::int from community_banned(:'cid')), 1,
+  'remove_member with ban lists the user as banned');
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select throws_ok(
+  format($$select join_community(%L)$$, :'cid'),
+  'you can''t join this community', 'a banned user cannot rejoin');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

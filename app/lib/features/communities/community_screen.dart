@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/community_repository.dart';
 import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
+import 'community_manage_screen.dart';
 
 /// One community: its header, join/leave control, and its feed.
 class CommunityScreen extends ConsumerWidget {
@@ -14,8 +15,28 @@ class CommunityScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final community = ref.watch(communityViewProvider(slug));
 
+    final c = community.asData?.value;
     return Scaffold(
-      appBar: AppBar(title: Text('c/$slug')),
+      appBar: AppBar(
+        title: Text('c/$slug'),
+        actions: [
+          if (c != null && c.canModerate)
+            IconButton(
+              tooltip: 'Manage',
+              icon: c.pendingCount > 0
+                  ? Badge(
+                      label: Text('${c.pendingCount}'),
+                      child: const Icon(Icons.shield_outlined),
+                    )
+                  : const Icon(Icons.shield_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CommunityManageScreen(community: c),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: community.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),

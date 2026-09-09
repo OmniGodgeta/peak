@@ -22,7 +22,9 @@ class Community {
     required this.topics,
     required this.joinPolicy,
     required this.isNsfw,
+    required this.isListed,
     required this.memberCount,
+    required this.pendingCount,
     required this.myRole,
     required this.myState,
   });
@@ -34,13 +36,16 @@ class Community {
   final List<String> topics;
   final CommunityJoinPolicy joinPolicy;
   final bool isNsfw;
+  final bool isListed;
   final int memberCount;
+  final int pendingCount; // pending join requests (0 unless you moderate)
   final String? myRole; // member | moderator | admin
   final String? myState; // active | request | banned
 
   bool get isMember => myState == 'active';
   bool get isPending => myState == 'request';
   bool get canModerate => myRole == 'moderator' || myRole == 'admin';
+  bool get isAdmin => myRole == 'admin';
 
   factory Community.fromMap(Map<String, dynamic> m) => Community(
     id: m['id'] as String,
@@ -50,9 +55,52 @@ class Community {
     topics: [for (final t in (m['topics'] as List? ?? const [])) t as String],
     joinPolicy: _policy(m['join_policy'] as String?),
     isNsfw: (m['is_nsfw'] as bool?) ?? false,
+    isListed: (m['is_listed'] as bool?) ?? true,
     memberCount: (m['member_count'] as int?) ?? 0,
+    pendingCount: (m['pending_count'] as int?) ?? 0,
     myRole: m['my_role'] as String?,
     myState: m['my_state'] as String?,
+  );
+}
+
+/// A member (or a pending requester, or a banned user) with their identity.
+class CommunityPerson {
+  const CommunityPerson({
+    required this.memberId,
+    required this.handle,
+    required this.domain,
+    required this.displayName,
+    required this.avatarPath,
+    this.role,
+    this.flair,
+    this.at,
+  });
+
+  final String memberId;
+  final String handle;
+  final String domain;
+  final String displayName;
+  final String? avatarPath;
+  final String? role; // member | moderator | admin (roster only)
+  final String? flair;
+  final DateTime? at; // joined / requested time
+
+  String get name => displayName.isNotEmpty ? displayName : handle;
+  String get fqHandle => '@$handle@$domain';
+
+  factory CommunityPerson.fromMap(Map<String, dynamic> m) => CommunityPerson(
+    memberId: m['member_id'] as String,
+    handle: m['handle'] as String,
+    domain: (m['domain'] as String?) ?? 'peak.social',
+    displayName: (m['display_name'] as String?) ?? '',
+    avatarPath: m['avatar_path'] as String?,
+    role: m['role'] as String?,
+    flair: m['flair'] as String?,
+    at: switch (m) {
+      {'since': final String s} => DateTime.parse(s),
+      {'requested_at': final String s} => DateTime.parse(s),
+      _ => null,
+    },
   );
 }
 
@@ -183,6 +231,84 @@ class CommunityRepository {
         FeedPost.fromMap(r as Map<String, dynamic>),
     ];
   }
+
+  // ── moderation ──────────────────────────────────────────────────────────
+
+  Future<List<CommunityPerson>> _people(String rpc, String communityId) async {
+    final rows =
+        await _db.rpc(rpc, params: {'p_community_id': communityId}) as List;
+    return [
+      for (final r in rows) CommunityPerson.fromMap(r as Map<String, dynamic>),
+    ];
+  }
+
+  Future<List<CommunityPerson>> roster(String communityId) =>
+      _people('community_roster', communityId);
+
+  Future<List<CommunityPerson>> pendingRequests(String communityId) =>
+      _people('community_pending_requests', communityId);
+
+  Future<List<CommunityPerson>> banned(String communityId) =>
+      _people('community_banned', communityId);
+
+  Future<void> approve(String communityId, String memberId) => _db.rpc(
+    'approve_request',
+    params: {'p_community_id': communityId, 'p_member_id': memberId},
+  );
+
+  Future<void> decline(String communityId, String memberId) => _db.rpc(
+    'decline_request',
+    params: {'p_community_id': communityId, 'p_member_id': memberId},
+  );
+
+  Future<void> setRole(String communityId, String memberId, String role) =>
+      _db.rpc(
+        'set_member_role',
+        params: {
+          'p_community_id': communityId,
+          'p_member_id': memberId,
+          'p_role': role,
+        },
+      );
+
+  Future<void> remove(
+    String communityId,
+    String memberId, {
+    bool ban = false,
+  }) => _db.rpc(
+    'remove_member',
+    params: {
+      'p_community_id': communityId,
+      'p_member_id': memberId,
+      'p_ban': ban,
+    },
+  );
+
+  Future<void> unban(String communityId, String memberId) => _db.rpc(
+    'unban_member',
+    params: {'p_community_id': communityId, 'p_member_id': memberId},
+  );
+
+  Future<void> saveSettings({
+    required String communityId,
+    required String name,
+    required String description,
+    required List<String> topics,
+    required CommunityJoinPolicy joinPolicy,
+    required bool nsfw,
+    required bool listed,
+  }) => _db.rpc(
+    'set_community_settings',
+    params: {
+      'p_community_id': communityId,
+      'p_name': name,
+      'p_description': description,
+      'p_topics': topics,
+      'p_join_policy': joinPolicy.name,
+      'p_nsfw': nsfw,
+      'p_is_listed': listed,
+    },
+  );
 }
 
 final communityRepositoryProvider = Provider<CommunityRepository>((ref) {
@@ -211,3 +337,18 @@ final communityFeedProvider = FutureProvider.family<List<FeedPost>, String>((
 ) async {
   return ref.watch(communityRepositoryProvider).feed(communityId);
 });
+
+final communityRosterProvider =
+    FutureProvider.family<List<CommunityPerson>, String>((ref, id) async {
+      return ref.watch(communityRepositoryProvider).roster(id);
+    });
+
+final communityPendingProvider =
+    FutureProvider.family<List<CommunityPerson>, String>((ref, id) async {
+      return ref.watch(communityRepositoryProvider).pendingRequests(id);
+    });
+
+final communityBannedProvider =
+    FutureProvider.family<List<CommunityPerson>, String>((ref, id) async {
+      return ref.watch(communityRepositoryProvider).banned(id);
+    });
