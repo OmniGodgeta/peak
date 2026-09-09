@@ -55,12 +55,24 @@ Goal: talk to people privately.
 - [ ] Message requests inbox for non-connections
 - [ ] Disappearing messages + `pg_cron` sweep
 
-### Phase 2.5 — E2E encryption
+### Phase 2.5 — E2E encryption (MLS, multi-device)
 
-- [ ] OpenMLS FFI binding for Flutter; key management in secure storage
-- [ ] MLS group lifecycle (create, add/remove, key rotation) wired to conversations
-- [ ] Server relays ciphertext + key packages only; migration of existing chats
-- [ ] Encrypted local export with user-held key
+Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
+
+- [x] **2.5-0** — design + schema (`device`, `key_package`, `mls_*`,
+      `history_blob`, `conversation.e2ee`), `claim_key_packages` RPC,
+      `E2eeService` seam with the no-op impl
+- [ ] **2.5-1** — native OpenMLS build (cargo-ndk + xcframework) + `dart:ffi`
+      bindings + local round-trip smoke test *(needs the Rust toolchain)*
+- [ ] **2.5-2** — device registration + key-package pool + device-list UI
+- [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
+      messages; feature flag on for new conversations
+- [ ] **2.5-4** — membership/device changes (Add/Remove/Update + Commit),
+      epoch handling, key rotation
+- [ ] **2.5-5** — encrypted history archive + new-device restore + recovery phrase
+- [ ] **2.5-6** — key-verification / safety-number screen + device-list
+      transparency check
+- [ ] **2.5-7** — migrate or label the remaining transport-only DMs; flip default
 
 ## Phase 3 — Rich media, stories, articles, data controls
 

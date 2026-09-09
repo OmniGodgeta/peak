@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(42);
+select plan(45);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -276,6 +276,32 @@ select tests.act_as('00000000-0000-0000-0000-00000000000a');
 select is(
   (select count(*)::int from conversation_members(:'grp')),
   1, 'leave_conversation removes the caller from the group');
+
+-- ── E2EE foundation: devices + key packages ────────────────────────────────
+-- kid registers two devices (kid follows alice, no block between them)
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+insert into device (account_id, public_sig_key, label)
+  values ('00000000-0000-0000-0000-00000000000c', '\x01', 'phone')
+  returning id as kid_dev \gset
+insert into key_package (device_id, data) values
+  (:'kid_dev', '\xaa'), (:'kid_dev', '\xbb');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');  -- alice claims
+select is(
+  (select count(*)::int from claim_key_packages(
+     array['00000000-0000-0000-0000-00000000000c']::uuid[])),
+  1, 'claim_key_packages returns one package per device');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(
+  (select count(*)::int from key_package where consumed_at is not null),
+  1, 'claiming marks exactly one package consumed');
+
+-- another account can't read a device's raw key_package rows
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is(
+  (select count(*)::int from key_package),
+  0, 'key_package rows are private to the owning device');
 
 select finish();
 rollback;
