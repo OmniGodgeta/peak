@@ -41,6 +41,10 @@ dependencies:
   image_picker: ^1.2.3
   uuid: ^4.6.0
   url_launcher: ^6.3.2
+  # In-app updater (sideloaded Android build): read the running version and
+  # write the downloaded APK somewhere the system installer can reach it.
+  package_info_plus: ^10.2.1
+  path_provider: ^2.1.5
   # Pure-Dart Ed25519 for the per-device identity signature key (Phase 2.5).
   # No native code — the OpenMLS FFI lib (2.5-1) is separate.
   cryptography: ^2.7.0

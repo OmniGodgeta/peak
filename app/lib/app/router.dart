@@ -8,6 +8,8 @@ import '../data/supabase_providers.dart';
 import '../features/auth/onboarding_screen.dart';
 import '../features/auth/sign_in_screen.dart';
 import '../features/settings/account_closing_screen.dart';
+import '../updater/update_gate.dart';
+import '../updater/update_service.dart';
 import '../features/communities/communities_screen.dart';
 import '../features/discovery/discovery_screen.dart';
 import '../features/feed/feed_screen.dart';
@@ -26,6 +28,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             ? null
             : '/not-configured';
       }
+
+      // A build below minSupportedVersionCode is locked out entirely.
+      final blocked =
+          ref.read(updateCheckProvider).asData?.value.status ==
+          UpdateStatus.blocked;
+      if (blocked) {
+        return state.matchedLocation == '/update-required'
+            ? null
+            : '/update-required';
+      }
+      if (state.matchedLocation == '/update-required') return '/feed';
 
       final signedIn = ref.read(currentUserProvider) != null;
       final loc = state.matchedLocation;
@@ -60,6 +73,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/account-closing',
         builder: (_, _) => const AccountClosingScreen(),
+      ),
+      GoRoute(
+        path: '/update-required',
+        builder: (_, _) => const UpdateRequiredScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),
@@ -109,5 +126,6 @@ class _AuthRefresh extends ChangeNotifier {
   _AuthRefresh(Ref ref) {
     ref.listen(authStateProvider, (_, _) => notifyListeners());
     ref.listen(myProfileProvider, (_, _) => notifyListeners());
+    ref.listen(updateCheckProvider, (_, _) => notifyListeners());
   }
 }

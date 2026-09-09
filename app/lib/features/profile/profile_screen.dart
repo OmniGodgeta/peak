@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/profile_repository.dart';
 import '../../data/settings_repository.dart';
 import '../../data/supabase_providers.dart';
+import '../../updater/update_gate.dart';
+import '../../updater/update_service.dart';
 import '../settings/devices_screen.dart';
 import '../settings/your_data_screen.dart';
 import 'edit_profile_screen.dart';
@@ -171,10 +173,51 @@ class ProfileScreen extends ConsumerWidget {
                 label: 'Wellbeing & screen-time',
                 phase: 'Phase 5',
               ),
+              const Divider(height: 32),
+              const _VersionTile(),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+class _VersionTile extends ConsumerWidget {
+  const _VersionTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(appVersionLabelProvider).asData?.value ?? '…';
+    final check = ref.watch(updateCheckProvider);
+    final status = check.asData?.value.status;
+
+    final (String subtitle, VoidCallback onTap) = switch (status) {
+      UpdateStatus.available => (
+        'Update available — tap to install',
+        () {
+          final r = check.asData?.value.release;
+          if (r != null) showUpdateSheet(context, r);
+        },
+      ),
+      _ => (
+        check.isLoading ? 'Checking…' : "You're up to date",
+        () => ref.invalidate(updateCheckProvider),
+      ),
+    };
+
+    return ListTile(
+      leading: const Icon(Icons.system_update_outlined),
+      title: Text('Peak $version'),
+      subtitle: Text(subtitle),
+      trailing: status == UpdateStatus.available
+          ? Icon(
+              Icons.circle,
+              size: 10,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : const Icon(Icons.refresh, size: 18),
+      onTap: onTap,
     );
   }
 }
