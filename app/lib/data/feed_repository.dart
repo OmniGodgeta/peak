@@ -61,6 +61,7 @@ class FeedPost {
     required this.media,
     this.title,
     this.longForm = false,
+    this.isPinned = false,
     this.replyTo,
     this.depth = 0,
   });
@@ -89,6 +90,10 @@ class FeedPost {
   /// lede and opens a dedicated reading page instead of a thread.
   final String? title;
   final bool longForm;
+
+  /// True when the author has pinned this post to their profile (only ever set
+  /// by `posts_by`).
+  final bool isPinned;
 
   final String? replyTo; // set in thread views
   final int depth; // set in thread views
@@ -124,6 +129,7 @@ class FeedPost {
     ],
     title: m['title'] as String?,
     longForm: (m['long_form'] as bool?) ?? false,
+    isPinned: (m['is_pinned'] as bool?) ?? false,
     replyTo: m['reply_to'] as String?,
     depth: (m['depth'] as num?)?.toInt() ?? 0,
   );

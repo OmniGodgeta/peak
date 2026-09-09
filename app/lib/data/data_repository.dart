@@ -65,6 +65,12 @@ class DataRepository {
   Future<void> deletePost(String postId) =>
       _db.rpc('delete_post', params: {'p_post_id': postId});
 
+  Future<void> pinPost(String postId) =>
+      _db.rpc('pin_post', params: {'p_post_id': postId});
+
+  Future<void> unpinPost(String postId) =>
+      _db.rpc('unpin_post', params: {'p_post_id': postId});
+
   Future<void> restorePost(String postId) =>
       _db.rpc('restore_post', params: {'p_post_id': postId});
 

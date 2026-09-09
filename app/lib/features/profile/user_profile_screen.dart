@@ -238,9 +238,28 @@ class _Posts extends ConsumerWidget {
             child: Center(child: Text('No posts yet.')),
           );
         }
+        final pinned = list.where((p) => p.isPinned).toList();
+        final rest = list.where((p) => !p.isPinned).toList();
         return Column(
           children: [
-            for (final post in list) ...[
+            for (final post in pinned) ...[
+              PostCard(post: post),
+              const Divider(height: 1),
+            ],
+            if (pinned.isNotEmpty && rest.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                alignment: Alignment.centerLeft,
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                child: Text(
+                  'Posts',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            for (final post in rest) ...[
               PostCard(post: post),
               const Divider(height: 1),
             ],

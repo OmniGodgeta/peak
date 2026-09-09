@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(84);
+select plan(87);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -419,6 +419,27 @@ select is(
 select is(
   (select title from feed_latest(now() + interval '1 hour', 100) where id = :'art_id'),
   'My First Article', 'feed_latest carries the article title');
+
+-- ── Phase 3: profile pins ────────────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select pin_post(:'art_id');
+select is(
+  (select is_pinned from posts_by('00000000-0000-0000-0000-00000000000a', now() + interval '1 hour', 100)
+   where id = :'art_id'),
+  true, 'pin_post marks the post pinned in posts_by');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select throws_ok(
+  format($$select pin_post(%L)$$, :'art_id'),
+  'you can only pin your own top-level posts',
+  'pin_post refuses a post you do not own');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select unpin_post(:'art_id');
+select is(
+  (select is_pinned from posts_by('00000000-0000-0000-0000-00000000000a', now() + interval '1 hour', 100)
+   where id = :'art_id'),
+  false, 'unpin_post clears the pin');
 
 -- ── Phase 3: stories ─────────────────────────────────────────────────────
 -- alice adds kid to her Friends circle, then posts a story to it. kid follows

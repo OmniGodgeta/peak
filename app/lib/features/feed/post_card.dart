@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/data_repository.dart';
 import '../../data/feed_repository.dart';
+import '../../data/people_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
 import '../compose/compose_screen.dart';
@@ -137,6 +138,23 @@ class _PostCardState extends ConsumerState<PostCard> {
     }
   }
 
+  Future<void> _togglePin() async {
+    final repo = ref.read(dataRepositoryProvider);
+    try {
+      if (widget.post.isPinned) {
+        await repo.unpinPost(widget.post.id);
+      } else {
+        await repo.pinPost(widget.post.id);
+      }
+      ref.invalidate(postsByProvider(widget.post.authorId));
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.post;
@@ -176,6 +194,26 @@ class _PostCardState extends ConsumerState<PostCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (p.isPinned)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.push_pin,
+                      size: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Pinned',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Row(
               children: [
                 GestureDetector(
@@ -290,6 +328,8 @@ class _PostCardState extends ConsumerState<PostCard> {
                             content: Text('Feed transparency — Phase 5'),
                           ),
                         );
+                      case 'pin':
+                        _togglePin();
                       case 'delete':
                         _confirmDelete();
                     }
@@ -299,6 +339,13 @@ class _PostCardState extends ConsumerState<PostCard> {
                       value: 'why',
                       child: Text('Why am I seeing this?'),
                     ),
+                    if (_isMine)
+                      PopupMenuItem(
+                        value: 'pin',
+                        child: Text(
+                          p.isPinned ? 'Unpin from profile' : 'Pin to profile',
+                        ),
+                      ),
                     if (_isMine)
                       PopupMenuItem(
                         value: 'delete',
