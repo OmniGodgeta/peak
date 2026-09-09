@@ -47,3 +47,4 @@ coverage/
 # Build artifacts (APKs are large; distribute via Releases, not git)
 *.apk
 *.aab
+/dist/
