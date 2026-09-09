@@ -143,12 +143,41 @@ jobs:
         if: env.IS_TAG == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          BACKEND: ${{ steps.backend.outputs.url }}
+          SHA: ${{ steps.art.outputs.sha256 }}
+          APK: ${{ steps.ver.outputs.apk }}
         run: |
+          # A tailnet backend URL means the build only works on the owner's
+          # Tailscale network — mark it a prerelease and say so.
+          prerelease=""
+          reach="Talks to \`$BACKEND\`."
+          case "$BACKEND" in
+            *ts.net*|*.local*|10.*|192.168.*)
+              prerelease="--prerelease"
+              reach="**Preview build.** It talks to a development backend at \`$BACKEND\`, reachable only over the project owner's Tailscale network — it will not connect from a normal internet connection." ;;
+          esac
+
+          cat > /tmp/notes.md <<EOF
+          Signed Android build of Peak, version ${{ steps.ver.outputs.name }} (${{ steps.ver.outputs.code }}).
+
+          $reach
+
+          ### Install
+          1. Download \`$APK\` below.
+          2. On your Android device, allow installing from your browser / files app when prompted.
+          3. Open the APK to install. The in-app updater handles future versions.
+
+          \`\`\`
+          sha256  $SHA
+          \`\`\`
+          EOF
+
           gh release create "$GITHUB_REF_NAME" \
             --title "Peak $GITHUB_REF_NAME" \
-            --generate-notes \
-            "dist/${{ steps.ver.outputs.apk }}" \
-            "dist/${{ steps.ver.outputs.apk }}.sha256"
+            --notes-file /tmp/notes.md \
+            $prerelease \
+            "dist/$APK" \
+            "dist/$APK.sha256"
 
       - name: Upload workflow artifact (dispatch runs)
         if: env.IS_TAG != 'true'
