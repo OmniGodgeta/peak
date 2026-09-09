@@ -19,12 +19,12 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
 - [x] App shell: go_router, dark/light/high-contrast theme, Riverpod, Supabase wiring
 - [x] Auth (email) + onboarding (handle, display name, date of birth)
 - [x] Profile view (read)
+- [x] RLS policy tests (pgTAP, 66 assertions) + `supabase test db` green in CI
+- [x] Profile edit (avatar, bio, links, pronouns)
+- [x] CI running green (Flutter + Supabase schema + Edge Functions jobs)
 - [ ] Self-host the Supabase stack on `shadow` — see [SELF_HOSTING.md](SELF_HOSTING.md)
 - [ ] Apply migrations to that instance; wire the app's `env.json` to it
-- [ ] RLS policy tests (pgTAP) + `supabase test db` green in CI
 - [ ] Passkey + OAuth sign-in (email works today)
-- [ ] Profile edit (avatar, bio, links, pronouns)
-- [ ] CI running green (workflow needs `workflow` scope on the gh token to push)
 
 ## Phase 1 — MVP feed
 
@@ -33,15 +33,16 @@ thing that is recognizably "a social network."
 
 - [x] `post`, `post_audience`, `post_media`, `reaction`, `repost`, `mention` tables + RLS
 - [x] `feed_latest` RPC + `can_view_post` visibility function
-- [~] Composer: text + circle picker + CW done; photos, alt-text flow, reply/quote
-      controls, polls, drafts, scheduling still to do
-- [ ] Route posting through the `publish` Edge Function (mentions + fan-out server-side)
-- [ ] Media upload pipeline (EXIF strip, renditions, thumbnails)
-- [ ] **Latest** feed (reverse-chronological) + **Friends-first** feed
-- [ ] "You're caught up" marker; autoplay off; captions on
-- [ ] Likes (counts private by default), reactions, threaded replies, reposts/quotes
-- [ ] Block (real semantics) + mute + mute-words
-- [ ] Teen-account defaults
+- [x] Composer: text + circle picker + CW + photos with alt-text
+- [x] `publish` Edge Function (mentions resolved server-side)
+- [x] **Latest** feed; "You're caught up" marker
+- [x] Likes (counts private by default), threaded replies + thread view, reposts
+- [x] Block (real semantics) + mute + mute-words in the visibility helpers
+- [x] Teen-account defaults (private, not discoverable)
+- [x] Delete a post → 30-day recyclable bin (see Phase 3 data controls)
+- [~] Composer: alt-text is a soft prompt; polls, drafts, scheduling, quote-posts to do
+- [ ] Media upload pipeline (EXIF strip, renditions, thumbnails) — needs `shadow`
+- [ ] **Friends-first** feed variant
 - [ ] Notifications (in-app + push, bundled, quiet hours, neutral badge)
 - [ ] Report content/account → moderation intake
 
@@ -49,10 +50,11 @@ thing that is recognizably "a social network."
 
 Goal: talk to people privately.
 
-- [ ] `conversation`, `conversation_member`, `message` + RLS
-- [ ] 1:1 and group chat over Realtime; media, voice notes, reactions, replies
-- [ ] Typing indicators (opt-in), read receipts (opt-in), edit/delete-for-everyone
-- [ ] Message requests inbox for non-connections
+- [x] `conversation`, `conversation_member`, `message` + RLS
+- [x] 1:1 and group chat over Realtime; media, reactions via edit/delete
+- [x] Typing indicators (opt-in), read receipts (both-sides opt-in), edit/delete-for-everyone
+- [x] Message requests (non-connections land in a request state)
+- [ ] Voice notes
 - [ ] Disappearing messages + `pg_cron` sweep
 
 ### Phase 2.5 — E2E encryption (MLS, multi-device)
@@ -64,7 +66,8 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       `E2eeService` seam with the no-op impl
 - [ ] **2.5-1** — native OpenMLS build (cargo-ndk + xcframework) + `dart:ffi`
       bindings + local round-trip smoke test *(needs the Rust toolchain)*
-- [ ] **2.5-2** — device registration + key-package pool + device-list UI
+- [~] **2.5-2** — device registration + Devices screen shipped (pure-Dart
+      Ed25519 identity key); real key-package generation waits on 2.5-1
 - [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
       messages; feature flag on for new conversations
 - [ ] **2.5-4** — membership/device changes (Add/Remove/Update + Commit),
@@ -74,14 +77,17 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       transparency check
 - [ ] **2.5-7** — migrate or label the remaining transport-only DMs; flip default
 
-## Phase 3 — Rich media, stories, articles, data controls
+## Phase 3 — Rich media, stories, articles, data controls  ·  *in progress*
 
-- [ ] Video posts (transcode, adaptive playback), audio posts
+- [x] **One-click data export** — `export_my_data()` + `export` Edge Function →
+      signed archive link; AS2-shaped posts, graph, messages, devices
+- [x] **Real delete** — `delete_post` → 30-day "recently deleted" bin →
+      `restore_post`; `purge_expired_deletions()` sweep (needs a `pg_cron` schedule)
+- [ ] Account deletion: immediate-suspend + 30-day grace + purge
 - [ ] Long-form articles in the composer
 - [ ] Stories (24h, circle-addressed, no face-retouch filters, no streaks)
 - [ ] Profile shelves / highlights
-- [ ] **One-click data export** (ActivityStreams archive)
-- [ ] **Real delete** + "recently deleted" bin + retention jobs
+- [ ] Video posts (transcode, adaptive playback), audio posts — needs `shadow` + CDN
 - [ ] Data-light mode
 
 ## Phase 4 — Communities

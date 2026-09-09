@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(56);
+select plan(66);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -345,6 +345,58 @@ select isnt((select revoked_at from my_devices() where id = :'bob_dev'), null,
   'revoke_device sets revoked_at for the owner');
 select is((select key_package_pool(:'bob_dev')), 0,
   'revoking a device burns its unclaimed key packages');
+
+-- ── Phase 3: data controls (real delete + bin, export) ────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+insert into post (author_id, persona_id, body, visibility)
+values ('00000000-0000-0000-0000-00000000000a',
+        (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
+        'delete me', 'public')
+returning id as del_test_id \gset
+
+-- kid is not the author
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select throws_ok(
+  format($$select delete_post(%L)$$, :'del_test_id'),
+  'post not found',
+  'delete_post refuses a post you do not own');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select delete_post(:'del_test_id');
+select is((select count(*)::int from my_deleted_posts() where id = :'del_test_id'), 1,
+  'delete_post moves the post to the recently-deleted bin');
+select is(
+  (select purges_at::date from my_deleted_posts() where id = :'del_test_id'),
+  (now() + interval '30 days')::date,
+  'the bin shows a 30-day purge date');
+select is(
+  (select count(*)::int from feed_latest(now() + interval '1 hour', 100)
+   where id = :'del_test_id'),
+  0, 'a deleted post is gone from the feed');
+
+select restore_post(:'del_test_id');
+select is((select count(*)::int from my_deleted_posts() where id = :'del_test_id'), 0,
+  'restore_post empties it from the bin');
+select is(
+  (select count(*)::int from feed_latest(now() + interval '1 hour', 100)
+   where id = :'del_test_id'),
+  1, 'a restored post is back in the feed');
+
+select is(export_my_data() ->> 'peak_export_version', '1',
+  'export_my_data stamps the format version');
+select is(jsonb_typeof(export_my_data() -> 'posts'), 'array',
+  'export_my_data returns a posts array');
+
+-- purge sweeps rows past the 30-day window (backdate as the table owner, since
+-- RLS hides soft-deleted rows even from a plain UPDATE by their author)
+select delete_post(:'del_test_id');
+set local role postgres;
+update post set deleted_at = now() - interval '40 days' where id = :'del_test_id';
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select ok((select purge_expired_deletions()) >= 1,
+  'purge_expired_deletions hard-deletes posts past the 30-day window');
+select is((select count(*)::int from my_deleted_posts() where id = :'del_test_id'), 0,
+  'the purged post is gone for good');
 
 select finish();
 rollback;

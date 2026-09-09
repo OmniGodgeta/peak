@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/profile_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../settings/devices_screen.dart';
+import '../settings/your_data_screen.dart';
 import 'edit_profile_screen.dart';
 import 'user_profile_screen.dart';
 
@@ -148,9 +149,15 @@ class ProfileScreen extends ConsumerWidget {
                 label: 'Circles & who is in them',
                 phase: 'Phase 1',
               ),
-              const _ComingSoonTile(
-                label: 'Data export & real delete',
-                phase: 'Phase 3',
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: const Text('Your data'),
+                subtitle: const Text('Export everything · recently deleted'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const YourDataScreen(),
+                  ),
+                ),
               ),
               const _ComingSoonTile(
                 label: 'Wellbeing & screen-time',

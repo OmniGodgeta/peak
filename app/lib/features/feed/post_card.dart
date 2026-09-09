@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/data_repository.dart';
 import '../../data/feed_repository.dart';
+import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
 import '../compose/compose_screen.dart';
 import '../profile/user_profile_screen.dart';
@@ -27,6 +29,7 @@ class _PostCardState extends ConsumerState<PostCard> {
   late bool _reposted = widget.post.viewerReposted;
   late int _replyCount = widget.post.replyCount;
   bool _cwRevealed = false;
+  bool _deleted = false;
 
   void _openProfile(BuildContext context) {
     Navigator.of(context).push(
@@ -76,6 +79,57 @@ class _PostCardState extends ConsumerState<PostCard> {
     }
   }
 
+  bool get _isMine => widget.post.authorId == ref.read(currentUserProvider)?.id;
+
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this post?'),
+        content: const Text(
+          'It’s removed for everyone right away. You have 30 days to restore '
+          'it from Settings → Your data → Recently deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(dataRepositoryProvider).deletePost(widget.post.id);
+      if (!mounted) return;
+      setState(() => _deleted = true);
+      ref.read(feedRevisionProvider.notifier).bump();
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<void> _undoDelete() async {
+    try {
+      await ref.read(dataRepositoryProvider).restorePost(widget.post.id);
+      if (!mounted) return;
+      setState(() => _deleted = false);
+      ref.read(feedRevisionProvider.notifier).bump();
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.post;
@@ -83,6 +137,30 @@ class _PostCardState extends ConsumerState<PostCard> {
     final scheme = theme.colorScheme;
     final cw = p.contentWarning;
     final hasCw = cw != null && cw.isNotEmpty;
+
+    if (_deleted) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: [
+            Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Post deleted',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const Spacer(),
+            TextButton(onPressed: _undoDelete, child: const Text('Undo')),
+          ],
+        ),
+      );
+    }
 
     return InkWell(
       onTap: widget.tappable ? _openThread : null,
@@ -190,15 +268,35 @@ class _PostCardState extends ConsumerState<PostCard> {
                   onPressed: _toggleRepost,
                 ),
                 const Spacer(),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.help_outline, size: 19),
-                  tooltip: 'Why am I seeing this?',
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Feed transparency — Phase 5'),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_horiz, size: 19),
+                  tooltip: 'More',
+                  onSelected: (v) {
+                    switch (v) {
+                      case 'why':
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Feed transparency — Phase 5'),
+                          ),
+                        );
+                      case 'delete':
+                        _confirmDelete();
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'why',
+                      child: Text('Why am I seeing this?'),
                     ),
-                  ),
+                    if (_isMine)
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(
+                          'Delete post',
+                          style: TextStyle(color: scheme.error),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
