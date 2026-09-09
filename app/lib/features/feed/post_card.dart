@@ -338,6 +338,19 @@ class _PostCardState extends ConsumerState<PostCard> {
                                 color: scheme.onSurfaceVariant,
                               ),
                             ],
+                            if (p.authorFlair != null &&
+                                p.authorFlair!.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  p.authorFlair!,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: scheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         Text(

@@ -220,6 +220,17 @@ class ModLogEntry {
   );
 }
 
+class CommunityRule {
+  const CommunityRule({required this.title, required this.body});
+  final String title;
+  final String body;
+
+  factory CommunityRule.fromMap(Map<String, dynamic> m) => CommunityRule(
+    title: m['title'] as String,
+    body: (m['body'] as String?) ?? '',
+  );
+}
+
 class CommunityRepository {
   CommunityRepository(this._db);
   final SupabaseClient _db;
@@ -369,6 +380,34 @@ class CommunityRepository {
     params: {'p_post_id': postId, 'p_reason': ?reason},
   );
 
+  Future<List<CommunityRule>> rules(String communityId) async {
+    final rows = await _db.rpc(
+      'community_rules',
+      params: {'p_community_id': communityId},
+    ) as List;
+    return [
+      for (final r in rows) CommunityRule.fromMap(r as Map<String, dynamic>),
+    ];
+  }
+
+  Future<void> setRules(String communityId, List<CommunityRule> rules) =>
+      _db.rpc(
+        'set_community_rules',
+        params: {
+          'p_community_id': communityId,
+          'p_rules': [
+            for (final r in rules)
+              if (r.title.trim().isNotEmpty)
+                {'title': r.title.trim(), 'body': r.body.trim()},
+          ],
+        },
+      );
+
+  Future<void> setMyFlair(String communityId, String flair) => _db.rpc(
+    'set_my_flair',
+    params: {'p_community_id': communityId, 'p_flair': flair},
+  );
+
   Future<List<ModLogEntry>> modLog(String communityId) async {
     final rows = await _db.rpc(
       'community_mod_log',
@@ -446,4 +485,9 @@ final communityBannedProvider =
 final communityModLogProvider =
     FutureProvider.family<List<ModLogEntry>, String>((ref, id) async {
       return ref.watch(communityRepositoryProvider).modLog(id);
+    });
+
+final communityRulesProvider =
+    FutureProvider.family<List<CommunityRule>, String>((ref, id) async {
+      return ref.watch(communityRepositoryProvider).rules(id);
     });

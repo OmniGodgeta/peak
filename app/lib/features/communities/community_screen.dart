@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/community_repository.dart';
+import '../../data/supabase_providers.dart';
 import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
 import 'community_manage_screen.dart';
@@ -209,6 +210,121 @@ class _HeaderState extends ConsumerState<_Header> {
               ],
             ),
           ],
+          if (c.isMember) ...[
+            const SizedBox(height: 8),
+            _FlairChip(community: c),
+          ],
+          _RulesSection(community: c),
+        ],
+      ),
+    );
+  }
+}
+
+class _FlairChip extends ConsumerStatefulWidget {
+  const _FlairChip({required this.community});
+  final Community community;
+
+  @override
+  ConsumerState<_FlairChip> createState() => _FlairChipState();
+}
+
+class _FlairChipState extends ConsumerState<_FlairChip> {
+  Future<void> _edit() async {
+    final roster = await ref.read(
+      communityRosterProvider(widget.community.id).future,
+    );
+    final me = ref.read(currentUserProvider)?.id;
+    final current = roster
+        .where((p) => p.memberId == me)
+        .map((p) => p.flair)
+        .firstOrNull;
+    if (!mounted) return;
+    final c = TextEditingController(text: current ?? '');
+    final flair = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Your flair'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          maxLength: 40,
+          decoration: const InputDecoration(hintText: 'e.g. “35mm only”'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, c.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (flair == null) return;
+    await ref
+        .read(communityRepositoryProvider)
+        .setMyFlair(widget.community.id, flair);
+    ref.invalidate(communityRosterProvider(widget.community.id));
+    ref.invalidate(communityFeedProvider(widget.community.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final roster = ref.watch(communityRosterProvider(widget.community.id));
+    final me = ref.read(currentUserProvider)?.id;
+    final flair = roster.asData?.value
+        .where((p) => p.memberId == me)
+        .map((p) => p.flair)
+        .firstOrNull;
+    return ActionChip(
+      avatar: const Icon(Icons.badge_outlined, size: 16),
+      label: Text(flair == null || flair.isEmpty ? 'Add flair' : flair),
+      onPressed: _edit,
+    );
+  }
+}
+
+class _RulesSection extends ConsumerWidget {
+  const _RulesSection({required this.community});
+  final Community community;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rules = ref.watch(communityRulesProvider(community.id));
+    final list = rules.asData?.value ?? const [];
+    if (list.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Rules', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          for (var i = 0; i < list.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${i + 1}. ${list[i].title}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  if (list[i].body.isNotEmpty)
+                    Text(
+                      list[i].body,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );

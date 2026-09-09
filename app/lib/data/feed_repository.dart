@@ -64,6 +64,7 @@ class FeedPost {
     this.isPinned = false,
     this.communityLabel,
     this.communityLabelNote,
+    this.authorFlair,
     this.replyTo,
     this.depth = 0,
   });
@@ -102,6 +103,9 @@ class FeedPost {
   final String? communityLabel;
   final String? communityLabelNote;
 
+  /// The author's flair in this community. Only set by `community_feed`.
+  final String? authorFlair;
+
   final String? replyTo; // set in thread views
   final int depth; // set in thread views
 
@@ -139,6 +143,7 @@ class FeedPost {
     isPinned: (m['is_pinned'] as bool?) ?? false,
     communityLabel: m['label'] as String?,
     communityLabelNote: m['label_note'] as String?,
+    authorFlair: m['author_flair'] as String?,
     replyTo: m['reply_to'] as String?,
     depth: (m['depth'] as num?)?.toInt() ?? 0,
   );

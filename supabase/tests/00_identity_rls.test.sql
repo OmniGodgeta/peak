@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(115);
+select plan(120);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -639,6 +639,35 @@ select is(
 select is(
   (select count(*)::int from community_mod_log(:'cid') where action = 'remove_post'),
   1, 'a moderator removal is logged');
+
+-- ── Phase 4-3a: rules + flair ───────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select set_community_rules(
+  :'cid',
+  '[{"title":"Be kind","body":"No harassment."},{"title":"Stay on topic"}]'::jsonb
+);
+select is((select count(*)::int from community_rules(:'cid')), 2,
+  'set_community_rules stores the rule set');
+select is((select title from community_rules(:'cid') where ord = 0), 'Be kind',
+  'rules keep their order');
+
+-- kid is an active member of secret-club (approved earlier); set flair
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select set_my_flair(:'sid', 'newbie');
+select is(
+  (select flair from community_roster(:'sid')
+   where member_id = '00000000-0000-0000-0000-00000000000c'),
+  'newbie', 'set_my_flair updates the member''s flair');
+
+-- non-member can't set flair; non-admin can't set rules
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select throws_ok(
+  format($$select set_my_flair(%L, 'x')$$, :'sid'),
+  'not an active member', 'a non-member cannot set flair');
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select throws_ok(
+  format($$select set_community_rules(%L, '[]'::jsonb)$$, :'sid'),
+  'only an admin can set the rules', 'a non-admin cannot set the rules');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

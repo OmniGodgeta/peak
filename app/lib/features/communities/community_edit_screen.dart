@@ -24,14 +24,39 @@ class _CommunityEditScreenState extends ConsumerState<CommunityEditScreen> {
   late CommunityJoinPolicy _policy = widget.community.joinPolicy;
   late bool _nsfw = widget.community.isNsfw;
   late bool _listed = widget.community.isListed;
+  final _rules = <(TextEditingController, TextEditingController)>[];
+  bool _rulesLoaded = false;
   bool _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(communityRepositoryProvider).rules(widget.community.id).then((
+      list,
+    ) {
+      if (!mounted) return;
+      setState(() {
+        for (final r in list) {
+          _rules.add((
+            TextEditingController(text: r.title),
+            TextEditingController(text: r.body),
+          ));
+        }
+        _rulesLoaded = true;
+      });
+    });
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _description.dispose();
     _topics.dispose();
+    for (final (t, b) in _rules) {
+      t.dispose();
+      b.dispose();
+    }
     super.dispose();
   }
 
@@ -57,6 +82,16 @@ class _CommunityEditScreenState extends ConsumerState<CommunityEditScreen> {
             nsfw: _nsfw,
             listed: _listed,
           );
+      if (_rulesLoaded) {
+        await ref.read(communityRepositoryProvider).setRules(
+          widget.community.id,
+          [
+            for (final (t, b) in _rules)
+              CommunityRule(title: t.text, body: b.text),
+          ],
+        );
+        ref.invalidate(communityRulesProvider(widget.community.id));
+      }
       ref.invalidate(communityViewProvider(widget.community.slug));
       ref.invalidate(communitiesBrowseProvider(''));
       if (mounted) Navigator.of(context).pop(true);
@@ -141,6 +176,70 @@ class _CommunityEditScreenState extends ConsumerState<CommunityEditScreen> {
             value: _listed,
             onChanged: (v) => setState(() => _listed = v),
           ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text('Rules', style: Theme.of(context).textTheme.labelLarge),
+              const Spacer(),
+              if (_rulesLoaded)
+                TextButton.icon(
+                  onPressed: () => setState(
+                    () => _rules.add((
+                      TextEditingController(),
+                      TextEditingController(),
+                    )),
+                  ),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add rule'),
+                ),
+            ],
+          ),
+          if (!_rulesLoaded)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: LinearProgressIndicator(),
+            ),
+          for (var i = 0; i < _rules.length; i++)
+            Card(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 4, 8),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _rules[i].$1,
+                            decoration: InputDecoration(
+                              hintText: 'Rule ${i + 1}',
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => setState(() {
+                            final (t, b) = _rules.removeAt(i);
+                            t.dispose();
+                            b.dispose();
+                          }),
+                        ),
+                      ],
+                    ),
+                    TextField(
+                      controller: _rules[i].$2,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        hintText: 'Details (optional)',
+                        isDense: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
           SwitchListTile(
             title: const Text('18+ / not safe for work'),
             value: _nsfw,
