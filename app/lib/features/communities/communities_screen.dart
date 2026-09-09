@@ -16,6 +16,12 @@ class CommunitiesScreen extends ConsumerStatefulWidget {
 class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
   final _search = TextEditingController();
   String _query = '';
+  String? _topic;
+  CommunitySort _sort = CommunitySort.active;
+  bool _nsfw = false;
+
+  BrowseQuery get _bq =>
+      (query: _query, topic: _topic, sort: _sort, includeNsfw: _nsfw);
 
   @override
   void dispose() {
@@ -32,7 +38,8 @@ class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
   @override
   Widget build(BuildContext context) {
     final mine = ref.watch(myCommunitiesProvider);
-    final browse = ref.watch(communitiesBrowseProvider(_query));
+    final browse = ref.watch(communitiesBrowseProvider(_bq));
+    final topics = ref.watch(communityTopicsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Communities')),
@@ -52,7 +59,8 @@ class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(myCommunitiesProvider);
-          ref.invalidate(communitiesBrowseProvider(_query));
+          ref.invalidate(communitiesBrowseProvider(_bq));
+          ref.invalidate(communityTopicsProvider);
         },
         child: ListView(
           padding: const EdgeInsets.only(bottom: 96),
@@ -84,7 +92,7 @@ class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
               orElse: () => const SizedBox.shrink(),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(
                 controller: _search,
                 onChanged: (v) => setState(() => _query = v),
@@ -95,6 +103,77 @@ class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
                 ),
               ),
             ),
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 6,
+                    ),
+                    child: PopupMenuButton<CommunitySort>(
+                      initialValue: _sort,
+                      onSelected: (v) => setState(() => _sort = v),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: CommunitySort.active,
+                          child: Text('Most active'),
+                        ),
+                        PopupMenuItem(
+                          value: CommunitySort.newest,
+                          child: Text('Newest'),
+                        ),
+                        PopupMenuItem(
+                          value: CommunitySort.largest,
+                          child: Text('Largest'),
+                        ),
+                      ],
+                      child: Chip(
+                        avatar: const Icon(Icons.sort, size: 16),
+                        label: Text(switch (_sort) {
+                          CommunitySort.active => 'Most active',
+                          CommunitySort.newest => 'Newest',
+                          CommunitySort.largest => 'Largest',
+                        }),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 6,
+                    ),
+                    child: FilterChip(
+                      label: const Text('18+'),
+                      selected: _nsfw,
+                      onSelected: (v) => setState(() => _nsfw = v),
+                    ),
+                  ),
+                  ...topics.maybeWhen(
+                    data: (list) => [
+                      for (final t in list)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 6,
+                          ),
+                          child: FilterChip(
+                            label: Text('#${t.topic}'),
+                            selected: _topic == t.topic,
+                            onSelected: (v) =>
+                                setState(() => _topic = v ? t.topic : null),
+                          ),
+                        ),
+                    ],
+                    orElse: () => const [],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
             browse.when(
               loading: () => const Padding(
                 padding: EdgeInsets.all(32),
@@ -150,9 +229,11 @@ class _BrowseTile extends StatelessWidget {
         ],
       ),
       subtitle: Text(
-        summary.description.isEmpty
-            ? '${summary.memberCount} members'
-            : '${summary.memberCount} members · ${summary.description}',
+        [
+          '${summary.memberCount} member${summary.memberCount == 1 ? '' : 's'}',
+          if (summary.posts7d > 0) '${summary.posts7d} posts this week',
+          if (summary.description.isNotEmpty) summary.description,
+        ].join(' · '),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),

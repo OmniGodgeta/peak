@@ -93,7 +93,7 @@ class _CommunityEditScreenState extends ConsumerState<CommunityEditScreen> {
         ref.invalidate(communityRulesProvider(widget.community.id));
       }
       ref.invalidate(communityViewProvider(widget.community.slug));
-      ref.invalidate(communitiesBrowseProvider(''));
+      ref.invalidate(communitiesBrowseProvider);
       if (mounted) Navigator.of(context).pop(true);
     } on Exception catch (e) {
       setState(() => _error = e.toString());

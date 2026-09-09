@@ -145,7 +145,11 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       `save_wiki_page` / `delete_wiki_page` / `set_wiki_pinned`; a wiki list, a
       page view reusing the tiny Markdown renderer, an editor, and a history
       view; a "Resources" block on the community page)
-- [ ] Richer discovery directory (topic tags, activity, language, SFW filter)
+- [x] Richer discovery directory — `communities_browse` gains a topic filter,
+      a sort (most active / newest / largest), an NSFW opt-in, and activity
+      signal (last post, posts in the last 7 days); `community_topics` lists the
+      tags in use. Directory screen has a sort menu, an 18+ toggle, and topic
+      filter chips. (Language filter deferred — no per-post language yet.)
 
 ## Phase 5 — Ranking, custom feeds, discovery, moderation depth
 

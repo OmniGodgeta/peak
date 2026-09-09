@@ -104,6 +104,24 @@ class CommunityPerson {
   );
 }
 
+enum CommunitySort { active, newest, largest }
+
+extension CommunitySortRpc on CommunitySort {
+  String get rpc => switch (this) {
+    CommunitySort.active => 'active',
+    CommunitySort.newest => 'new',
+    CommunitySort.largest => 'large',
+  };
+}
+
+/// Filters for the community directory.
+typedef BrowseQuery = ({
+  String query,
+  String? topic,
+  CommunitySort sort,
+  bool includeNsfw,
+});
+
 /// A row from the directory (`communities_browse`).
 class CommunitySummary {
   const CommunitySummary({
@@ -115,6 +133,8 @@ class CommunitySummary {
     required this.isNsfw,
     required this.memberCount,
     required this.isMember,
+    required this.lastActivityAt,
+    required this.posts7d,
   });
 
   final String id;
@@ -125,6 +145,8 @@ class CommunitySummary {
   final bool isNsfw;
   final int memberCount;
   final bool isMember;
+  final DateTime? lastActivityAt;
+  final int posts7d;
 
   factory CommunitySummary.fromMap(Map<String, dynamic> m) => CommunitySummary(
     id: m['id'] as String,
@@ -135,8 +157,15 @@ class CommunitySummary {
     isNsfw: (m['is_nsfw'] as bool?) ?? false,
     memberCount: (m['member_count'] as int?) ?? 0,
     isMember: (m['is_member'] as bool?) ?? false,
+    lastActivityAt: m['last_activity_at'] == null
+        ? null
+        : DateTime.parse(m['last_activity_at'] as String),
+    posts7d: (m['posts_7d'] as int?) ?? 0,
   );
 }
+
+/// A topic tag with how many communities use it (`community_topics`).
+typedef CommunityTopic = ({String topic, int count});
 
 /// A row from `my_communities`.
 class MyCommunity {
@@ -294,11 +323,29 @@ class CommunityRepository {
         : Community.fromMap(list.first as Map<String, dynamic>);
   }
 
-  Future<List<CommunitySummary>> browse(String query) async {
-    final rows =
-        await _db.rpc('communities_browse', params: {'p_query': query}) as List;
+  Future<List<CommunitySummary>> browse(BrowseQuery q) async {
+    final rows = await _db.rpc(
+      'communities_browse',
+      params: {
+        'p_query': q.query,
+        'p_topic': q.topic,
+        'p_sort': q.sort.rpc,
+        'p_include_nsfw': q.includeNsfw,
+      },
+    ) as List;
     return [
       for (final r in rows) CommunitySummary.fromMap(r as Map<String, dynamic>),
+    ];
+  }
+
+  Future<List<CommunityTopic>> topics() async {
+    final rows = await _db.rpc('community_topics') as List;
+    return [
+      for (final r in rows)
+        (
+          topic: (r as Map<String, dynamic>)['topic'] as String,
+          count: (r['community_count'] as int?) ?? 0,
+        ),
     ];
   }
 
@@ -541,9 +588,15 @@ final myCommunitiesProvider = FutureProvider<List<MyCommunity>>((ref) async {
 });
 
 final communitiesBrowseProvider =
-    FutureProvider.family<List<CommunitySummary>, String>((ref, query) async {
-      return ref.watch(communityRepositoryProvider).browse(query);
+    FutureProvider.family<List<CommunitySummary>, BrowseQuery>((ref, q) async {
+      return ref.watch(communityRepositoryProvider).browse(q);
     });
+
+final communityTopicsProvider = FutureProvider<List<CommunityTopic>>((
+  ref,
+) async {
+  return ref.watch(communityRepositoryProvider).topics();
+});
 
 final communityViewProvider = FutureProvider.family<Community?, String>((
   ref,

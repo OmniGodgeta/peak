@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(157);
+select plan(162);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -851,6 +851,29 @@ select is((select is_pinned from wiki_page(:'sid', 'welcome')), true,
 select delete_wiki_page(:'wp');
 select is((select count(*)::int from community_wiki_pages(:'sid')), 0,
   'delete_wiki_page removes the page');
+
+-- ── Phase 4: richer discovery ──────────────────────────────────────────
+-- :'cid' is rust-lang, topics {programming, rust}, listed.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is((select count(*)::int from communities_browse('', 'rust')), 1,
+  'communities_browse filters by topic tag');
+select is((select count(*)::int from communities_browse('', 'no-such-topic')), 0,
+  'a topic with no communities returns nothing');
+select ok((select count(*)::int from community_topics()) >= 1,
+  'community_topics lists the tags in use');
+
+-- an NSFW community is hidden unless the caller opts in
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select create_community('after-dark', 'After Dark', '', array['rust'], 'open', true)
+  as nsfw \gset
+select is(
+  (select count(*)::int from communities_browse('', null, 'active', false)
+   where id = :'nsfw'),
+  0, 'an NSFW community is hidden by default');
+select is(
+  (select count(*)::int from communities_browse('', null, 'active', true)
+   where id = :'nsfw'),
+  1, 'an NSFW community shows when the caller opts in');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');
