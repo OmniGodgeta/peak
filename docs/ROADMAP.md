@@ -90,7 +90,10 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
 - [x] Long-form articles — a post with a title + a big body, its own reading
       page with a tiny built-in Markdown renderer (headings, lists, paragraphs);
       replies/reactions/circle visibility all inherited from `post`
-- [ ] Stories (24h, circle-addressed, no face-retouch filters, no streaks)
+- [x] Stories — a photo + caption addressed to circles, gone after 24h; a
+      full-screen viewer (tap to step, hold to pause, auto-advance); a plain
+      viewer list for the author. No filters, no streaks. `purge_expired_stories()`
+      sweep (hourly cron).
 - [ ] Profile shelves / highlights
 - [ ] Video posts (transcode, adaptive playback), audio posts — needs `shadow` + CDN
 - [ ] Data-light mode

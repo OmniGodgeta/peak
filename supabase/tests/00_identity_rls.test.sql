@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(75);
+select plan(84);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -398,7 +398,83 @@ select ok((select purge_expired_deletions()) >= 1,
 select is((select count(*)::int from my_deleted_posts() where id = :'del_test_id'), 0,
   'the purged post is gone for good');
 
--- ── Phase 3: account deletion ─────────────────────────────────────────────
+-- ── Phase 3: long-form articles ──────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select throws_ok(
+  $$ insert into post (author_id, persona_id, body, visibility, long_form)
+     select '00000000-0000-0000-0000-00000000000a',
+            (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
+            'no title', 'public', true $$,
+  'new row for relation "post" violates check constraint "post_article_needs_title"',
+  'a long_form post with no title is rejected');
+
+insert into post (author_id, persona_id, title, body, visibility, long_form)
+select '00000000-0000-0000-0000-00000000000a',
+       (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
+       'My First Article', 'A paragraph.', 'public', true
+returning id as art_id \gset
+select is(
+  (select long_form from feed_latest(now() + interval '1 hour', 100) where id = :'art_id'),
+  true, 'feed_latest carries the long_form flag');
+select is(
+  (select title from feed_latest(now() + interval '1 hour', 100) where id = :'art_id'),
+  'My First Article', 'feed_latest carries the article title');
+
+-- ── Phase 3: stories ─────────────────────────────────────────────────────
+-- alice adds kid to her Friends circle, then posts a story to it. kid follows
+-- alice (from earlier), so kid is a valid audience member.
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+insert into circle_member (circle_id, member_id)
+select c.id, '00000000-0000-0000-0000-00000000000c'
+from circle c
+where c.owner_id = '00000000-0000-0000-0000-00000000000a' and c.slug = 'friends';
+
+select post_story(
+  '00000000-0000-0000-0000-00000000000a/pic.jpg',
+  'first story',
+  array[(select id from circle
+         where owner_id = '00000000-0000-0000-0000-00000000000a' and slug = 'friends')]::uuid[]
+) as sid \gset
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(
+  (select count(*)::int from stories_tray()
+   where author_id = '00000000-0000-0000-0000-00000000000a'),
+  1, 'an addressed circle-member sees the story in their tray');
+select is(
+  (select count(*)::int from story_thread('00000000-0000-0000-0000-00000000000a')),
+  1, 'story_thread returns the addressed story');
+select is(
+  (select seen from story_thread('00000000-0000-0000-0000-00000000000a') limit 1),
+  false, 'a fresh story is unseen');
+select mark_story_seen(:'sid');
+select is(
+  (select seen from story_thread('00000000-0000-0000-0000-00000000000a') limit 1),
+  true, 'mark_story_seen flips the seen flag');
+
+-- bob: not in the circle and blocked with alice → nothing
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is(
+  (select count(*)::int from story_thread('00000000-0000-0000-0000-00000000000a')),
+  0, 'a non-member does not see the story');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is((select count(*)::int from story_viewers(:'sid')), 1,
+  'the author sees who viewed');
+select is(
+  (select viewer_count from story_thread('00000000-0000-0000-0000-00000000000a') limit 1),
+  1, 'story_thread reports the viewer count to the author');
+
+set local role postgres;
+update story set expires_at = now() - interval '1 hour' where id = :'sid';
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is(
+  (select count(*)::int from story_thread('00000000-0000-0000-0000-00000000000a')),
+  0, 'an expired story drops out of story_thread');
+select ok((select purge_expired_stories()) >= 1,
+  'purge_expired_stories removes expired stories');
+
+-- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');
 select request_account_deletion();
 select is(
@@ -429,28 +505,6 @@ select ok((select purge_due_accounts()) >= 1,
 select is(
   (select count(*)::int from profile where id = '00000000-0000-0000-0000-00000000000c'),
   0, 'purging an account cascades away its profile row');
-
--- ── Phase 3: long-form articles ──────────────────────────────────────────
-select tests.act_as('00000000-0000-0000-0000-00000000000a');
-select throws_ok(
-  $$ insert into post (author_id, persona_id, body, visibility, long_form)
-     select '00000000-0000-0000-0000-00000000000a',
-            (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
-            'no title', 'public', true $$,
-  'new row for relation "post" violates check constraint "post_article_needs_title"',
-  'a long_form post with no title is rejected');
-
-insert into post (author_id, persona_id, title, body, visibility, long_form)
-select '00000000-0000-0000-0000-00000000000a',
-       (select id from persona where account_id = '00000000-0000-0000-0000-00000000000a'),
-       'My First Article', 'A paragraph.', 'public', true
-returning id as art_id \gset
-select is(
-  (select long_form from feed_latest(now() + interval '1 hour', 100) where id = :'art_id'),
-  true, 'feed_latest carries the long_form flag');
-select is(
-  (select title from feed_latest(now() + interval '1 hour', 100) where id = :'art_id'),
-  'My First Article', 'feed_latest carries the article title');
 
 select finish();
 rollback;

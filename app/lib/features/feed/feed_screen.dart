@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/feed_repository.dart';
+import '../../data/story_repository.dart';
 import '../compose/compose_screen.dart';
+import '../stories/stories_strip.dart';
 import 'post_card.dart';
 
 /// Home. Phase 1 ships **Latest** (reverse-chronological) and **Friends first**;
@@ -47,16 +49,28 @@ class FeedScreen extends ConsumerWidget {
           onRetry: () => ref.invalidate(feedProvider),
         ),
         data: (posts) {
-          if (posts.isEmpty) return const _EmptyFeed();
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(feedProvider),
-            child: ListView.separated(
-              itemCount: posts.length + 1,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                if (i == posts.length) return const _CaughtUp();
-                return PostCard(post: posts[i]);
-              },
+            onRefresh: () async {
+              ref.invalidate(feedProvider);
+              ref.invalidate(storyTrayProvider);
+            },
+            child: ListView(
+              children: [
+                const StoriesStrip(),
+                const Divider(height: 1),
+                if (posts.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 80),
+                    child: _EmptyFeed(),
+                  )
+                else ...[
+                  for (final p in posts) ...[
+                    PostCard(post: p),
+                    const Divider(height: 1),
+                  ],
+                  const _CaughtUp(),
+                ],
+              ],
             ),
           );
         },
