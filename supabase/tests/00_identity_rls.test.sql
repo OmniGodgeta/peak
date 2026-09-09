@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(140);
+select plan(148);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -782,6 +782,41 @@ select is(
 select is(
   (select channel_id from post where body = 'welcome to the staff room'),
   :'gen'::uuid, 'a deleted channel''s posts fall back to general');
+
+-- ── Phase 4-4b: events + RSVP ──────────────────────────────────────────
+-- kid is an active member of secret-club (:'sid'); bob is its admin.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select create_event(:'sid', 'Book club', now() + interval '3 days', 'Chapters 4-6')
+  as ev \gset
+select is((select count(*)::int from community_events(:'sid')), 1,
+  'create_event adds an upcoming event');
+select is((select going_count from community_events(:'sid') where id = :'ev'),
+  1, 'the creator is going by default');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select rsvp_event(:'ev', 'maybe');
+select is((select maybe_count from community_events(:'sid') where id = :'ev'),
+  1, 'rsvp_event records a maybe');
+select is((select my_status from community_events(:'sid') where id = :'ev'),
+  'maybe', 'my_status reflects the viewer''s own RSVP');
+select is((select count(*)::int from event_attendees(:'ev', 'going')), 1,
+  'event_attendees lists who is going');
+
+-- a non-member cannot create an event
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select throws_ok(
+  format($$select create_event(%L, 'gatecrash', now() + interval '1 day')$$, :'sid'),
+  'only a member can create an event',
+  'a non-member cannot create an event');
+
+-- the creator can cancel; a canceled event can't be RSVP'd
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select cancel_event(:'ev');
+select is((select canceled from community_events(:'sid') where id = :'ev'),
+  true, 'cancel_event marks the event canceled');
+select throws_ok(
+  format($$select rsvp_event(%L, 'going')$$, :'ev'),
+  'no such event', 'a canceled event cannot be RSVP''d');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

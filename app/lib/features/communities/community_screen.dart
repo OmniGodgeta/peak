@@ -6,6 +6,7 @@ import '../../data/supabase_providers.dart';
 import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
 import 'community_manage_screen.dart';
+import 'events/community_events_screen.dart';
 import 'mod_log_screen.dart';
 import 'modmail/start_modmail_sheet.dart';
 
@@ -41,6 +42,16 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 context,
                 communityId: c.id,
                 communityName: c.name,
+              ),
+            ),
+          if (c != null && (c.isMember || c.isListed))
+            IconButton(
+              tooltip: 'Events',
+              icon: const Icon(Icons.event_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CommunityEventsScreen(community: c),
+                ),
               ),
             ),
           if (c != null && c.isMember)
