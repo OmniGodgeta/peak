@@ -78,10 +78,21 @@ supabase secrets set KEY=value   # any function secrets
 
 - [ ] Create the project — **pick the region closest to users** (permanent)
 - [ ] `supabase db push` — verify all migrations apply clean from scratch
-- [ ] Deploy edge functions (`app-version`, `publish`, and later `push`, …)
-- [ ] Confirm **storage buckets** exist after `db push` — `post-media` (public)
-      and `message-media` (private) are created by migrations, so they carry
-      over automatically; just verify, and re-check their RLS policies
+- [ ] Deploy edge functions: `app-version`, `publish`, `export` (+ `push` later).
+      `export` needs `SUPABASE_SERVICE_ROLE_KEY` in env — the edge runtime
+      provides it by default; only a flag if a deploy overrides secrets.
+- [ ] Confirm **storage buckets** exist after `db push` — all created by
+      migrations, carry over automatically; just verify + re-check RLS:
+      `post-media` (public), `avatars` (public), `story-media` (public),
+      `message-media` (private), `exports` (private)
+- [ ] **pg_cron** — enable the extension, then schedule the retention jobs
+      (they're `SECURITY DEFINER` no-args, left out of migrations since
+      scheduling is instance-specific and pg_cron isn't in the local stack):
+      ```sql
+      select cron.schedule('purge-deletions', '17 4 * * *', 'select purge_expired_deletions()');
+      select cron.schedule('purge-accounts',  '33 4 * * *', 'select purge_due_accounts()');
+      select cron.schedule('purge-stories',   '7 * * * *',  'select purge_expired_stories()');
+      ```
 - [ ] Skip or trim `seed.sql` for production
 - [ ] Free tier launches fine; move to **Pro ($25/mo)** for daily backups, no
       auto-pause, and real resource limits before real traffic
