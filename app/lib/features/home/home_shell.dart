@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../crypto/device_repository.dart';
+
 /// The four-pillar shell: Feed · Messages · Communities · Discover, plus Me.
-class HomeShell extends StatelessWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.shell});
 
   final StatefulNavigationShell shell;
+
+  @override
+  ConsumerState<HomeShell> createState() => _HomeShellState();
 
   static const _destinations = [
     NavigationDestination(
@@ -34,14 +40,25 @@ class HomeShell extends StatelessWidget {
       label: 'Me',
     ),
   ];
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Register this install (device identity + signature key) once we're past
+    // auth + onboarding. Fire-and-forget: the Devices screen surfaces failures.
+    Future.microtask(() => ref.read(myDevicesProvider.future).ignore());
+  }
 
   @override
   Widget build(BuildContext context) {
+    final shell = widget.shell;
     return Scaffold(
       body: shell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: shell.currentIndex,
-        destinations: _destinations,
+        destinations: HomeShell._destinations,
         onDestinationSelected: (i) =>
             shell.goBranch(i, initialLocation: i == shell.currentIndex),
       ),

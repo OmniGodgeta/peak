@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/profile_repository.dart';
 import '../../data/supabase_providers.dart';
+import '../settings/devices_screen.dart';
 import 'edit_profile_screen.dart';
 import 'user_profile_screen.dart';
 
@@ -130,6 +131,16 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => UserProfileScreen(handle: p.handle),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.devices_outlined),
+                title: const Text('Devices'),
+                subtitle: const Text('Where your account is signed in'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DevicesScreen(),
                   ),
                 ),
               ),

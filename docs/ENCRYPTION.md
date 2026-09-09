@@ -161,7 +161,13 @@ in the enclave.
       (cargo-ndk + CMake) and iOS (xcframework); `dart:ffi` bindings; a smoke
       test that generates a keypair and round-trips a message locally.
       *(needs the Rust toolchain + native config — coordinate with infra/ops.)*
-- [ ] **2.5-2** — device registration + key-package pool + device-list UI.
+- [~] **2.5-2** — device registration + key-package pool + device-list UI.
+      *Done:* every install registers a `device` with a pure-Dart Ed25519
+      signature key; Settings → Devices lists / renames / revokes them
+      (`register_device`, `my_devices`, `rename_device`, `revoke_device`).
+      *Waiting on 2.5-1:* real KeyPackage generation — `publish_key_packages`
+      / `key_package_pool` plumbing is in place but the pool stays empty until
+      the native lib can mint KeyPackages.
 - [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
       messages; server relays `mls_message` blobs; feature flag on for new
       conversations.

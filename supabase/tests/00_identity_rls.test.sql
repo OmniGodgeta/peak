@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(45);
+select plan(56);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -302,6 +302,49 @@ select tests.act_as('00000000-0000-0000-0000-00000000000b');
 select is(
   (select count(*)::int from key_package),
   0, 'key_package rows are private to the owning device');
+
+-- ── E2EE 2.5-2: device registration API ───────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000b');  -- bob
+select register_device(
+  '1111111111111111111111111111111111111111111111111111111111111111', 'bob laptop'
+) as bob_dev \gset
+select ok(:'bob_dev' is not null, 'register_device returns a device id');
+select is(
+  (select register_device(
+     '1111111111111111111111111111111111111111111111111111111111111111', 'bob laptop')),
+  :'bob_dev'::uuid,
+  'register_device is idempotent on (account, public_sig_key)');
+select is((select count(*)::int from my_devices()), 1,
+  'my_devices lists the caller''s one device');
+select is((select unclaimed_packages from my_devices() where id = :'bob_dev'), 0,
+  'a fresh device has an empty key-package pool');
+select rename_device(:'bob_dev', 'bob workstation');
+select is((select label from my_devices() where id = :'bob_dev'), 'bob workstation',
+  'rename_device updates the label');
+
+-- alice cannot revoke bob's device
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select revoke_device(:'bob_dev');
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is((select revoked_at from my_devices() where id = :'bob_dev'), null,
+  'revoke_device only affects the caller''s own devices');
+
+-- key-package pool plumbing
+select is((select publish_key_packages(:'bob_dev', array['cc','dd']::text[])), 2,
+  'publish_key_packages appends the caller''s packages');
+select is((select key_package_pool(:'bob_dev')), 2,
+  'key_package_pool counts unconsumed packages');
+select throws_ok(
+  $$select publish_key_packages('00000000-0000-0000-0000-000000000000'::uuid, array['ee']::text[])$$,
+  'not your device',
+  'publish_key_packages rejects a device you do not own');
+
+-- owner revokes: device is flagged and its unclaimed packages are burned
+select revoke_device(:'bob_dev');
+select isnt((select revoked_at from my_devices() where id = :'bob_dev'), null,
+  'revoke_device sets revoked_at for the owner');
+select is((select key_package_pool(:'bob_dev')), 0,
+  'revoking a device burns its unclaimed key packages');
 
 select finish();
 rollback;
