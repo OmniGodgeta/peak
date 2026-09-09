@@ -22,8 +22,12 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
 - [x] RLS policy tests (pgTAP, 66 assertions) + `supabase test db` green in CI
 - [x] Profile edit (avatar, bio, links, pronouns)
 - [x] CI running green (Flutter + Supabase schema + Edge Functions jobs)
-- [ ] Self-host the Supabase stack on `shadow` — see [SELF_HOSTING.md](SELF_HOSTING.md)
-- [ ] Apply migrations to that instance; wire the app's `env.json` to it
+- [~] Public backend: **hosted Supabase** chosen (2026-09-09); runbook in
+      [HOSTED_BACKEND.md](HOSTED_BACKEND.md) + `tool/deploy-hosted.sh`. Blocked
+      on the user creating the project (needs their account). Domain deferred —
+      web stays on the Tailscale preview until `peak.social` is registered.
+- [ ] Self-hosting the stack on `shadow` remains an option later — see
+      [SELF_HOSTING.md](SELF_HOSTING.md)
 - [ ] Passkey + OAuth sign-in (email works today)
 
 ## Phase 1 — MVP feed
