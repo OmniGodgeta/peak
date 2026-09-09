@@ -158,7 +158,11 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
 - [ ] **"Why am I seeing this?"** on every ranked item
 - [ ] Custom feeds (rule sets, shareable) + `feeds` compiler
 - [ ] Interests, People-you-may-know (mutuals/communities only), local tab
-- [ ] Search (Postgres FTS → Meilisearch) with per-doc ACL
+- [~] Search (Postgres FTS) with per-doc ACL — `post.search_vector` generated
+      `tsvector` + GIN index; `search_posts` (rank blended with recency, still
+      gated by `can_view_post`) and `search_all` (people + communities + posts
+      in one ranked list). The Discover tab is now unified search with
+      People / Communities / Posts filters. Meilisearch swap-in later if needed.
 - [ ] pgvector recommendations
 - [ ] **User-level labelers** (stackable, subscribable) + appeals SLA + quarterly transparency report
 - [ ] Proof-of-personhood badges

@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(162);
+select plan(166);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -874,6 +874,19 @@ select is(
   (select count(*)::int from communities_browse('', null, 'active', true)
    where id = :'nsfw'),
   1, 'an NSFW community shows when the caller opts in');
+
+-- ── Phase 5: search ────────────────────────────────────────────────────
+-- alice's public post 'hello world' still exists; kid follows alice.
+-- bob's 'friends only' circles post is not visible to kid.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select ok((select count(*) from search_posts('world')) >= 1,
+  'search_posts finds a public post by word');
+select is((select count(*)::int from search_posts('x')), 0,
+  'search needs at least two characters');
+select is((select count(*)::int from search_posts('friends')), 0,
+  'search_posts respects post visibility (no circles post leak)');
+select ok((select count(*) from search_all('world')) >= 1,
+  'search_all returns a unified result set');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');
