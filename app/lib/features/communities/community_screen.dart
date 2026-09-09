@@ -7,6 +7,7 @@ import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
 import 'community_manage_screen.dart';
 import 'mod_log_screen.dart';
+import 'modmail/start_modmail_sheet.dart';
 
 /// One community: its header, join/leave control, and its feed.
 class CommunityScreen extends ConsumerWidget {
@@ -22,6 +23,16 @@ class CommunityScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('c/$slug'),
         actions: [
+          if (c != null && !c.canModerate)
+            IconButton(
+              tooltip: 'Message the moderators',
+              icon: const Icon(Icons.mail_outline),
+              onPressed: () => showStartModmailSheet(
+                context,
+                communityId: c.id,
+                communityName: c.name,
+              ),
+            ),
           if (c != null && c.isMember)
             IconButton(
               tooltip: 'Moderation log',

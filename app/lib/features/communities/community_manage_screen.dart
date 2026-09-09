@@ -5,6 +5,7 @@ import '../../app/avatar.dart';
 import '../../data/community_repository.dart';
 import 'community_edit_screen.dart';
 import 'mod_log_screen.dart';
+import 'modmail/community_modmail_screen.dart';
 
 /// Moderator tools for one community: join requests, the member roster with
 /// role controls, and the ban list. Admins also get "Edit community".
@@ -35,6 +36,17 @@ class CommunityManageScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
           children: [
+            ListTile(
+              leading: const Icon(Icons.mail_outline),
+              title: const Text('Modmail'),
+              subtitle: const Text('Private threads from members'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      CommunityModmailScreen(communityId: community.id),
+                ),
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.receipt_long_outlined),
               title: const Text('Moderation log'),

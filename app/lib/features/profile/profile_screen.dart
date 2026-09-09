@@ -7,6 +7,7 @@ import '../../data/settings_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../updater/update_gate.dart';
 import '../../updater/update_service.dart';
+import '../communities/modmail/my_modmail_screen.dart';
 import '../settings/devices_screen.dart';
 import '../settings/your_data_screen.dart';
 import 'edit_profile_screen.dart';
@@ -145,6 +146,18 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const DevicesScreen(),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.mail_outline),
+                title: const Text('Moderator messages'),
+                subtitle: const Text(
+                  'Your private threads with community mods',
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MyModmailScreen(),
                   ),
                 ),
               ),

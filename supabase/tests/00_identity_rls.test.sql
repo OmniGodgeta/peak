@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(120);
+select plan(129);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -668,6 +668,53 @@ select tests.act_as('00000000-0000-0000-0000-00000000000c');
 select throws_ok(
   format($$select set_community_rules(%L, '[]'::jsonb)$$, :'sid'),
   'only an admin can set the rules', 'a non-admin cannot set the rules');
+
+-- ── Phase 4-3b: modmail ────────────────────────────────────────────────
+-- kid is an active member of secret-club; bob is its admin.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select start_modmail(:'sid', 'Question about rule 2', 'What counts as off-topic?')
+  as mm \gset
+select is((select count(*)::int from my_modmail_threads() where id = :'mm'), 1,
+  'start_modmail opens a thread the member can see');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is((select count(*)::int from community_modmail_threads(:'sid', 'open')), 1,
+  'a moderator sees the open modmail thread');
+select is(
+  (select member_state::text from community_modmail_threads(:'sid', 'open')
+   where id = :'mm'),
+  'active', 'the queue shows the member''s community state');
+select modmail_reply(:'mm', 'Off-topic means not about the club.');
+select is((select count(*)::int from modmail_messages(:'mm')), 2,
+  'modmail_reply appends a message');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is((select last_from_mod from my_modmail_threads() where id = :'mm'), true,
+  'the member sees the moderator reply');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is((select count(*)::int from modmail_messages(:'mm')), 0,
+  'someone who is neither the member nor a mod cannot read the thread');
+
+-- a banned member can still open modmail (a ban appeal). kid is banned from :'cid'.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select start_modmail(:'cid', 'Appeal', 'I would like to appeal my ban.')
+  as appeal \gset
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is(
+  (select member_state::text from community_modmail_threads(:'cid', 'open')
+   where id = :'appeal'),
+  'banned', 'a banned member can still open modmail to appeal');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select throws_ok(
+  format($$select start_modmail(%L, 'x', 'y')$$, :'sid'),
+  'moderators reply to modmail, they do not open it',
+  'a moderator cannot open modmail');
+select set_modmail_state(:'mm', false);
+select throws_ok(
+  format($$select modmail_reply(%L, 'anything')$$, :'mm'),
+  'this thread is closed', 'a closed thread rejects replies');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

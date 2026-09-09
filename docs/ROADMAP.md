@@ -117,10 +117,15 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       with an optional reason); `post_label` — a moderator labels a post
       ("off-topic", …) instead of removing it; `moderate_remove_post`; a mod
       log screen + post-card label chip + moderator controls
-- [~] **4-3** — rules-on-join + member flair done (`community_rule`,
+- [x] **4-3** — rules-on-join + member flair (`community_rule`,
       `set_community_rules` / `community_rules` / `set_my_flair`; rules shown on
-      the community page, a flair chip, flair on community posts). Modmail (4-3b)
-      still to do.
+      the community page, a flair chip, flair on community posts). Modmail
+      (`modmail_thread` / `modmail_message`, `start_modmail` / `modmail_reply` /
+      `set_modmail_state`, `my_modmail_threads` / `community_modmail_threads` /
+      `modmail_messages`) — a private member↔mod-team thread, kept out of the
+      public mod log; a banned member can still open one to appeal. Member entry
+      point on the community page + "Moderator messages" in the profile; a
+      per-community queue (open / closed / all) in Manage.
 - [ ] **4-4** — text channels (voice later); events (RSVP, calendar export)
 - [ ] **4-5** — community wiki + pinned resources
 - [ ] Richer discovery directory (topic tags, activity, language, SFW filter)
