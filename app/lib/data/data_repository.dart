@@ -69,7 +69,9 @@ class DataRepository {
     ];
   }
 
-  /// Kicks off a server-side export and returns a link to the archive.
+  /// Builds the archive server-side, then signs a one-hour download link for it
+  /// on this side (the SDK knows the caller-reachable host; the `exports` RLS
+  /// policy lets the owner sign their own file).
   Future<ExportArchive> requestExport() async {
     final res = await _db.functions.invoke('export');
     if (res.status != 200) {
@@ -77,8 +79,10 @@ class DataRepository {
       throw Exception('Export failed: $msg');
     }
     final data = res.data as Map<String, dynamic>;
+    final path = data['path'] as String;
+    final url = await _db.storage.from('exports').createSignedUrl(path, 3600);
     return ExportArchive(
-      url: data['url'] as String,
+      url: url,
       filename: data['filename'] as String,
       bytes: (data['bytes'] as num).toInt(),
     );

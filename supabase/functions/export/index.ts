@@ -1,13 +1,15 @@
-// export — assemble the caller's account into a single JSON archive and hand
-// back a short-lived signed download URL.
+// export — assemble the caller's account into a single JSON archive, drop it in
+// the private `exports` bucket, and return its path.
 //
 // POST {SUPABASE_URL}/functions/v1/export  (JWT required)
-//   → 200 { url, filename, bytes }   url is a signed link into the private
-//                                    `exports` bucket, valid ~1 hour.
+//   → 200 { path, filename, bytes }
 //
-// The heavy lifting is the `export_my_data()` SQL function (SECURITY DEFINER,
-// keyed on auth.uid()). This function only routes the result to storage so the
-// client gets a real file it can save, on web and mobile alike.
+// The client then signs a download URL itself (`storage.from('exports')
+// .createSignedUrl(path, …)`) — its SDK knows the caller-reachable host, and
+// the `exports: read own folder` RLS policy lets the owner sign their own file.
+//
+// The heavy lifting is `export_my_data()` (SECURITY DEFINER, keyed on
+// auth.uid()); this function only writes the result somewhere durable.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -51,12 +53,7 @@ Deno.serve(async (req) => {
     .upload(path, body, { contentType: "application/json", upsert: true });
   if (upErr) return json({ error: upErr.message }, 500);
 
-  const { data: signed, error: signErr } = await admin.storage
-    .from("exports")
-    .createSignedUrl(path, 3600, { download: filename });
-  if (signErr || !signed) return json({ error: "could not sign url" }, 500);
-
-  return json({ url: signed.signedUrl, filename, bytes: body.length }, 200);
+  return json({ path, filename, bytes: body.length }, 200);
 });
 
 function json(payload: unknown, status = 200): Response {
