@@ -10,12 +10,22 @@ import 'mod_log_screen.dart';
 import 'modmail/start_modmail_sheet.dart';
 
 /// One community: its header, join/leave control, and its feed.
-class CommunityScreen extends ConsumerWidget {
+class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key, required this.slug});
   final String slug;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CommunityScreen> createState() => _CommunityScreenState();
+}
+
+class _CommunityScreenState extends ConsumerState<CommunityScreen> {
+  /// The selected channel — `null` means "All channels".
+  CommunityChannel? _channel;
+
+  String get slug => widget.slug;
+
+  @override
+  Widget build(BuildContext context) {
     final community = ref.watch(communityViewProvider(slug));
 
     final c = community.asData?.value;
@@ -73,32 +83,110 @@ class CommunityScreen extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(communityViewProvider(slug));
               ref.invalidate(communityFeedProvider(c.id));
+              ref.invalidate(communityChannelsProvider(c.id));
+              if (_channel != null) {
+                ref.invalidate(communityChannelFeedProvider(_channel!.id));
+              }
             },
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(child: _Header(community: c)),
+                if (c.isMember || c.isListed)
+                  SliverToBoxAdapter(
+                    child: _ChannelBar(
+                      community: c,
+                      selected: _channel,
+                      onSelect: (ch) => setState(() => _channel = ch),
+                    ),
+                  ),
                 const SliverToBoxAdapter(child: Divider(height: 1)),
-                _Feed(community: c),
+                _Feed(community: c, channel: _channel),
               ],
             ),
           );
         },
       ),
-      floatingActionButton: community.asData?.value?.isMember == true
-          ? FloatingActionButton(
-              onPressed: () async {
-                final c = community.asData!.value!;
-                final posted = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ComposeScreen(communityId: c.id, communityName: c.name),
-                  ),
-                );
-                if (posted == true) ref.invalidate(communityFeedProvider(c.id));
-              },
-              child: const Icon(Icons.edit),
-            )
-          : null,
+      floatingActionButton: _buildFab(context, c),
+    );
+  }
+
+  Widget? _buildFab(BuildContext context, Community? c) {
+    if (c == null || !c.isMember) return null;
+    final channel = _channel;
+    // can't post in a mods-only channel unless you moderate
+    if (channel != null && channel.modsOnly && !c.canModerate) return null;
+    return FloatingActionButton(
+      onPressed: () async {
+        final posted = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => ComposeScreen(
+              communityId: c.id,
+              communityName: c.name,
+              channelId: channel?.id,
+              channelName: channel?.name,
+            ),
+          ),
+        );
+        if (posted == true) {
+          ref.invalidate(communityFeedProvider(c.id));
+          if (channel != null) {
+            ref.invalidate(communityChannelFeedProvider(channel.id));
+          }
+          ref.invalidate(communityChannelsProvider(c.id));
+        }
+      },
+      child: const Icon(Icons.edit),
+    );
+  }
+}
+
+/// A horizontal strip of channel chips. "All" shows the whole community feed.
+class _ChannelBar extends ConsumerWidget {
+  const _ChannelBar({
+    required this.community,
+    required this.selected,
+    required this.onSelect,
+  });
+  final Community community;
+  final CommunityChannel? selected;
+  final ValueChanged<CommunityChannel?> onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final channels = ref.watch(communityChannelsProvider(community.id));
+    final list = channels.asData?.value ?? const [];
+    if (list.length <= 1 && !community.canModerate) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: ChoiceChip(
+              label: const Text('All'),
+              selected: selected == null,
+              onSelected: (_) => onSelect(null),
+            ),
+          ),
+          for (final ch in list)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: ChoiceChip(
+                avatar: ch.modsOnly
+                    ? const Icon(Icons.campaign_outlined, size: 16)
+                    : null,
+                label: Text('#${ch.name}'),
+                selected: selected?.id == ch.id,
+                onSelected: (_) => onSelect(ch),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -343,12 +431,15 @@ class _RulesSection extends ConsumerWidget {
 }
 
 class _Feed extends ConsumerWidget {
-  const _Feed({required this.community});
+  const _Feed({required this.community, this.channel});
   final Community community;
+  final CommunityChannel? channel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feed = ref.watch(communityFeedProvider(community.id));
+    final feed = channel == null
+        ? ref.watch(communityFeedProvider(community.id))
+        : ref.watch(communityChannelFeedProvider(channel!.id));
     return feed.when(
       loading: () => const SliverToBoxAdapter(
         child: Padding(
@@ -380,6 +471,7 @@ class _Feed extends ConsumerWidget {
           itemBuilder: (_, i) => PostCard(
             post: posts[i],
             moderatorControls: community.canModerate,
+            showChannel: channel == null,
           ),
         );
       },

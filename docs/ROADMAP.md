@@ -126,7 +126,14 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       public mod log; a banned member can still open one to appeal. Member entry
       point on the community page + "Moderator messages" in the profile; a
       per-community queue (open / closed / all) in Manage.
-- [ ] **4-4** — text channels (voice later); events (RSVP, calendar export)
+- [~] **4-4** — text channels done (`community_channel` + `channel_post_policy`;
+      every community has `#general`; `post.channel_id` with a trigger that
+      defaults it / inherits it on replies; `post_insert` learns channels;
+      mods-only channels for announcements; `community_channels` /
+      `create_channel` / `update_channel` / `delete_channel` (posts fall back to
+      general) / `reorder_channels`; `community_channel_feed`; a channel strip on
+      the community page + an admin Channels screen). Events (RSVP, calendar
+      export) still to do. Voice later.
 - [ ] **4-5** — community wiki + pinned resources
 - [ ] Richer discovery directory (topic tags, activity, language, SFW filter)
 

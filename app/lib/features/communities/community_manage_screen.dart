@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/avatar.dart';
 import '../../data/community_repository.dart';
+import 'community_channels_screen.dart';
 import 'community_edit_screen.dart';
 import 'mod_log_screen.dart';
 import 'modmail/community_modmail_screen.dart';
@@ -57,6 +58,18 @@ class CommunityManageScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            if (community.isAdmin)
+              ListTile(
+                leading: const Icon(Icons.tag),
+                title: const Text('Channels'),
+                subtitle: const Text('Split the feed into topics'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        CommunityChannelsScreen(community: community),
+                  ),
+                ),
+              ),
             if (community.isAdmin)
               ListTile(
                 leading: const Icon(Icons.tune),

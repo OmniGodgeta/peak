@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(129);
+select plan(140);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -715,6 +715,73 @@ select set_modmail_state(:'mm', false);
 select throws_ok(
   format($$select modmail_reply(%L, 'anything')$$, :'mm'),
   'this thread is closed', 'a closed thread rejects replies');
+
+-- ── Phase 4-4a: channels ───────────────────────────────────────────────
+-- :'sid' is secret-club (bob admin, kid active member).
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is((select count(*)::int from community_channels(:'sid')), 1,
+  'a community starts with one channel (general)');
+select create_channel(:'sid', 'staff', 'Staff room', 'mods only', true)
+  as staff \gset
+select is((select count(*)::int from community_channels(:'sid')), 2,
+  'create_channel adds a channel');
+select is(
+  (select post_policy::text from community_channels(:'sid') where slug = 'staff'),
+  'moderators', 'a mods-only channel records its policy');
+select (select id from community_channels(:'sid') where slug = 'general')
+  as gen \gset
+
+-- an admin can post in a mods-only channel; it shows in the channel-filtered feed
+insert into post (author_id, persona_id, body, visibility, community_id, channel_id)
+select '00000000-0000-0000-0000-00000000000b',
+       (select id from persona where account_id = '00000000-0000-0000-0000-00000000000b'),
+       'welcome to the staff room', 'public', :'sid', :'staff';
+select is(
+  (select count(*)::int
+   from community_channel_feed(:'staff', now() + interval '1 hour', 50)),
+  1, 'community_channel_feed filters to one channel');
+select is(
+  (select channel_name
+   from community_feed(:'sid', now() + interval '1 hour', 50)
+   where channel_id = :'staff'),
+  'Staff room', 'community_feed carries the channel name');
+
+-- a plain member cannot post in a mods-only channel, but can in a members channel
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select throws_ok(
+  format(
+    $$insert into post (author_id, persona_id, body, visibility, community_id, channel_id)
+      values ('00000000-0000-0000-0000-00000000000c',
+              (select id from persona where account_id = '00000000-0000-0000-0000-00000000000c'),
+              'sneaking in', 'public', %L, %L)$$,
+    :'sid', :'staff'),
+  '42501',
+  'new row violates row-level security policy for table "post"',
+  'a member cannot post in a mods-only channel');
+select lives_ok(
+  format(
+    $$insert into post (author_id, persona_id, body, visibility, community_id, channel_id)
+      values ('00000000-0000-0000-0000-00000000000c',
+              (select id from persona where account_id = '00000000-0000-0000-0000-00000000000c'),
+              'hi from a member', 'public', %L, %L)$$,
+    :'sid', :'gen'),
+  'a member can post in a members channel');
+select throws_ok(
+  format($$select create_channel(%L, 'x', 'X')$$, :'sid'),
+  'only an admin can add channels', 'a non-admin cannot add a channel');
+
+-- delete_channel: general is protected; other channels reparent their posts
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select throws_ok(
+  format($$select delete_channel(%L)$$, :'gen'),
+  'the general channel stays', 'the general channel cannot be deleted');
+select delete_channel(:'staff');
+select is(
+  (select count(*)::int from community_channels(:'sid') where slug = 'staff'),
+  0, 'delete_channel removes the channel');
+select is(
+  (select channel_id from post where body = 'welcome to the staff room'),
+  :'gen'::uuid, 'a deleted channel''s posts fall back to general');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

@@ -93,6 +93,7 @@ class PostRepository {
     String? title,
     bool longForm = false,
     String? communityId,
+    String? channelId,
   }) async {
     final uid = _db.auth.currentUser!.id;
     final personaId = await _defaultPersonaId(uid);
@@ -109,6 +110,7 @@ class PostRepository {
           'long_form': longForm,
           if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
           'community_id': ?communityId,
+          'channel_id': ?channelId,
         })
         .select('id')
         .single();

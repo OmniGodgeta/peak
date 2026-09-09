@@ -231,6 +231,36 @@ class CommunityRule {
   );
 }
 
+/// One text channel inside a community (`community_channels`).
+class CommunityChannel {
+  const CommunityChannel({
+    required this.id,
+    required this.slug,
+    required this.name,
+    required this.description,
+    required this.modsOnly,
+    required this.postCount,
+  });
+
+  final String id;
+  final String slug;
+  final String name;
+  final String description;
+  final bool modsOnly;
+  final int postCount;
+
+  bool get isGeneral => slug == 'general';
+
+  factory CommunityChannel.fromMap(Map<String, dynamic> m) => CommunityChannel(
+    id: m['id'] as String,
+    slug: m['slug'] as String,
+    name: m['name'] as String,
+    description: (m['description'] as String?) ?? '',
+    modsOnly: (m['post_policy'] as String?) == 'moderators',
+    postCount: (m['post_count'] as int?) ?? 0,
+  );
+}
+
 class CommunityRepository {
   CommunityRepository(this._db);
   final SupabaseClient _db;
@@ -299,6 +329,68 @@ class CommunityRepository {
         FeedPost.fromMap(r as Map<String, dynamic>),
     ];
   }
+
+  // ── channels (4-4a) ─────────────────────────────────────────────────────
+
+  Future<List<CommunityChannel>> channels(String communityId) async {
+    final rows = await _db.rpc(
+      'community_channels',
+      params: {'p_community_id': communityId},
+    ) as List;
+    return [
+      for (final r in rows) CommunityChannel.fromMap(r as Map<String, dynamic>),
+    ];
+  }
+
+  Future<List<FeedPost>> channelFeed(String channelId) async {
+    final rows = await _db.rpc(
+      'community_channel_feed',
+      params: {'p_channel_id': channelId},
+    ) as List;
+    return [for (final r in rows) FeedPost.fromMap(r as Map<String, dynamic>)];
+  }
+
+  Future<String> createChannel(
+    String communityId, {
+    required String slug,
+    required String name,
+    String description = '',
+    bool modsOnly = false,
+  }) async {
+    return await _db.rpc(
+      'create_channel',
+      params: {
+        'p_community_id': communityId,
+        'p_slug': slug,
+        'p_name': name,
+        'p_description': description,
+        'p_mods_only': modsOnly,
+      },
+    ) as String;
+  }
+
+  Future<void> updateChannel(
+    String channelId, {
+    required String name,
+    required String description,
+    required bool modsOnly,
+  }) => _db.rpc(
+    'update_channel',
+    params: {
+      'p_channel_id': channelId,
+      'p_name': name,
+      'p_description': description,
+      'p_mods_only': modsOnly,
+    },
+  );
+
+  Future<void> deleteChannel(String channelId) =>
+      _db.rpc('delete_channel', params: {'p_channel_id': channelId});
+
+  Future<void> reorderChannels(String communityId, List<String> ids) => _db.rpc(
+    'reorder_channels',
+    params: {'p_community_id': communityId, 'p_ids': ids},
+  );
 
   // ── moderation ──────────────────────────────────────────────────────────
 
@@ -490,4 +582,14 @@ final communityModLogProvider =
 final communityRulesProvider =
     FutureProvider.family<List<CommunityRule>, String>((ref, id) async {
       return ref.watch(communityRepositoryProvider).rules(id);
+    });
+
+final communityChannelsProvider =
+    FutureProvider.family<List<CommunityChannel>, String>((ref, id) async {
+      return ref.watch(communityRepositoryProvider).channels(id);
+    });
+
+final communityChannelFeedProvider =
+    FutureProvider.family<List<FeedPost>, String>((ref, channelId) async {
+      return ref.watch(communityRepositoryProvider).channelFeed(channelId);
     });

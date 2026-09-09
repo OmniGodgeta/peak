@@ -14,6 +14,8 @@ class ComposeScreen extends ConsumerStatefulWidget {
     this.replyTo,
     this.communityId,
     this.communityName,
+    this.channelId,
+    this.channelName,
   });
 
   /// When set, this composer posts a reply to that post.
@@ -22,6 +24,11 @@ class ComposeScreen extends ConsumerStatefulWidget {
   /// When set, this composer posts into a community (no circle picker).
   final String? communityId;
   final String? communityName;
+
+  /// The channel within that community to post into (defaults to "general"
+  /// server-side when null).
+  final String? channelId;
+  final String? channelName;
 
   @override
   ConsumerState<ComposeScreen> createState() => _ComposeScreenState();
@@ -119,6 +126,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           longForm: _article,
           title: _article ? _title.text.trim() : null,
           communityId: widget.communityId,
+          channelId: widget.channelId,
         );
       } else {
         final publicIds = circles
@@ -214,7 +222,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                     const Icon(Icons.groups_outlined, size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      'Posting to ${widget.communityName ?? "this community"}',
+                      widget.channelName != null
+                          ? 'Posting to ${widget.communityName ?? "this community"} · #${widget.channelName}'
+                          : 'Posting to ${widget.communityName ?? "this community"}',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],

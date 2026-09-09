@@ -22,8 +22,12 @@ class PostCard extends ConsumerStatefulWidget {
     required this.post,
     this.tappable = true,
     this.moderatorControls = false,
+    this.showChannel = false,
   });
   final FeedPost post;
+
+  /// Show a `#channel` chip (community "All" view, where posts span channels).
+  final bool showChannel;
 
   /// In a thread the current post shouldn't re-open the thread on tap.
   final bool tappable;
@@ -278,6 +282,16 @@ class _PostCardState extends ConsumerState<PostCard> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            if (widget.showChannel && p.channelName != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '#${p.channelName}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             if (p.communityLabel != null)
