@@ -25,7 +25,7 @@ app + Supabase (Postgres + RLS + Edge Functions) backend.
 |---|---|
 | **Hosted backend** | **LIVE.** Supabase project `izvcozvfqmggyziaeeoc` (name "Peak Social", `https://izvcozvfqmggyziaeeoc.supabase.co`, us-west-2, PG 17). All 40 migrations applied, pg_cron + 3 retention jobs scheduled, `app-version` / `export` / `publish` edge functions deployed, security-hardened. Seeded with `@nasa` + `c/space`. |
 | **Preview web** | `https://shadow-1.tail51f9d6.ts.net:8720/` — built against the hosted backend, served from `~/peak-web/` by the `peak-web` user systemd unit. Rebuild: `flutter build web --release --dart-define-from-file=<hosted env json>` then `rsync -a --delete build/web/ ~/peak-web/ && systemctl --user restart peak-web`. |
-| **Android APK** | Release pipeline is wired. `v1.0.0` tag pushed 2026-09-10; `.github/workflows/release.yml` builds the signed APK and attaches it to a GitHub Release. `RELEASE_SUPABASE_URL` (var) + `RELEASE_SUPABASE_ANON_KEY` (secret) are set. |
+| **Android APK** | **Published.** [`v1.0.0` release](https://github.com/OmniGodgeta/peak/releases/tag/v1.0.0) — signed `peak-1.0.0-release.apk` (66.7 MiB, sha256 `328efb9af51799bd1ce04587bfaf0bab5f5b50fad4ad6dc180d14650908e3435`), built against the hosted backend by `.github/workflows/release.yml`. `RELEASE_SUPABASE_URL` (var) + `RELEASE_SUPABASE_ANON_KEY` (secret) set. `SUPABASE_SERVICE_ROLE_KEY` not set, so the workflow skipped the manifest PATCH — the `app_release` row was PATCHed by hand via the MCP instead (the `app-version` edge fn now serves it). Next release: bump `app/pubspec.yaml` → `1.0.1+2`, commit, `git tag v1.0.1 && git push origin v1.0.1`. |
 | **Public domain / web host** | Not done. Deferred until a domain is registered — see [DEPLOY.md](DEPLOY.md) §0–2, §5. |
 | **CI** | Green. 3 GitHub Actions jobs: Flutter (analyze `--fatal-infos` + `dart format` + `flutter test` + web build + `tool/check_dependencies.sh`), Supabase (`db reset` + `db lint --level warning` + `supabase test db`), Edge Functions (deno fmt/lint/check). |
 | **pgTAP** | 214 assertions, all green (`supabase/tests/00_identity_rls.test.sql`). |
@@ -45,7 +45,7 @@ to the hosted project via the Supabase MCP:
 | `ad5e193` | **Proof-of-personhood** — `personhood` (method `staff` \| `vouch`) + `personhood_vouch`; a staff grant OR 3 vouches from verified people (auto-grant / auto-revoke); `profile_view` carries `is_verified_person` / `personhood_method` / `vouch_count`; ✓ badge + vouch button on profiles; **Me → Proof of personhood**. Deliberately *not* identity verification. Added a 4th pgTAP fixture user (`…0000000d` / `dave`). |
 | `a210fc4` | Pinned `feed_local`'s `search_path` (advisor hygiene). |
 
-Also this session: set the `RELEASE_SUPABASE_URL` repo variable + `RELEASE_SUPABASE_ANON_KEY` secret, and re-pushed the `v1.0.0` tag (was pointing at a stale commit and its release run had failed for lack of the backend config).
+Also this session: set the `RELEASE_SUPABASE_URL` repo variable + `RELEASE_SUPABASE_ANON_KEY` secret, re-pushed the `v1.0.0` tag (was pointing at a stale commit and its release run had failed for lack of the backend config), and — after the workflow published the signed APK — PATCHed the `app_release` row via the MCP so the in-app updater serves it.
 
 ## 4. What's left
 
