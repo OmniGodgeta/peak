@@ -1,5 +1,10 @@
 # Stand up the hosted backend (no domain yet)
 
+> **Status (2026-09-10): DONE.** Project `izvcozvfqmggyziaeeoc` is live — all
+> migrations applied, pg_cron jobs scheduled, edge functions deployed, and the
+> Tailscale preview web points at it. What's left: the two **you** items below
+> (Auth URL config; the APK tag), then a domain + public web host.
+
 The plan: run Peak's backend on **hosted Supabase** now, keep using the Tailscale
 preview URL for the web app, and defer `peak.social` + the public web host until
 the domain is registered. When you're ready for a domain, pick up
