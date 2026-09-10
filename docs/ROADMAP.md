@@ -4,6 +4,14 @@ Phases are sequenced by dependency, not calendar. Each phase ends with something
 demonstrable. "Done" means: shipped to the reference instance, documented, tested,
 accessible.
 
+> **Picking up work?** Start with [HANDOFF.md](HANDOFF.md) — current state, what's
+> blocked on the operator, and the immediate next tasks.
+
+**Status (2026-10):** phases 0–4 done. Phase 5 ~90% (labelers, custom feeds +
+directory, local feed, interests/PYMK, search, wellbeing, reports,
+proof-of-personhood all shipped; ranking Edge Function + fan-out index +
+pgvector recs remain). Hosted Supabase backend is live.
+
 ---
 
 ## Phase 0 — Foundation  ·  *in progress*
@@ -23,7 +31,7 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
 - [x] Profile edit (avatar, bio, links, pronouns)
 - [x] CI running green (Flutter + Supabase schema + Edge Functions jobs)
 - [x] Public backend: **hosted Supabase live** (2026-09-10) — project
-      `izvcozvfqmggyziaeeoc`, all 34 migrations applied, pg_cron retention jobs
+      `izvcozvfqmggyziaeeoc`, all 40 migrations applied, pg_cron retention jobs
       scheduled, `app-version` / `export` / `publish` edge functions deployed.
       The Tailscale preview web now points at it. Domain + public web host still
       deferred — see [DEPLOY.md](DEPLOY.md) §1–2.
@@ -164,7 +172,7 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       tags in use. Directory screen has a sort menu, an 18+ toggle, and topic
       filter chips. (Language filter deferred — no per-post language yet.)
 
-## Phase 5 — Ranking, custom feeds, discovery, moderation depth
+## Phase 5 — Ranking, custom feeds, discovery, moderation depth  ·  *~90%*
 
 - [ ] Fan-out-on-write feed index + hybrid path for large accounts
 - [ ] `ranking` Edge Function — open, with excluded-signal test suite
