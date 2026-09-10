@@ -164,7 +164,12 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       `reason` string ("You follow @x" / "You and @x follow each other" / "Your
       post"); the post-card menu item now shows it. Gets richer once ranking
       lands.
-- [ ] Custom feeds (rule sets, shareable) + `feeds` compiler
+- [~] Custom feeds (rule sets, shareable) — `custom_feed` (name + jsonb
+      rules: communities / from / any_words / not_words / only_media) +
+      `feed_custom` compiler (still gated by `can_view_post`); `copy_custom_feed`
+      clones a public one. The home feed switcher lists your custom feeds; a
+      Manage-feeds screen with a rule editor. Shareable-by-link + a feeds
+      directory still to do.
 - [ ] Interests, People-you-may-know (mutuals/communities only), local tab
 - [~] Search (Postgres FTS) with per-doc ACL — `post.search_vector` generated
       `tsvector` + GIN index; `search_posts` (rank blended with recency, still

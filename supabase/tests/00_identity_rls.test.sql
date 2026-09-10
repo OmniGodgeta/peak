@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(170);
+select plan(174);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -916,6 +916,36 @@ select is(
   (select reason from feed_friends(now() + interval '1 hour')
    where author_handle = 'alice' limit 1),
   'You and @alice follow each other', 'the reason names the mutual follow');
+
+-- ── Phase 5: custom feeds ──────────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+insert into custom_feed (owner_id, name, rules)
+values ('00000000-0000-0000-0000-00000000000c', 'Hellos',
+        '{"any_words":["hello"]}'::jsonb)
+returning id as cf \gset
+select ok(
+  (select count(*) from feed_custom(:'cf', now() + interval '1 hour')) >= 1,
+  'feed_custom matches a keyword rule');
+
+update custom_feed set rules = '{"not_words":["hello"]}'::jsonb where id = :'cf';
+select is(
+  (select count(*)::int from feed_custom(:'cf', now() + interval '1 hour')
+   where id = :'alice_pub_id'),
+  0, 'not_words excludes a matching post');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select throws_ok(
+  format($$select feed_custom(%L)$$, :'cf'),
+  'feed not found', 'a private custom feed is invisible to other users');
+
+set local role postgres;
+update custom_feed set is_public = true where id = :'cf';
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select copy_custom_feed(:'cf') as cf2 \gset
+select is(
+  (select owner_id from custom_feed where id = :'cf2'),
+  '00000000-0000-0000-0000-00000000000b'::uuid,
+  'copy_custom_feed clones a public feed to the copier');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

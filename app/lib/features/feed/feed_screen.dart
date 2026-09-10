@@ -1,36 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/custom_feed_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/story_repository.dart';
 import '../compose/compose_screen.dart';
 import '../stories/stories_strip.dart';
+import 'custom_feeds_screen.dart';
 import 'post_card.dart';
 
-/// Home. Phase 1 ships **Latest** (reverse-chronological) and **Friends first**;
-/// custom feeds arrive in Phase 5. No infinite autoplaying scroll — after a page
-/// you get a "You're caught up" card.
+/// Home. Built-in feeds: **Latest** (everyone you follow) and **Friends first**
+/// (people who follow you back). Plus any custom feeds you've made. No infinite
+/// scroll — after a page you get a "You're caught up" card.
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feed = ref.watch(feedProvider);
     final kind = ref.watch(selectedFeedProvider);
+    final activeCustom = ref.watch(activeCustomFeedProvider);
+    final customFeeds =
+        ref.watch(myCustomFeedsProvider).asData?.value ?? const [];
+
+    final feed = activeCustom != null
+        ? ref.watch(customFeedPostsProvider(activeCustom))
+        : ref.watch(feedProvider);
+
+    void invalidateFeed() {
+      if (activeCustom != null) {
+        ref.invalidate(customFeedPostsProvider(activeCustom));
+      } else {
+        ref.invalidate(feedProvider);
+      }
+    }
+
+    final value = activeCustom != null
+        ? 'cf:$activeCustom'
+        : (kind == FeedKind.friendsFirst ? 'friends' : 'latest');
 
     return Scaffold(
       appBar: AppBar(
         title: DropdownButtonHideUnderline(
-          child: DropdownButton<FeedKind>(
-            value: kind,
-            onChanged: (v) => v == null
-                ? null
-                : ref.read(selectedFeedProvider.notifier).set(v),
-            items: const [
-              DropdownMenuItem(value: FeedKind.latest, child: Text('Latest')),
-              DropdownMenuItem(
-                value: FeedKind.friendsFirst,
+          child: DropdownButton<String>(
+            value: value,
+            onChanged: (v) {
+              if (v == null) return;
+              if (v == 'manage') {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CustomFeedsScreen(),
+                  ),
+                );
+                return;
+              }
+              if (v == 'latest') {
+                ref.read(activeCustomFeedProvider.notifier).set(null);
+                ref.read(selectedFeedProvider.notifier).set(FeedKind.latest);
+              } else if (v == 'friends') {
+                ref.read(activeCustomFeedProvider.notifier).set(null);
+                ref
+                    .read(selectedFeedProvider.notifier)
+                    .set(FeedKind.friendsFirst);
+              } else if (v.startsWith('cf:')) {
+                ref.read(activeCustomFeedProvider.notifier).set(v.substring(3));
+              }
+            },
+            items: [
+              const DropdownMenuItem(value: 'latest', child: Text('Latest')),
+              const DropdownMenuItem(
+                value: 'friends',
                 child: Text('Friends first'),
+              ),
+              for (final f in customFeeds)
+                DropdownMenuItem(value: 'cf:${f.id}', child: Text(f.name)),
+              const DropdownMenuItem(
+                value: 'manage',
+                child: Text('Manage feeds…'),
               ),
             ],
           ),
@@ -44,14 +89,11 @@ class FeedScreen extends ConsumerWidget {
       ),
       body: feed.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorState(
-          message: '$e',
-          onRetry: () => ref.invalidate(feedProvider),
-        ),
+        error: (e, _) => _ErrorState(message: '$e', onRetry: invalidateFeed),
         data: (posts) {
           return RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(feedProvider);
+              invalidateFeed();
               ref.invalidate(storyTrayProvider);
             },
             child: ListView(
@@ -62,7 +104,9 @@ class FeedScreen extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 80),
                     child: _EmptyFeed(
-                      friendsFirst: kind == FeedKind.friendsFirst,
+                      friendsFirst:
+                          activeCustom == null && kind == FeedKind.friendsFirst,
+                      custom: activeCustom != null,
                     ),
                   )
                 else ...[
@@ -109,28 +153,37 @@ class _CaughtUp extends StatelessWidget {
 }
 
 class _EmptyFeed extends StatelessWidget {
-  const _EmptyFeed({this.friendsFirst = false});
+  const _EmptyFeed({this.friendsFirst = false, this.custom = false});
   final bool friendsFirst;
+  final bool custom;
 
   @override
   Widget build(BuildContext context) {
+    final (title, hint) = custom
+        ? (
+            'Nothing matches this feed yet.',
+            'Adjust its rules from Manage feeds, or wait for matching posts.',
+          )
+        : friendsFirst
+        ? (
+            'No posts from your friends yet.',
+            'Friends first shows only people who follow you back. '
+                'Switch to Latest for everyone you follow.',
+          )
+        : (
+            'Your feed is empty.',
+            'Follow some people, or post something to one of your circles.',
+          );
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              friendsFirst
-                  ? 'No posts from your friends yet.'
-                  : 'Your feed is empty.',
-            ),
+            Text(title),
             const SizedBox(height: 8),
             Text(
-              friendsFirst
-                  ? 'Friends first shows only people who follow you back. '
-                        'Switch to Latest for everyone you follow.'
-                  : 'Follow some people, or post something to one of your circles.',
+              hint,
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),

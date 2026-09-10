@@ -223,6 +223,18 @@ class SelectedFeed extends Notifier<FeedKind> {
   void set(FeedKind kind) => state = kind;
 }
 
+/// When non-null, the home feed shows this custom feed instead of
+/// [selectedFeedProvider]'s built-in kind.
+final activeCustomFeedProvider = NotifierProvider<ActiveCustomFeed, String?>(
+  ActiveCustomFeed.new,
+);
+
+class ActiveCustomFeed extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? id) => state = id;
+}
+
 /// Bumped whenever something that changes the feed happens elsewhere in the app
 /// (a new post, a follow/unfollow). Screens that can't easily reach the feed
 /// call `ref.read(feedRevisionProvider.notifier).bump()`.
