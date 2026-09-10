@@ -1,10 +1,6 @@
--- Peak — Phase 5: the Local feed.
---
--- Every public, top-level, non-community post on this instance, newest first —
--- the same shape as feed_latest but without the follow requirement. Still
--- filtered by post RLS (so blocks and visibility hold) and your mutes. This is
--- the "see what's happening here" tab; federation will widen "here" later.
-
+-- Follow-up applied to hosted: pin feed_local's search_path (the v1 file above
+-- now sets it too, so this is a no-op on a fresh db reset). Clears the
+-- function_search_path_mutable advisor for feed_local.
 create or replace function feed_local(
   p_before timestamptz default now(),
   p_limit int default 30
@@ -47,5 +43,3 @@ language sql stable set search_path = public as $$
   order by p.created_at desc
   limit least(p_limit, 100);
 $$;
-
-grant execute on function feed_local(timestamptz, int) to authenticated;
