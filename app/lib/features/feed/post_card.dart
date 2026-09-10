@@ -441,9 +441,26 @@ class _PostCardState extends ConsumerState<PostCard> {
                   onSelected: (v) {
                     switch (v) {
                       case 'why':
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Feed transparency — Phase 5'),
+                        showDialog<void>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Why am I seeing this?'),
+                            content: Text(
+                              p.reason ??
+                                  (p.channelName != null
+                                      ? 'A post in #${p.channelName}, a channel '
+                                            'of a community you can see.'
+                                      : "It's in a thread or community you "
+                                            'opened. The home feed is only '
+                                            'people you follow — never ranked '
+                                            'or injected.'),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('OK'),
+                              ),
+                            ],
                           ),
                         );
                       case 'pin':

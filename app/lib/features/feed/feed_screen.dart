@@ -59,9 +59,11 @@ class FeedScreen extends ConsumerWidget {
                 const StoriesStrip(),
                 const Divider(height: 1),
                 if (posts.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 80),
-                    child: _EmptyFeed(),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 80),
+                    child: _EmptyFeed(
+                      friendsFirst: kind == FeedKind.friendsFirst,
+                    ),
                   )
                 else ...[
                   for (final p in posts) ...[
@@ -107,7 +109,8 @@ class _CaughtUp extends StatelessWidget {
 }
 
 class _EmptyFeed extends StatelessWidget {
-  const _EmptyFeed();
+  const _EmptyFeed({this.friendsFirst = false});
+  final bool friendsFirst;
 
   @override
   Widget build(BuildContext context) {
@@ -117,10 +120,17 @@ class _EmptyFeed extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Your feed is empty.'),
+            Text(
+              friendsFirst
+                  ? 'No posts from your friends yet.'
+                  : 'Your feed is empty.',
+            ),
             const SizedBox(height: 8),
             Text(
-              'Follow some people, or post something to one of your circles.',
+              friendsFirst
+                  ? 'Friends first shows only people who follow you back. '
+                        'Switch to Latest for everyone you follow.'
+                  : 'Follow some people, or post something to one of your circles.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),

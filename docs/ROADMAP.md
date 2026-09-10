@@ -46,7 +46,8 @@ thing that is recognizably "a social network."
 - [x] Delete a post → 30-day recyclable bin (see Phase 3 data controls)
 - [~] Composer: alt-text is a soft prompt; polls, drafts, scheduling, quote-posts to do
 - [ ] Media upload pipeline (EXIF strip, renditions, thumbnails) — needs `shadow`
-- [ ] **Friends-first** feed variant
+- [x] **Friends-first** feed variant — `feed_friends` (only people who follow
+      you back); the home feed toggle now actually swaps the query
 - [ ] Notifications (in-app + push, bundled, quiet hours, neutral badge)
 - [ ] Report content/account → moderation intake
 
@@ -159,7 +160,10 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
 
 - [ ] Fan-out-on-write feed index + hybrid path for large accounts
 - [ ] `ranking` Edge Function — open, with excluded-signal test suite
-- [ ] **"Why am I seeing this?"** on every ranked item
+- [~] **"Why am I seeing this?"** — `feed_latest` / `feed_friends` return a
+      `reason` string ("You follow @x" / "You and @x follow each other" / "Your
+      post"); the post-card menu item now shows it. Gets richer once ranking
+      lands.
 - [ ] Custom feeds (rule sets, shareable) + `feeds` compiler
 - [ ] Interests, People-you-may-know (mutuals/communities only), local tab
 - [~] Search (Postgres FTS) with per-doc ACL — `post.search_vector` generated

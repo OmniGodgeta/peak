@@ -67,6 +67,7 @@ class FeedPost {
     this.authorFlair,
     this.channelId,
     this.channelName,
+    this.reason,
     this.replyTo,
     this.depth = 0,
   });
@@ -112,6 +113,10 @@ class FeedPost {
   final String? channelId;
   final String? channelName;
 
+  /// "Why am I seeing this?" — a plain-language reason. Only set by the home
+  /// feeds (`feed_latest` / `feed_friends`).
+  final String? reason;
+
   final String? replyTo; // set in thread views
   final int depth; // set in thread views
 
@@ -152,6 +157,7 @@ class FeedPost {
     authorFlair: m['author_flair'] as String?,
     channelId: m['channel_id'] as String?,
     channelName: m['channel_name'] as String?,
+    reason: m['reason'] as String?,
     replyTo: m['reply_to'] as String?,
     depth: (m['depth'] as num?)?.toInt() ?? 0,
   );
@@ -163,6 +169,14 @@ class FeedRepository {
 
   Future<List<FeedPost>> latest({int limit = 30}) async {
     final rows = await _db.rpc('feed_latest', params: {'p_limit': limit});
+    return (rows as List)
+        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Posts only from people who follow you back.
+  Future<List<FeedPost>> friends({int limit = 30}) async {
+    final rows = await _db.rpc('feed_friends', params: {'p_limit': limit});
     return (rows as List)
         .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -195,8 +209,8 @@ final feedRepositoryProvider = Provider<FeedRepository>((ref) {
   return FeedRepository(ref.watch(supabaseProvider));
 });
 
-/// Which named feed is selected. Only `latest` is wired for now; `friendsFirst`
-/// reuses the same rows and reorders client-side (Phase 1).
+/// Which home feed is selected. `latest` = everyone you follow, newest first;
+/// `friendsFirst` = only people who follow you back (`feed_friends`).
 enum FeedKind { latest, friendsFirst }
 
 final selectedFeedProvider = NotifierProvider<SelectedFeed, FeedKind>(
@@ -223,7 +237,8 @@ class FeedRevision extends Notifier<int> {
 }
 
 final feedProvider = FutureProvider<List<FeedPost>>((ref) async {
-  ref.watch(selectedFeedProvider);
+  final kind = ref.watch(selectedFeedProvider);
   ref.watch(feedRevisionProvider);
-  return ref.watch(feedRepositoryProvider).latest();
+  final repo = ref.watch(feedRepositoryProvider);
+  return kind == FeedKind.friendsFirst ? repo.friends() : repo.latest();
 });

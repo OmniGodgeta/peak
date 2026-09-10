@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(166);
+select plan(170);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -887,6 +887,35 @@ select is((select count(*)::int from search_posts('friends')), 0,
   'search_posts respects post visibility (no circles post leak)');
 select ok((select count(*) from search_all('world')) >= 1,
   'search_all returns a unified result set');
+
+-- ── Phase 5: friends feed + "why am I seeing this?" ────────────────────
+-- kid follows alice (not mutual yet); alice has a public post 'hello world'.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(
+  (select reason from feed_latest(now() + interval '1 hour')
+   where author_handle = 'alice' limit 1),
+  'You follow @alice', 'feed_latest says why a post is in the feed');
+select is(
+  (select count(*)::int from feed_friends(now() + interval '1 hour')
+   where author_handle = 'alice'),
+  0, 'feed_friends drops a non-mutual follow');
+
+-- alice follows kid back (kid is a non-discoverable teen, so RLS would block a
+-- normal follow — force it as the owner to set up the mutual edge)
+set local role postgres;
+insert into follow (follower_id, followee_id)
+  values ('00000000-0000-0000-0000-00000000000a',
+          '00000000-0000-0000-0000-00000000000c');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select ok(
+  (select count(*) from feed_friends(now() + interval '1 hour')
+   where author_handle = 'alice') >= 1,
+  'feed_friends shows a mutual follow''s posts');
+select is(
+  (select reason from feed_friends(now() + interval '1 hour')
+   where author_handle = 'alice' limit 1),
+  'You and @alice follow each other', 'the reason names the mutual follow');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');
