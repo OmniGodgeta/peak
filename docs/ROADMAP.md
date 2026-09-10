@@ -172,12 +172,13 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       `reason` string ("You follow @x" / "You and @x follow each other" / "Your
       post"); the post-card menu item now shows it. Gets richer once ranking
       lands.
-- [~] Custom feeds (rule sets, shareable) — `custom_feed` (name + jsonb
+- [x] Custom feeds (rule sets, shareable) — `custom_feed` (name + jsonb
       rules: communities / from / any_words / not_words / only_media) +
       `feed_custom` compiler (still gated by `can_view_post`); `copy_custom_feed`
-      clones a public one. The home feed switcher lists your custom feeds; a
-      Manage-feeds screen with a rule editor. Shareable-by-link + a feeds
-      directory still to do.
+      clones a public one (recording `copied_from`). The home feed switcher
+      lists your custom feeds; a Manage-feeds screen with a rule editor. Feed
+      directory (`custom_feeds_browse` / `custom_feed_meta`, popular/new sort,
+      copy-count) + share-by-link (`peak.social/f/<id>`, "add from link").
 - [~] Interests + People-you-may-know — `profile_interest` (+ `set_my_interests`
       / `my_interests`); `people_you_may_know` (friend-of-friend + co-member
       only, with the reason); `suggested_communities` (listed communities

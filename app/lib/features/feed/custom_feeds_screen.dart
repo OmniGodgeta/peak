@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/custom_feed_repository.dart';
 import '../../data/feed_repository.dart';
 import 'custom_feed_edit_screen.dart';
+import 'feeds_directory_screen.dart';
 
 /// Manage your custom feeds — rule sets that produce a home feed.
 class CustomFeedsScreen extends ConsumerWidget {
@@ -14,7 +16,20 @@ class CustomFeedsScreen extends ConsumerWidget {
     final feeds = ref.watch(myCustomFeedsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Custom feeds')),
+      appBar: AppBar(
+        title: const Text('Custom feeds'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.explore_outlined),
+            tooltip: 'Feed directory',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const FeedsDirectoryScreen(),
+              ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final made = await Navigator.of(context).push<bool>(
@@ -69,6 +84,17 @@ class CustomFeedsScreen extends ConsumerWidget {
                           if (saved == true) {
                             ref.invalidate(myCustomFeedsProvider);
                           }
+                        } else if (v == 'share') {
+                          Clipboard.setData(
+                            ClipboardData(text: feedShareLink(f.id)),
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Share link copied'),
+                              ),
+                            );
+                          }
                         } else if (v == 'delete') {
                           await ref
                               .read(customFeedRepositoryProvider)
@@ -81,9 +107,17 @@ class CustomFeedsScreen extends ConsumerWidget {
                           ref.invalidate(myCustomFeedsProvider);
                         }
                       },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        if (f.isPublic)
+                          const PopupMenuItem(
+                            value: 'share',
+                            child: Text('Copy share link'),
+                          ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
                       ],
                     ),
                   ],

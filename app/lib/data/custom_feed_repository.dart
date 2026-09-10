@@ -81,6 +81,54 @@ class CustomFeed {
   );
 }
 
+/// A public custom feed in the directory (or behind a share link).
+class BrowsedFeed {
+  const BrowsedFeed({
+    required this.id,
+    required this.name,
+    required this.rules,
+    required this.ownerHandle,
+    required this.ownerDisplayName,
+    required this.copyCount,
+    required this.mine,
+    required this.added,
+  });
+
+  final String id;
+  final String name;
+  final FeedRules rules;
+  final String ownerHandle;
+  final String ownerDisplayName;
+  final int copyCount;
+  final bool mine;
+  final bool added;
+
+  String get ownerName =>
+      ownerDisplayName.isNotEmpty ? ownerDisplayName : ownerHandle;
+
+  factory BrowsedFeed.fromMap(Map<String, dynamic> m) => BrowsedFeed(
+    id: m['id'] as String,
+    name: m['name'] as String,
+    rules: FeedRules.fromJson((m['rules'] as Map?)?.cast() ?? const {}),
+    ownerHandle: (m['owner_handle'] as String?) ?? '',
+    ownerDisplayName: (m['owner_display_name'] as String?) ?? '',
+    copyCount: (m['copy_count'] as num?)?.toInt() ?? 0,
+    mine: (m['mine'] as bool?) ?? false,
+    added: (m['added'] as bool?) ?? false,
+  );
+}
+
+/// The feed id embedded in a Peak share link (or a bare id).
+String? feedIdFromShare(String raw) {
+  final s = raw.trim();
+  final m = RegExp(
+    r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+  ).firstMatch(s);
+  return m?.group(1);
+}
+
+String feedShareLink(String id) => 'https://peak.social/f/$id';
+
 class CustomFeedRepository {
   CustomFeedRepository(this._db);
   final SupabaseClient _db;
@@ -123,6 +171,26 @@ class CustomFeedRepository {
   Future<String> copy(String id) async =>
       await _db.rpc('copy_custom_feed', params: {'p_feed_id': id}) as String;
 
+  Future<List<BrowsedFeed>> browse({
+    String query = '',
+    String sort = 'popular',
+  }) async {
+    final rows = await _db.rpc(
+      'custom_feeds_browse',
+      params: {'p_query': query, 'p_sort': sort},
+    ) as List;
+    return [
+      for (final r in rows) BrowsedFeed.fromMap(r as Map<String, dynamic>),
+    ];
+  }
+
+  Future<BrowsedFeed?> meta(String id) async {
+    final rows =
+        await _db.rpc('custom_feed_meta', params: {'p_feed_id': id}) as List;
+    if (rows.isEmpty) return null;
+    return BrowsedFeed.fromMap(rows.first as Map<String, dynamic>);
+  }
+
   Future<List<FeedPost>> posts(String id, {int limit = 30}) async {
     final rows = await _db.rpc(
       'feed_custom',
@@ -149,4 +217,24 @@ final customFeedPostsProvider = FutureProvider.family<List<FeedPost>, String>((
 ) async {
   ref.watch(feedRevisionProvider);
   return ref.watch(customFeedRepositoryProvider).posts(id);
+});
+
+/// (query, sort) → public feeds in the directory.
+final customFeedsBrowseProvider =
+    FutureProvider.family<List<BrowsedFeed>, ({String query, String sort})>((
+      ref,
+      arg,
+    ) async {
+      ref.watch(feedRevisionProvider);
+      return ref
+          .watch(customFeedRepositoryProvider)
+          .browse(query: arg.query, sort: arg.sort);
+    });
+
+final customFeedMetaProvider = FutureProvider.family<BrowsedFeed?, String>((
+  ref,
+  id,
+) async {
+  ref.watch(feedRevisionProvider);
+  return ref.watch(customFeedRepositoryProvider).meta(id);
 });

@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(195);
+select plan(200);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -947,6 +947,23 @@ select is(
   (select owner_id from custom_feed where id = :'cf2'),
   '00000000-0000-0000-0000-00000000000b'::uuid,
   'copy_custom_feed clones a public feed to the copier');
+select is(
+  (select copied_from from custom_feed where id = :'cf2'),
+  :'cf'::uuid, 'a copied feed records where it came from');
+
+-- the directory lists the public feed with its copy count
+select is(
+  (select copy_count from custom_feeds_browse('') where id = :'cf'),
+  1, 'custom_feeds_browse reports how many people copied a feed');
+select is(
+  (select added from custom_feeds_browse('') where id = :'cf'),
+  true, 'custom_feeds_browse marks a feed the caller has already added');
+select is(
+  (select count(*)::int from custom_feed_meta(:'cf')),
+  1, 'custom_feed_meta returns a public feed for a share-link preview');
+select is(
+  (select mine from custom_feeds_browse('') where id = :'cf'),
+  false, 'a feed owned by someone else is not "mine" in the directory');
 
 -- ── Phase 5: interests + people-you-may-know ───────────────────────────
 -- kid follows alice; alice follows bob + kid; kid & bob share secret-club.
