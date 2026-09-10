@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/brand.dart';
+import '../../core/env.dart';
 import '../../data/supabase_providers.dart';
+import 'turnstile/turnstile_challenge.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -18,6 +20,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   bool _register = false;
   String? _error;
 
+  // From the Turnstile challenge (web, when TURNSTILE_SITE_KEY is set).
+  String? _captchaToken;
+
+  bool get _needsCaptcha => _register && Env.turnstileSiteKey.isNotEmpty;
+
   @override
   void dispose() {
     _email.dispose();
@@ -26,6 +33,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _submit() async {
+    if (_needsCaptcha && _captchaToken == null) {
+      setState(() => _error = 'Please complete the challenge.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -33,7 +44,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final auth = ref.read(supabaseProvider).auth;
     try {
       if (_register) {
-        await auth.signUp(email: _email.text.trim(), password: _password.text);
+        await auth.signUp(
+          email: _email.text.trim(),
+          password: _password.text,
+          captchaToken: _captchaToken,
+        );
       } else {
         await auth.signInWithPassword(
           email: _email.text.trim(),
@@ -90,6 +105,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                if (_needsCaptcha) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TurnstileChallenge(
+                      siteKey: Env.turnstileSiteKey,
+                      onToken: (t) => setState(() => _captchaToken = t),
+                    ),
+                  ),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, style: TextStyle(color: scheme.error)),

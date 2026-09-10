@@ -11,6 +11,7 @@ import '../../data/community_repository.dart';
 import '../../data/report_repository.dart';
 import '../communities/modmail/my_modmail_screen.dart';
 import '../discovery/discovery_screen.dart';
+import '../moderation/ingest_admin_screen.dart';
 import '../moderation/labelers_screen.dart';
 import '../moderation/my_reports_screen.dart';
 import '../moderation/personhood_screen.dart';
@@ -190,6 +191,19 @@ class ProfileScreen extends ConsumerWidget {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const ReviewQueueScreen(),
+                    ),
+                  ),
+                ),
+              if (ref.watch(amIStaffProvider).asData?.value == true)
+                ListTile(
+                  leading: const Icon(Icons.rss_feed_outlined),
+                  title: const Text('Auto-feeds'),
+                  subtitle: const Text(
+                    'Mirror/news sources — hide an item, turn a source off',
+                  ),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const IngestAdminScreen(),
                     ),
                   ),
                 ),

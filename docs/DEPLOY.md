@@ -166,7 +166,16 @@ A public social network with **13+ and teen accounts** carries obligations from 
 
 ### Security & abuse
 - [ ] `supabase db lint` clean; all `supabase test db` green against the prod schema
-- [ ] Cloudflare **Turnstile** on signup; Supabase Auth rate limits tuned
+- [ ] Cloudflare **Turnstile** on signup — the app side is already wired:
+      1. Cloudflare dashboard → Turnstile → add a widget for the domain →
+         copy the **site key** and **secret key** (needs the domain registered).
+      2. Supabase dashboard → Authentication → Attack Protection → enable
+         **CAPTCHA**, provider **Turnstile**, paste the **secret key**.
+      3. Build the web app with `--dart-define=TURNSTILE_SITE_KEY=<site key>`
+         (add to the web build env). Sign-up then shows the challenge and
+         passes the token to `signUp` (`lib/features/auth/turnstile/`).
+      Mobile sign-up stays challenge-free during the private beta.
+- [ ] Supabase Auth rate limits tuned
 - [ ] Review every RLS policy once more against the prod data
 - [ ] Secrets in CI / host env only — nothing sensitive in the repo
 

@@ -43,6 +43,8 @@ dependencies:
   video_player: ^2.9.2
   # Uploads to the self-hosted media server (see tool/media-server).
   http: ^1.2.2
+  # Pause a feed video when it scrolls out of view. Google package, no tracking.
+  visibility_detector: ^0.4.0+2
   uuid: ^4.6.0
   url_launcher: ^6.3.2
   # In-app updater (sideloaded Android build): read the running version and
@@ -52,6 +54,7 @@ dependencies:
   # Pure-Dart Ed25519 for the per-device identity signature key (Phase 2.5).
   # No native code — the OpenMLS FFI lib (2.5-1) is separate.
   cryptography: ^2.7.0
+  web: ^1.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

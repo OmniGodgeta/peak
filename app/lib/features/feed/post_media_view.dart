@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../data/feed_repository.dart';
 import '../../data/settings_repository.dart';
@@ -151,6 +152,9 @@ class _PostVideoState extends ConsumerState<PostVideo> {
   VideoPlayerController? _c;
   bool _loading = false;
   bool _failed = false;
+  // Paused because it scrolled out of view — resume it when it comes back.
+  bool _pausedByScroll = false;
+  final _visKey = UniqueKey();
 
   @override
   void initState() {
@@ -159,6 +163,18 @@ class _PostVideoState extends ConsumerState<PostVideo> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !ref.read(dataLightProvider)) _load();
       });
+    }
+  }
+
+  void _onVisibility(double fraction) {
+    final c = _c;
+    if (c == null || !c.value.isInitialized || !mounted) return;
+    if (fraction < 0.25 && c.value.isPlaying) {
+      c.pause();
+      _pausedByScroll = true;
+    } else if (fraction > 0.6 && _pausedByScroll && !c.value.isPlaying) {
+      c.play();
+      _pausedByScroll = false;
     }
   }
 
@@ -211,11 +227,15 @@ class _PostVideoState extends ConsumerState<PostVideo> {
     final c = _c;
     final ready = c != null && c.value.isInitialized;
 
-    Widget frame(Widget child) => ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: widget.maxHeight),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: AspectRatio(aspectRatio: _ratio, child: child),
+    Widget frame(Widget child) => VisibilityDetector(
+      key: _visKey,
+      onVisibilityChanged: (info) => _onVisibility(info.visibleFraction),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: widget.maxHeight),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: AspectRatio(aspectRatio: _ratio, child: child),
+        ),
       ),
     );
 

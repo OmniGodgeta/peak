@@ -223,6 +223,13 @@ class FeedRepository {
     return _db.storage.from('post-media').getPublicUrl(storagePath);
   }
 
+  /// One post by id (the root of a thread), or null. Used to resolve a shared
+  /// `peak.social/v/<id>` link into the watch page.
+  Future<FeedPost?> byId(String id) async {
+    final t = await thread(id);
+    return t.isEmpty ? null : t.first;
+  }
+
   /// Videos across the instance, newest-first or full-text-ranked. Backs the
   /// Media tab.
   Future<List<FeedPost>> videos({String query = '', int limit = 30}) async {
@@ -238,6 +245,26 @@ class FeedRepository {
 
 final feedRepositoryProvider = Provider<FeedRepository>((ref) {
   return FeedRepository(ref.watch(supabaseProvider));
+});
+
+/// Shareable link for a video post. (Domain is aspirational for now; the in-app
+/// `/v/:id` route and the web build both resolve it.)
+String videoShareLink(String postId) => 'https://peak.social/v/$postId';
+
+/// The post id embedded in a Peak `/v/<id>` link (or a bare id).
+String? postIdFromShare(String raw) {
+  final m = RegExp(
+    r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+  ).firstMatch(raw.trim());
+  return m?.group(1);
+}
+
+/// Resolve one post by id — for the `/v/:id` deep-link route.
+final postByIdProvider = FutureProvider.family<FeedPost?, String>((
+  ref,
+  id,
+) async {
+  return ref.watch(feedRepositoryProvider).byId(id);
 });
 
 /// Which home feed is selected. `latest` = everyone you follow, newest first;

@@ -183,10 +183,11 @@ Deno.serve(async (req) => {
 
   for (const source of sources) {
     try {
-      if (!force && (await throttled(ctx, source))) {
+      const gate = await sourceGate(ctx, source);
+      if (gate.disabled || (!force && gate.throttled)) {
         results.push({
           source,
-          skipped: "throttled",
+          skipped: gate.disabled ? "disabled" : "throttled",
           added: 0,
           seen: 0,
           errors: [],
@@ -215,15 +216,19 @@ Deno.serve(async (req) => {
 
 // ── throttle / run bookkeeping ────────────────────────────────────────────
 
-async function throttled(ctx: Ctx, source: string): Promise<boolean> {
+async function sourceGate(
+  ctx: Ctx,
+  source: string,
+): Promise<{ throttled: boolean; disabled: boolean }> {
   const { data } = await ctx.db
     .from("content_ingest_run")
-    .select("last_run_at")
+    .select("last_run_at, enabled")
     .eq("source", source)
     .maybeSingle();
-  if (!data?.last_run_at) return false;
+  const disabled = data?.enabled === false;
+  if (!data?.last_run_at) return { throttled: false, disabled };
   const age = Date.now() - new Date(data.last_run_at).getTime();
-  return age < THROTTLE_MIN * 60_000;
+  return { throttled: age < THROTTLE_MIN * 60_000, disabled };
 }
 
 async function markRun(ctx: Ctx, source: string, res: SourceResult) {

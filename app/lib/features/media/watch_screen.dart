@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/avatar.dart';
@@ -30,7 +31,24 @@ class WatchScreen extends ConsumerWidget {
     final title = post.title?.trim();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Watch')),
+      appBar: AppBar(
+        title: const Text('Watch'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Copy link',
+            onPressed: () async {
+              await Clipboard.setData(
+                ClipboardData(text: videoShareLink(post.id)),
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('Link copied')));
+              }
+            },
+          ),
+        ],
+      ),
       body: ListView(
         children: [
           Container(

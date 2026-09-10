@@ -31,14 +31,15 @@ Not a phase — the concrete work between here and a public launch:
 - **Finish Phase 5's buildables**: ranking Edge Function (open, excluded-signal
   tests), fan-out-on-write feed index, pgvector "For you", personhood/labeler
   badges on post cards.
-- **Video polish**: adaptive HLS, EXIF strip, orphan cleanup, per-clip
-  moderation reach. (Transcode + poster + local-disk storage done — media
-  server.)
+- **Video polish**: adaptive HLS, EXIF strip, orphan cleanup on post-delete.
+  (Transcode + poster + local-disk storage + scroll-pause + share links done.)
 - **Operator**: run `tool/media-server/` on the storage box; register the
   domain → Cloudflare Pages web host + real email (Resend); lawyer pass on
-  `docs/legal/*`; Turnstile on signup.
-- **Content hygiene**: a light review queue for the mirror feeds; per-source
-  on/off switches; drop dead feeds.
+  `docs/legal/*`. Then set `TURNSTILE_SITE_KEY` (Cloudflare Turnstile needs a
+  domain to issue a key) + enable CAPTCHA in the Supabase dashboard — the
+  web sign-up widget and `signUp(captchaToken:)` plumbing are already in.
+- **Content hygiene**: done — **Me → Auto-feeds** (staff) hides a bad
+  auto-post and toggles a source off (`content_ingest_run.enabled`).
 
 ---
 
@@ -59,7 +60,7 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
 - [x] Profile edit (avatar, bio, links, pronouns)
 - [x] CI running green (Flutter + Supabase schema + Edge Functions jobs)
 - [x] Public backend: **hosted Supabase live** (2026-09-10) — project
-      `izvcozvfqmggyziaeeoc`, all 42 migrations applied, `pg_cron` + `pg_net`,
+      `izvcozvfqmggyziaeeoc`, all 43 migrations applied, `pg_cron` + `pg_net`,
       retention jobs + `ingest-content` (every 6h) scheduled,
       `app-version` / `export` / `publish` / `ingest-content` edge functions
       deployed. The Tailscale preview web now points at it. Domain + public web

@@ -13,6 +13,7 @@ import '../updater/update_service.dart';
 import '../features/communities/communities_screen.dart';
 import '../features/feed/feed_screen.dart';
 import '../features/media/media_screen.dart';
+import '../features/media/video_link_screen.dart';
 import '../features/home/home_shell.dart';
 import '../features/messaging/messaging_screen.dart';
 import '../features/profile/profile_screen.dart';
@@ -77,6 +78,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/update-required',
         builder: (_, _) => const UpdateRequiredScreen(),
+      ),
+      // Shared video link: peak.social/v/<id> (and the in-app deep link).
+      GoRoute(
+        path: '/v/:id',
+        builder: (_, state) =>
+            VideoLinkScreen(id: state.pathParameters['id'] ?? ''),
       ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),

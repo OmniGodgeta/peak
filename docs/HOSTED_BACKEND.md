@@ -40,7 +40,7 @@ names.
 cd ~/Work/peak
 supabase login                      # paste the access token from 1.4
 supabase link --project-ref <ref>   # it will ask for the DB password from 1.1
-supabase db push                    # applies all 42 migrations to the cloud DB
+supabase db push                    # applies all 43 migrations to the cloud DB
 ```
 
 `db push` runs every migration from scratch — the same set CI verifies on every
