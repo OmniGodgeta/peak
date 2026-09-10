@@ -15,6 +15,13 @@ class Env {
     defaultValue: 'peak://auth-callback',
   );
 
+  /// Base URL (ending in `/v1`) of the self-hosted Peak media server that holds
+  /// post images + video. When empty, media falls back to Supabase Storage.
+  /// See tool/media-server/.
+  static const mediaBaseUrl = String.fromEnvironment('PEAK_MEDIA_URL');
+
+  static bool get mediaServerConfigured => mediaBaseUrl.isNotEmpty;
+
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }

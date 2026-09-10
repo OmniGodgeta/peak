@@ -41,6 +41,8 @@ dependencies:
   image_picker: ^1.2.3
   # Inline video playback in the feed. Flutter-team package; no tracking.
   video_player: ^2.9.2
+  # Uploads to the self-hosted media server (see tool/media-server).
+  http: ^1.2.2
   uuid: ^4.6.0
   url_launcher: ^6.3.2
   # In-app updater (sideloaded Android build): read the running version and

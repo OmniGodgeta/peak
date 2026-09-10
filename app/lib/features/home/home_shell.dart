@@ -6,7 +6,7 @@ import '../../crypto/device_repository.dart';
 import '../../updater/update_gate.dart';
 import '../../wellbeing/wellbeing_gate.dart';
 
-/// The four-pillar shell: Feed · Messages · Communities · Discover, plus Me.
+/// The four-pillar shell: Feed · Messages · Communities · Media, plus Me.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.shell});
 
@@ -32,9 +32,9 @@ class HomeShell extends ConsumerStatefulWidget {
       label: 'Communities',
     ),
     NavigationDestination(
-      icon: Icon(Icons.explore_outlined),
-      selectedIcon: Icon(Icons.explore),
-      label: 'Discover',
+      icon: Icon(Icons.smart_display_outlined),
+      selectedIcon: Icon(Icons.smart_display),
+      label: 'Media',
     ),
     NavigationDestination(
       icon: Icon(Icons.person_outline),
@@ -58,12 +58,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final shell = widget.shell;
     return WellbeingScope(
       child: Scaffold(
-        body: Column(
-          children: [
-            const UpdateBanner(),
-            const BreakReminder(),
-            Expanded(child: shell),
-          ],
+        body: UpdateWatcher(
+          child: Column(
+            children: [
+              const UpdateBanner(),
+              const BreakReminder(),
+              Expanded(child: shell),
+            ],
+          ),
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: shell.currentIndex,

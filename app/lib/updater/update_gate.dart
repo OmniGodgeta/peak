@@ -1,7 +1,95 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'update_service.dart';
+
+/// Watches for an available update and, the first time one appears while the app
+/// is open, pops a dialog over whatever screen you're on. Re-checks every 30
+/// minutes and whenever the app is resumed, so a release published mid-session
+/// still gets noticed. The persistent [UpdateBanner] stays as the quiet
+/// reminder after the dialog is dismissed. Mount once, high in the tree.
+class UpdateWatcher extends ConsumerStatefulWidget {
+  const UpdateWatcher({super.key, required this.child});
+  final Widget child;
+
+  @override
+  ConsumerState<UpdateWatcher> createState() => _UpdateWatcherState();
+}
+
+class _UpdateWatcherState extends ConsumerState<UpdateWatcher>
+    with WidgetsBindingObserver {
+  Timer? _timer;
+  bool _prompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _timer = Timer.periodic(
+      const Duration(minutes: 30),
+      (_) => ref.invalidate(updateCheckProvider),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(updateCheckProvider);
+    }
+  }
+
+  Future<void> _prompt(AppRelease release) async {
+    _prompted = true;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.arrow_circle_up),
+        title: Text('Peak ${release.versionName} is available'),
+        content: Text(
+          release.notes?.trim().isNotEmpty == true
+              ? release.notes!.trim()
+              : 'A newer version is ready to install.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+    if (go == true && mounted) showUpdateSheet(context, release);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(updateCheckProvider, (_, next) {
+      final check = next.asData?.value;
+      if (!_prompted &&
+          check != null &&
+          check.status == UpdateStatus.available &&
+          check.release != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_prompted) _prompt(check.release!);
+        });
+      }
+    });
+    return widget.child;
+  }
+}
 
 /// A dismissible "update available" bar. Mounted inside [HomeShell] (so it sits
 /// under the app's Navigator — tooltips and the update sheet need that). The

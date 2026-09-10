@@ -13,14 +13,18 @@ class PostMedia {
     required this.width,
     required this.height,
     required this.durationMs,
+    this.posterPath,
   });
 
   final String kind;
   final String storagePath;
+  final String? posterPath;
   final String? altText;
   final int? width;
   final int? height;
   final int? durationMs;
+
+  bool get isVideo => kind == 'video';
 
   double? get aspectRatio => (width != null && height != null && height! > 0)
       ? width! / height!
@@ -29,6 +33,7 @@ class PostMedia {
   factory PostMedia.fromMap(Map<String, dynamic> m) => PostMedia(
     kind: (m['kind'] as String?) ?? 'image',
     storagePath: m['storage_path'] as String,
+    posterPath: m['poster_path'] as String?,
     altText: m['alt_text'] as String?,
     width: (m['width'] as num?)?.toInt(),
     height: (m['height'] as num?)?.toInt(),
@@ -208,9 +213,27 @@ class FeedRepository {
         .toList();
   }
 
-  /// Public URL for a `post-media` storage object.
-  String mediaUrl(String storagePath) =>
-      _db.storage.from('post-media').getPublicUrl(storagePath);
+  /// A loadable URL for a `post_media.storage_path` / `poster_path` — passes a
+  /// full URL through (media server), resolves a bare path against the bucket.
+  String mediaUrl(String storagePath) {
+    if (storagePath.startsWith('http://') ||
+        storagePath.startsWith('https://')) {
+      return storagePath;
+    }
+    return _db.storage.from('post-media').getPublicUrl(storagePath);
+  }
+
+  /// Videos across the instance, newest-first or full-text-ranked. Backs the
+  /// Media tab.
+  Future<List<FeedPost>> videos({String query = '', int limit = 30}) async {
+    final rows = await _db.rpc(
+      'videos_browse',
+      params: {'p_query': query, 'p_limit': limit},
+    );
+    return (rows as List)
+        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
 }
 
 final feedRepositoryProvider = Provider<FeedRepository>((ref) {
@@ -265,4 +288,13 @@ final feedProvider = FutureProvider<List<FeedPost>>((ref) async {
     FeedKind.local => repo.local(),
     FeedKind.latest => repo.latest(),
   };
+});
+
+/// The Media tab: `''` browses newest videos, a query full-text-searches them.
+final videosProvider = FutureProvider.family<List<FeedPost>, String>((
+  ref,
+  query,
+) async {
+  ref.watch(feedRevisionProvider);
+  return ref.watch(feedRepositoryProvider).videos(query: query.trim());
 });

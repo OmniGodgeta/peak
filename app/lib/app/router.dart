@@ -11,8 +11,8 @@ import '../features/settings/account_closing_screen.dart';
 import '../updater/update_gate.dart';
 import '../updater/update_service.dart';
 import '../features/communities/communities_screen.dart';
-import '../features/discovery/discovery_screen.dart';
 import '../features/feed/feed_screen.dart';
+import '../features/media/media_screen.dart';
 import '../features/home/home_shell.dart';
 import '../features/messaging/messaging_screen.dart';
 import '../features/profile/profile_screen.dart';
@@ -104,10 +104,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/discover',
-                builder: (_, _) => const DiscoveryScreen(),
-              ),
+              GoRoute(path: '/media', builder: (_, _) => const MediaScreen()),
             ],
           ),
           StatefulShellBranch(

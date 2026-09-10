@@ -19,8 +19,9 @@ class PostMediaView extends ConsumerWidget {
 
     for (final m in media) {
       if (m.kind == 'video') {
-        return _Video(
+        return PostVideo(
           url: repo.mediaUrl(m.storagePath),
+          posterUrl: m.posterPath == null ? null : repo.mediaUrl(m.posterPath!),
           aspectRatio: m.aspectRatio,
         );
       }
@@ -125,19 +126,41 @@ class _ImgState extends ConsumerState<_Img> {
 
 /// A single video. Doesn't autoplay: shows a poster with a play button, loads
 /// and plays on tap, then offers scrub + mute. Honours the data-saver setting.
-class _Video extends ConsumerStatefulWidget {
-  const _Video({required this.url, this.aspectRatio});
+class PostVideo extends ConsumerStatefulWidget {
+  const PostVideo({
+    super.key,
+    required this.url,
+    this.posterUrl,
+    this.aspectRatio,
+    this.maxHeight = 440,
+    this.autoLoad = false,
+  });
   final String url;
+  final String? posterUrl;
   final double? aspectRatio;
+  final double maxHeight;
+
+  /// Start loading immediately instead of on tap (the watch page).
+  final bool autoLoad;
 
   @override
-  ConsumerState<_Video> createState() => _VideoState();
+  ConsumerState<PostVideo> createState() => _PostVideoState();
 }
 
-class _VideoState extends ConsumerState<_Video> {
+class _PostVideoState extends ConsumerState<PostVideo> {
   VideoPlayerController? _c;
   bool _loading = false;
   bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !ref.read(dataLightProvider)) _load();
+      });
+    }
+  }
 
   double get _ratio {
     final c = _c;
@@ -189,7 +212,7 @@ class _VideoState extends ConsumerState<_Video> {
     final ready = c != null && c.value.isInitialized;
 
     Widget frame(Widget child) => ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 440),
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
       child: ClipRRect(
         borderRadius: radius,
         child: AspectRatio(aspectRatio: _ratio, child: child),
@@ -198,33 +221,43 @@ class _VideoState extends ConsumerState<_Video> {
 
     if (!ready) {
       final dataLight = ref.watch(dataLightProvider);
+      final poster = widget.posterUrl;
       return frame(
         GestureDetector(
           onTap: _loading ? null : _load,
-          child: Container(
-            color: Colors.black87,
+          child: Stack(
+            fit: StackFit.expand,
             alignment: Alignment.center,
-            child: _loading
-                ? const CircularProgressIndicator()
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _failed
-                            ? Icons.error_outline
-                            : Icons.play_circle_outline,
-                        color: Colors.white,
-                        size: 48,
+            children: [
+              Container(color: Colors.black87),
+              if (poster != null && !dataLight)
+                Image.network(
+                  poster,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              if (_loading)
+                const CircularProgressIndicator()
+              else
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _failed ? Icons.error_outline : Icons.play_circle_fill,
+                      color: Colors.white,
+                      size: 52,
+                      shadows: const [Shadow(blurRadius: 12)],
+                    ),
+                    if (_failed || dataLight) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _failed ? "Couldn't load video" : 'Tap to play video',
+                        style: const TextStyle(color: Colors.white70),
                       ),
-                      if (_failed || dataLight) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          _failed ? "Couldn't load video" : 'Tap to play video',
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ],
                     ],
-                  ),
+                  ],
+                ),
+            ],
           ),
         ),
       );

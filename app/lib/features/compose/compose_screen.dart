@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/env.dart';
 import '../../data/circle_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/post_repository.dart';
@@ -16,7 +17,11 @@ class ComposeScreen extends ConsumerStatefulWidget {
     this.communityName,
     this.channelId,
     this.channelName,
+    this.startWithVideo = false,
   });
+
+  /// Open the video picker as soon as the composer mounts (from the Media tab).
+  final bool startWithVideo;
 
   /// When set, this composer posts a reply to that post.
   final FeedPost? replyTo;
@@ -48,8 +53,25 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   bool get _isReply => widget.replyTo != null;
   bool get _isCommunity => widget.communityId != null && !_isReply;
   bool get _hasVideo => _media.any((m) => m.isVideo);
+
+  // The self-hosted media server transcodes + has room; without it we fall back
+  // to Supabase Storage, so keep clips small.
+  int get _maxVideoBytes =>
+      Env.mediaServerConfigured ? 400 * 1024 * 1024 : 50 * 1024 * 1024;
+  Duration? get _maxVideoDuration =>
+      Env.mediaServerConfigured ? null : const Duration(seconds: 60);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.startWithVideo) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pickVideo();
+      });
+    }
+  }
+
   static const _maxMedia = 4;
-  static const _maxVideoBytes = 50 * 1024 * 1024;
 
   @override
   void dispose() {
@@ -87,16 +109,16 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     try {
       final x = await ImagePicker().pickVideo(
         source: ImageSource.gallery,
-        maxDuration: const Duration(seconds: 60),
+        maxDuration: _maxVideoDuration,
       );
       if (x == null) return;
       final bytes = await x.readAsBytes();
       if (bytes.length > _maxVideoBytes) {
-        setState(() {
-          _error =
-              'That video is ${(bytes.length / (1024 * 1024)).round()} MB — '
-              'keep it under 50 MB for now.';
-        });
+        final mb = (bytes.length / (1024 * 1024)).round();
+        final cap = _maxVideoBytes ~/ (1024 * 1024);
+        setState(
+          () => _error = 'That video is $mb MB — keep it under $cap MB.',
+        );
         return;
       }
       setState(() {
@@ -150,6 +172,10 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     try {
       final repo = ref.read(postRepositoryProvider);
       final cw = _showCw && _cw.text.trim().isNotEmpty ? _cw.text.trim() : null;
+      final titleText = _title.text.trim();
+      final title = (_article || _hasVideo) && titleText.isNotEmpty
+          ? titleText
+          : null;
       if (_isReply) {
         await repo.createReply(
           parentId: widget.replyTo!.id,
@@ -165,7 +191,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           media: _media,
           contentWarning: cw,
           longForm: _article,
-          title: _article ? _title.text.trim() : null,
+          title: title,
           communityId: widget.communityId,
           channelId: widget.channelId,
         );
@@ -185,7 +211,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           media: _media,
           contentWarning: cw,
           longForm: _article,
-          title: _article ? _title.text.trim() : null,
+          title: title,
         );
       }
       ref.invalidate(feedProvider);
@@ -283,14 +309,16 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            if (_article) ...[
+            if (_article || _hasVideo) ...[
               TextField(
                 controller: _title,
                 textCapitalization: TextCapitalization.sentences,
                 style: Theme.of(context).textTheme.titleLarge,
                 maxLength: 200,
-                decoration: const InputDecoration(
-                  hintText: 'Title',
+                decoration: InputDecoration(
+                  hintText: _hasVideo && !_article
+                      ? 'Video title (optional) — shown in Media'
+                      : 'Title',
                   counterText: '',
                 ),
               ),
@@ -309,6 +337,8 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                     : _article
                     ? 'Write your article. Blank lines start new paragraphs; '
                           '“# ” and “## ” make headings; “- ” makes a list.'
+                    : _hasVideo
+                    ? 'Describe your video (optional)'
                     : "What's happening?",
               ),
             ),

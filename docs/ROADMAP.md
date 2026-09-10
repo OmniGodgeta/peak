@@ -9,10 +9,12 @@ accessible.
 
 **Status (2026-10):** phases 0–4 done. Phase 5 ~90% (labelers, custom feeds +
 directory, local feed, interests/PYMK, search, wellbeing, reports,
-proof-of-personhood, Discover populated with graph-free "popular communities" +
-"fresh on Peak" all shipped; ranking Edge Function + fan-out index + pgvector
-recs remain). Hosted Supabase backend is live. Feed video (post + inline player)
-shipped basic — no server-side transcoding yet.
+proof-of-personhood shipped; ranking Edge Function + fan-out index + pgvector
+recs remain). Hosted Supabase backend is live. **Video + a Media destination**
+shipped (compose, inline player, browse + search, watch page) with transcode +
+local-disk storage on the self-hosted media server. Bottom nav is now
+Feed · Messages · Communities · **Media** · Me; "find people & communities"
+moved to Me → Preferences.
 
 **Peak is a private beta right now.** No public domain (`@name@peak.social`
 handles are baked in, so the domain must be chosen before real users sign up).
@@ -29,11 +31,12 @@ Not a phase — the concrete work between here and a public launch:
 - **Finish Phase 5's buildables**: ranking Edge Function (open, excluded-signal
   tests), fan-out-on-write feed index, pgvector "For you", personhood/labeler
   badges on post cards.
-- **Video polish**: server-side transcode + poster frames + size renditions
-  (the "media pipeline" gap), a duration/really-large-file guard, moderation
-  reach for video.
-- **Operator**: register the domain → Cloudflare Pages web host + real email
-  (Resend); lawyer pass on `docs/legal/*`; Turnstile on signup.
+- **Video polish**: adaptive HLS, EXIF strip, orphan cleanup, per-clip
+  moderation reach. (Transcode + poster + local-disk storage done — media
+  server.)
+- **Operator**: run `tool/media-server/` on the storage box; register the
+  domain → Cloudflare Pages web host + real email (Resend); lawyer pass on
+  `docs/legal/*`; Turnstile on signup.
 - **Content hygiene**: a light review queue for the mirror feeds; per-source
   on/off switches; drop dead feeds.
 
@@ -56,7 +59,7 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
 - [x] Profile edit (avatar, bio, links, pronouns)
 - [x] CI running green (Flutter + Supabase schema + Edge Functions jobs)
 - [x] Public backend: **hosted Supabase live** (2026-09-10) — project
-      `izvcozvfqmggyziaeeoc`, all 41 migrations applied, `pg_cron` + `pg_net`,
+      `izvcozvfqmggyziaeeoc`, all 42 migrations applied, `pg_cron` + `pg_net`,
       retention jobs + `ingest-content` (every 6h) scheduled,
       `app-version` / `export` / `publish` / `ingest-content` edge functions
       deployed. The Tailscale preview web now points at it. Domain + public web
@@ -147,15 +150,19 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       sweep (hourly cron).
 - [x] Profile highlights — pin up to 5 of your own posts to the top of your profile
 - [x] Data-light mode — per-device toggle; images load on tap
-- [~] Video posts — **basic shipped**: pick one clip (≤60s / ≤50 MB) in the
-      composer, uploaded as-is to the `post-media` bucket (`kind: 'video'`),
-      inline tap-to-play player (scrub + mute, honours data-light) in the feed.
-      **Not yet**: server-side transcode to adaptive renditions, poster frames,
-      EXIF/metadata strip, audio-only posts — that's the "media pipeline", which
-      wants real storage + a CDN ([SELF_HOSTING.md](SELF_HOSTING.md)).
+- [x] Video posts + a **Media** destination — compose one clip (title +
+      description), inline tap-to-play player (scrub, mute, poster frame,
+      data-light) in the feed, and a YouTube-shaped **Media tab**: browse +
+      full-text search videos (`videos_browse`), a watch page. Bytes + transcode
+      live on the **self-hosted media server** (`tool/media-server/`): local
+      disk, `ffmpeg` → H.264/AAC MP4 + poster + probe. Falls back to Supabase
+      Storage (small clips only) when the server isn't configured.
+- [ ] Video: adaptive HLS renditions, EXIF strip on images, orphan cleanup on
+      post-delete, audio-only posts — the remaining media-pipeline work.
 
-Phase 3 is complete bar the full media pipeline (transcode + CDN + audio posts),
-which arrives with the `shadow` self-host.
+Phase 3 is complete. The media server is the local-disk answer to Supabase's
+storage quota during the private beta; a CDN + adaptive streaming come with the
+`shadow` self-host / a real host.
 
 ## Phase 4 — Communities  ·  *in progress*
 
@@ -300,21 +307,24 @@ payments as a decision to revisit once there's a real community asking for it
 
 ## Phase 9 — Peak Video (a searchable video destination)
 
-A dedicated place to publish and discover longer-form video — the YouTube-shaped
-pillar. Distinct from feed video clips: these are titled, described, searchable,
-and have their own watch page. Detail: [PRODUCT.md §13](PRODUCT.md).
+A dedicated place to publish and discover video — the YouTube-shaped pillar.
+Detail: [PRODUCT.md §13](PRODUCT.md).
 
-- [ ] `video` schema: title, description, tags, duration, chapters, captions, visibility
-- [ ] Upload pipeline: resumable upload, transcode to adaptive renditions (HLS),
-      poster frames, auto-captions, thumbnail selection
-- [ ] Storage + CDN for video (this is the point Supabase Storage alone stops being enough)
-- [ ] Watch page: adaptive player, chapters, captions, description, comments (reuse `post` replies), up-next
-- [ ] Channels: a creator's video collection on their profile; subscribe
-- [ ] Video search (title/description/caption/tag) + a Video tab in Discover
-- [ ] Ranking that stays honest: no autoplay-into-the-void, no "recommended" rabbit
-      holes by default; "why this video?" like the feed
-- [ ] Monetization ties into Phase 6 (subscriptions, tips, paid videos) — never ads
+**Shipped (v1):** the **Media tab** — video posts carry a title + description;
+`videos_browse` RPC does full-text search over title/body; `WatchScreen` is a
+large-player watch page that hands off to the post thread for comments.
+Transcode + poster + storage on `tool/media-server/` (local disk).
+
+**Still to build:**
+- [ ] A first-class `video` entity (vs. a `post` with a video attachment) if the
+      reuse gets strained — tags, chapters, captions, per-video visibility
+- [ ] Adaptive renditions (HLS) + a CDN — the point local disk / Supabase stops
+      being enough
+- [ ] Captions (auto + upload), chapters, thumbnail selection
+- [ ] Channels: a creator's videos on their profile; subscribe; up-next
+- [ ] "Why this video?" ranking — no autoplay-into-the-void, no rabbit holes
 - [ ] Playlists; watch-later; resume-where-you-left-off (local-first)
+- [ ] Monetization ties into Phase 6 (deferred — see that phase) — never ads
 
 ---
 

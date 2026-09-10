@@ -10,9 +10,9 @@ import '../communities/community_screen.dart';
 import '../feed/thread_screen.dart';
 import '../profile/user_profile_screen.dart';
 
-/// Discover: search (people / communities / posts) plus, when the box is empty,
-/// interests, people you may know, and communities for you. A local tab is
-/// still to come.
+/// Find people & communities — reached from Me → Preferences. Search (people /
+/// communities / posts); when the box is empty: interests, popular communities,
+/// fresh posts, people you may know, and communities for you.
 class DiscoveryScreen extends ConsumerStatefulWidget {
   const DiscoveryScreen({super.key});
 

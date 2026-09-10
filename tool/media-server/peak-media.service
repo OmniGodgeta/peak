@@ -1,0 +1,19 @@
+[Unit]
+Description=Peak media server (post images + video on local disk)
+After=network-online.target
+Wants=network-online.target
+# If the media drive isn't mounted the server still starts but /v1/health
+# returns 503 and uploads 500 until it appears; Restart handles transient cases.
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/peak-media/env
+ExecStart=/usr/bin/deno run --allow-net --allow-read --allow-write --allow-run --allow-env %h/Work/peak/tool/media-server/server.ts
+Restart=on-failure
+RestartSec=5
+# Don't hammer restarts if the drive is unmounted.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

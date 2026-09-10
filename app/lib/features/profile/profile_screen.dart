@@ -10,6 +10,7 @@ import '../../updater/update_service.dart';
 import '../../data/community_repository.dart';
 import '../../data/report_repository.dart';
 import '../communities/modmail/my_modmail_screen.dart';
+import '../discovery/discovery_screen.dart';
 import '../moderation/labelers_screen.dart';
 import '../moderation/my_reports_screen.dart';
 import '../moderation/personhood_screen.dart';
@@ -225,6 +226,26 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const YourDataScreen(),
+                  ),
+                ),
+              ),
+              const Divider(height: 32),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Text(
+                  'Preferences',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.travel_explore_outlined),
+                title: const Text('Find people & communities'),
+                subtitle: const Text(
+                  'Search, interests, who to follow, communities for you',
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DiscoveryScreen(),
                   ),
                 ),
               ),

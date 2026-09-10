@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 
+import 'media_service.dart';
 import 'supabase_providers.dart';
 
 enum PostVisibility { circles, public, followers }
@@ -30,25 +30,12 @@ class PendingMedia {
   int? durationMs;
 
   bool get isGif => mimeType == 'image/gif';
-  String get kind => isVideo ? 'video' : 'image';
-
-  String get _ext => switch (mimeType) {
-    'image/png' => 'png',
-    'image/gif' => 'gif',
-    'image/webp' => 'webp',
-    'image/avif' => 'avif',
-    'video/quicktime' => 'mov',
-    'video/webm' => 'webm',
-    'video/mp4' => 'mp4',
-    _ => isVideo ? 'mp4' : 'jpg',
-  };
-
-  String storagePathFor(String userId) => '$userId/${const Uuid().v4()}.$_ext';
 }
 
 class PostRepository {
-  PostRepository(this._db);
+  PostRepository(this._db, this._media);
   final SupabaseClient _db;
+  final MediaService _media;
 
   Future<String> _defaultPersonaId(String uid) async {
     final persona = await _db
@@ -69,22 +56,20 @@ class PostRepository {
     final rows = <Map<String, dynamic>>[];
     for (var i = 0; i < media.length; i++) {
       final m = media[i];
-      final path = m.storagePathFor(uid);
-      await _db.storage
-          .from('post-media')
-          .uploadBinary(
-            path,
-            m.bytes,
-            fileOptions: FileOptions(contentType: m.mimeType, upsert: false),
-          );
+      final up = await _media.uploadPostMedia(
+        bytes: m.bytes,
+        contentType: m.mimeType,
+        isVideo: m.isVideo,
+      );
       rows.add({
         'post_id': postId,
-        'kind': m.kind,
-        'storage_path': path,
+        'kind': m.isVideo ? 'video' : 'image',
+        'storage_path': up.path,
+        'poster_path': up.posterPath,
         'alt_text': m.altText.trim().isEmpty ? null : m.altText.trim(),
-        'width': m.width,
-        'height': m.height,
-        'duration_ms': m.durationMs,
+        'width': up.width ?? m.width,
+        'height': up.height ?? m.height,
+        'duration_ms': up.durationMs ?? m.durationMs,
         'sort_order': i,
       });
     }
@@ -176,5 +161,8 @@ class PostRepository {
 }
 
 final postRepositoryProvider = Provider<PostRepository>((ref) {
-  return PostRepository(ref.watch(supabaseProvider));
+  return PostRepository(
+    ref.watch(supabaseProvider),
+    ref.watch(mediaServiceProvider),
+  );
 });
