@@ -49,7 +49,14 @@ thing that is recognizably "a social network."
 - [x] **Friends-first** feed variant — `feed_friends` (only people who follow
       you back); the home feed toggle now actually swaps the query
 - [ ] Notifications (in-app + push, bundled, quiet hours, neutral badge)
-- [ ] Report content/account → moderation intake
+- [x] Report content/account → moderation intake — `report` table +
+      `report_reason`/`report_status`; `submit_report` (post / profile /
+      community / message; dedup per reporter; CSAM / self-harm / violence
+      flagged urgent); a `staff` table + `is_staff`/`am_i_staff`; `review_queue`
+      (site staff see all, a community mod sees non-urgent reports about their
+      community) + `resolve_report`. Report actions on post cards, profiles, and
+      communities; "Your reports" + a moderation queue screen under Me. CSAM
+      still needs the manual NCMEC step (docs/DEPLOY.md §6).
 
 ## Phase 2 — Messaging
 

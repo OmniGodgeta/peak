@@ -7,7 +7,11 @@ import '../../data/settings_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../updater/update_gate.dart';
 import '../../updater/update_service.dart';
+import '../../data/community_repository.dart';
+import '../../data/report_repository.dart';
 import '../communities/modmail/my_modmail_screen.dart';
+import '../moderation/my_reports_screen.dart';
+import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
 import '../settings/wellbeing_screen.dart';
 import '../settings/your_data_screen.dart';
@@ -162,6 +166,29 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              ListTile(
+                leading: const Icon(Icons.flag_outlined),
+                title: const Text('Your reports'),
+                subtitle: const Text('What you reported and what happened'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MyReportsScreen(),
+                  ),
+                ),
+              ),
+              if (ref.watch(amIStaffProvider).asData?.value == true ||
+                  (ref.watch(myCommunitiesProvider).asData?.value ?? const [])
+                      .any((c) => c.myRole != 'member'))
+                ListTile(
+                  leading: const Icon(Icons.gavel_outlined),
+                  title: const Text('Reports to review'),
+                  subtitle: const Text('The moderation queue'),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ReviewQueueScreen(),
+                    ),
+                  ),
+                ),
               const _ComingSoonTile(
                 label: 'Circles & who is in them',
                 phase: 'Phase 1',

@@ -7,6 +7,7 @@ import '../../data/messaging_repository.dart';
 import '../../data/people_repository.dart';
 import '../feed/post_card.dart';
 import '../messaging/chat_screen.dart';
+import '../moderation/report_sheet.dart';
 
 /// Someone else's profile (or your own, viewed by handle): identity, a follow
 /// button, and their posts.
@@ -18,8 +19,29 @@ class UserProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileViewProvider(handle));
 
+    final pv = profile.asData?.value;
     return Scaffold(
-      appBar: AppBar(title: Text('@$handle')),
+      appBar: AppBar(
+        title: Text('@$handle'),
+        actions: [
+          if (pv != null && !pv.isSelf)
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'report') {
+                  showReportSheet(
+                    context,
+                    kind: 'profile',
+                    subjectId: pv.id,
+                    what: '@$handle',
+                  );
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'report', child: Text('Report account')),
+              ],
+            ),
+        ],
+      ),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),

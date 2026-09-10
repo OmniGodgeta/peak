@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(177);
+select plan(184);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -962,6 +962,54 @@ select set_my_interests(array['rust', 'programming']);
 select ok(
   (select count(*) from suggested_communities()) >= 1,
   'suggested_communities matches your interests to a community you are not in');
+
+-- ── Phase 1/5: reports + moderation queue ──────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select submit_report('post', :'alice_pub_id', 'spam', 'looks like spam')
+  as rep \gset
+select is((select count(*)::int from my_reports()), 1,
+  'submit_report files a report the reporter can see');
+select submit_report('post', :'alice_pub_id', 'spam');
+select is((select count(*)::int from my_reports()), 1,
+  'a second open report on the same subject is deduped');
+
+-- a non-staff, non-mod caller sees an empty queue
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is((select count(*)::int from review_queue()), 0,
+  'a non-staff user sees nothing in the review queue');
+
+-- make kid staff; now they see the queue
+set local role postgres;
+insert into staff (profile_id) values ('00000000-0000-0000-0000-00000000000c');
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select ok((select count(*) from review_queue()) >= 1,
+  'site staff see reports in the review queue');
+
+-- CSAM is flagged urgent
+select submit_report('profile', '00000000-0000-0000-0000-00000000000a', 'csam');
+select is(
+  (select is_urgent from report where reason = 'csam'),
+  true, 'a CSAM report is flagged urgent');
+
+-- staff resolve a report
+select resolve_report(:'rep', 'dismissed', 'not spam');
+select is(
+  (select status::text from report where id = :'rep'),
+  'dismissed', 'resolve_report closes the report');
+
+-- a community moderator sees non-urgent reports about their community's posts
+set local role postgres;
+insert into post (author_id, persona_id, body, visibility, community_id, channel_id)
+select '00000000-0000-0000-0000-00000000000c',
+       (select id from persona where account_id = '00000000-0000-0000-0000-00000000000c'),
+       'a reportable community post', 'public', :'sid',
+       (select id from community_channel where community_id = :'sid' and slug = 'general')
+returning id as cpost2 \gset
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select submit_report('post', :'cpost2', 'harassment');
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select ok((select count(*) from review_queue()) >= 1,
+  'a community moderator sees non-urgent reports about their community');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

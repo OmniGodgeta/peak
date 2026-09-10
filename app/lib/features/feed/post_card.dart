@@ -8,6 +8,7 @@ import '../../data/people_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
 import '../../wellbeing/wellbeing.dart';
+import '../moderation/report_sheet.dart';
 import '../compose/compose_screen.dart';
 import '../profile/user_profile_screen.dart';
 import 'article_screen.dart';
@@ -470,6 +471,13 @@ class _PostCardState extends ConsumerState<PostCard> {
                             ],
                           ),
                         );
+                      case 'report':
+                        showReportSheet(
+                          context,
+                          kind: 'post',
+                          subjectId: widget.post.id,
+                          what: 'this post',
+                        );
                       case 'pin':
                         _togglePin();
                       case 'delete':
@@ -489,6 +497,11 @@ class _PostCardState extends ConsumerState<PostCard> {
                       value: 'why',
                       child: Text('Why am I seeing this?'),
                     ),
+                    if (!_isMine)
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Text('Report post'),
+                      ),
                     if (_isMine)
                       PopupMenuItem(
                         value: 'pin',

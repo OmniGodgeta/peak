@@ -7,6 +7,7 @@ import '../../data/wiki_repository.dart';
 import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
 import 'community_manage_screen.dart';
+import '../moderation/report_sheet.dart';
 import 'events/community_events_screen.dart';
 import 'mod_log_screen.dart';
 import 'wiki/community_wiki_screen.dart';
@@ -46,6 +47,22 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 communityId: c.id,
                 communityName: c.name,
               ),
+            ),
+          if (c != null && !c.canModerate)
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'report') {
+                  showReportSheet(
+                    context,
+                    kind: 'community',
+                    subjectId: c.id,
+                    what: 'c/$slug',
+                  );
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'report', child: Text('Report community')),
+              ],
             ),
           if (c != null && (c.isMember || c.isListed))
             IconButton(
