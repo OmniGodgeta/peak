@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/avatar.dart';
+import '../../data/discover_repository.dart';
+import '../../data/people_repository.dart';
 import '../../data/search_repository.dart';
 import '../communities/community_screen.dart';
 import '../feed/thread_screen.dart';
 import '../profile/user_profile_screen.dart';
 
-/// Search across people, communities and posts, in one ranked list.
-/// (Custom feeds, interests and a local tab are still to come in Phase 5.)
+/// Discover: search (people / communities / posts) plus, when the box is empty,
+/// interests, people you may know, and communities for you. A local tab is
+/// still to come.
 class DiscoveryScreen extends ConsumerStatefulWidget {
   const DiscoveryScreen({super.key});
 
@@ -109,7 +112,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
               ),
       ),
       body: switch (results) {
-        null => const _Hint(),
+        null => const _DiscoverLanding(),
         _ => results.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('$e')),
@@ -178,21 +181,237 @@ class _HitTile extends StatelessWidget {
   }
 }
 
-class _Hint extends StatelessWidget {
-  const _Hint();
+/// Shown when the search box is empty: interests, people you may know, and
+/// communities that match your interests. All suggestions come from your own
+/// graph — never contacts or tracking.
+class _DiscoverLanding extends ConsumerWidget {
+  const _DiscoverLanding();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pymk = ref.watch(pymkProvider);
+    final comms = ref.watch(suggestedCommunitiesProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(pymkProvider);
+        ref.invalidate(suggestedCommunitiesProvider);
+        ref.invalidate(myInterestsProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          const _InterestsEditor(),
+          const Divider(height: 1),
+          _Section('People you may know'),
+          pymk.when(
+            loading: () => const _Loading(),
+            error: (e, _) => _Err('$e'),
+            data: (list) => list.isEmpty
+                ? const _Empty('Follow a few people to get suggestions.')
+                : Column(
+                    children: [for (final p in list) _PymkTile(person: p)],
+                  ),
+          ),
+          const Divider(height: 1),
+          _Section('Communities for you'),
+          comms.when(
+            loading: () => const _Loading(),
+            error: (e, _) => _Err('$e'),
+            data: (list) => list.isEmpty
+                ? const _Empty(
+                    'Add interests above to see matching communities.',
+                  )
+                : Column(
+                    children: [
+                      for (final c in list)
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer,
+                            child: Text(c.name.characters.first.toUpperCase()),
+                          ),
+                          title: Text(c.name),
+                          subtitle: Text(
+                            '${c.memberCount} members · ${c.matchReason}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => CommunityScreen(slug: c.slug),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InterestsEditor extends ConsumerWidget {
+  const _InterestsEditor();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final interests = ref.watch(myInterestsProvider).asData?.value ?? const [];
+
+    Future<void> edit() async {
+      final controller = TextEditingController(text: interests.join(', '));
+      final result = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Your interests'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'space, photography, rust',
+              helperText: 'Comma-separated. Used only for your suggestions.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+      if (result == null) return;
+      final topics = result
+          .split(RegExp(r'[,\n]+'))
+          .map((t) => t.trim().toLowerCase())
+          .where((t) => t.isNotEmpty)
+          .toList();
+      await ref.read(discoverRepositoryProvider).setInterests(topics);
+      ref.invalidate(myInterestsProvider);
+      ref.invalidate(suggestedCommunitiesProvider);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: interests.isEmpty
+                ? Text(
+                    'No interests set',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  )
+                : Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      for (final t in interests)
+                        Chip(
+                          label: Text('#$t'),
+                          visualDensity: VisualDensity.compact,
+                          side: BorderSide.none,
+                        ),
+                    ],
+                  ),
+          ),
+          TextButton(onPressed: edit, child: const Text('Edit interests')),
+        ],
+      ),
+    );
+  }
+}
+
+class _PymkTile extends ConsumerStatefulWidget {
+  const _PymkTile({required this.person});
+  final PymkPerson person;
+
+  @override
+  ConsumerState<_PymkTile> createState() => _PymkTileState();
+}
+
+class _PymkTileState extends ConsumerState<_PymkTile> {
+  bool _followed = false;
+  bool _busy = false;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text(
-          'Search people, communities and posts.\n'
-          'Custom feeds, interests and a local tab are still to come.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
+    final p = widget.person;
+    return ListTile(
+      leading: AvatarCircle(name: p.name, path: p.avatarPath, radius: 18),
+      title: Text(p.name),
+      subtitle: Text(p.reason, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: _followed
+          ? const Text('Following')
+          : OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      setState(() => _busy = true);
+                      try {
+                        await ref.read(peopleRepositoryProvider).follow(p.id);
+                        setState(() => _followed = true);
+                      } on Exception catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
+                      } finally {
+                        if (mounted) setState(() => _busy = false);
+                      }
+                    },
+              child: const Text('Follow'),
+            ),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => UserProfileScreen(handle: p.handle),
         ),
       ),
     );
   }
+}
+
+class _Section extends StatelessWidget {
+  const _Section(this.label);
+  final String label;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+    child: Text(label, style: Theme.of(context).textTheme.titleSmall),
+  );
+}
+
+class _Loading extends StatelessWidget {
+  const _Loading();
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(20),
+    child: Center(child: CircularProgressIndicator()),
+  );
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+    child: Text(
+      text,
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    ),
+  );
+}
+
+class _Err extends StatelessWidget {
+  const _Err(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) =>
+      Padding(padding: const EdgeInsets.all(16), child: Text(text));
 }

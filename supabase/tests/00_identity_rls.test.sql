@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(174);
+select plan(177);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -946,6 +946,22 @@ select is(
   (select owner_id from custom_feed where id = :'cf2'),
   '00000000-0000-0000-0000-00000000000b'::uuid,
   'copy_custom_feed clones a public feed to the copier');
+
+-- ── Phase 5: interests + people-you-may-know ───────────────────────────
+-- kid follows alice; alice follows bob + kid; kid & bob share secret-club.
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select set_my_interests(array['space', 'music', 'BAD!!', '']);
+select is((select count(*)::int from my_interests()), 2,
+  'set_my_interests keeps only the valid topics');
+select is(
+  (select handle::text from people_you_may_know() limit 1),
+  'bob', 'people_you_may_know surfaces a friend-of-friend / co-member');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select set_my_interests(array['rust', 'programming']);
+select ok(
+  (select count(*) from suggested_communities()) >= 1,
+  'suggested_communities matches your interests to a community you are not in');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');
