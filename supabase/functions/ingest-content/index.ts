@@ -533,6 +533,14 @@ interface Launch {
   launch_service_provider?: { name?: string };
   pad?: { name?: string; location?: { name?: string } };
   mission?: { description?: string };
+  vidURLs?: Array<{ priority?: number; url: string }>;
+}
+
+function webcastUrl(l: Launch): string | null {
+  const v = (l.vidURLs ?? []).filter((x) => x.url);
+  if (v.length === 0) return null;
+  v.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
+  return v[0].url;
 }
 
 async function ingestLaunches(ctx: Ctx): Promise<SourceResult> {
@@ -549,6 +557,7 @@ async function ingestLaunches(ctx: Ctx): Promise<SourceResult> {
   const q = new URLSearchParams({
     limit: "12",
     hide_recent_previous: "true",
+    mode: "detailed", // brings in vidURLs (webcast / livestream links)
   });
   const res = await fetch(`${LL2_UPCOMING}?${q}`, { headers: UA });
   if (!res.ok) throw new Error(`LL2 ${res.status}`);
@@ -567,11 +576,13 @@ async function ingestLaunches(ctx: Ctx): Promise<SourceResult> {
       const provider = l.launch_service_provider?.name ?? "Unknown provider";
       const where = [l.pad?.name, l.pad?.location?.name]
         .filter(Boolean).join(", ");
+      const webcast = webcastUrl(l);
       const body = [
         `🚀 ${l.name}`,
         [provider, where].filter(Boolean).join(" · "),
         `Launch window opens ${fmtDate(l.net)}`,
         clip(l.mission?.description, 500),
+        webcast ? `▶ Watch: ${webcast}` : null,
         "via thespacedevs.com",
       ].filter(Boolean).join("\n\n");
 

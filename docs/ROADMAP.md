@@ -60,7 +60,7 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
 - [x] Profile edit (avatar, bio, links, pronouns)
 - [x] CI running green (Flutter + Supabase schema + Edge Functions jobs)
 - [x] Public backend: **hosted Supabase live** (2026-09-10) — project
-      `izvcozvfqmggyziaeeoc`, all 43 migrations applied, `pg_cron` + `pg_net`,
+      `izvcozvfqmggyziaeeoc`, all 44 migrations applied, `pg_cron` + `pg_net`,
       retention jobs + `ingest-content` (every 6h) scheduled,
       `app-version` / `export` / `publish` / `ingest-content` edge functions
       deployed. The Tailscale preview web now points at it. Domain + public web
@@ -151,6 +151,13 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       sweep (hourly cron).
 - [x] Profile highlights — pin up to 5 of your own posts to the top of your profile
 - [x] Data-light mode — per-device toggle; images load on tap
+- [x] **Link previews** — URLs in a post become tappable; the first video/link
+      URL gets a card below (`link_preview` cache + a SSRF-guarded `link-preview`
+      Edge Function that parses OpenGraph/oEmbed). A **YouTube** link shows a
+      thumbnail and plays inline **on tap** (`youtube_player_iframe`); a direct
+      `.mp4`/`.m3u8` reuses the feed player. `@launches` posts carry the launch
+      webcast (`vidURLs` from Launch Library 2) so rocket livestreams play in
+      `c/rockets`.
 - [x] Video posts + a **Media** destination — compose one clip (title +
       description), inline tap-to-play player (scrub, mute, poster frame,
       data-light) in the feed, and a YouTube-shaped **Media tab**: browse +

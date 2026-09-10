@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/avatar.dart';
 import '../../data/feed_repository.dart';
+import '../feed/post_body.dart';
 import '../feed/post_media_view.dart';
 import '../feed/thread_screen.dart';
 import '../profile/user_profile_screen.dart';
@@ -98,7 +99,7 @@ class WatchScreen extends ConsumerWidget {
           if (post.body.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Text(post.body.trim()),
+              child: PostBody(text: post.body.trim()),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),

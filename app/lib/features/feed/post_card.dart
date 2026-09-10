@@ -14,6 +14,7 @@ import '../moderation/report_sheet.dart';
 import '../compose/compose_screen.dart';
 import '../profile/user_profile_screen.dart';
 import 'article_screen.dart';
+import 'post_body.dart';
 import 'post_media_view.dart';
 import 'thread_screen.dart';
 
@@ -509,7 +510,8 @@ class _PostCardState extends ConsumerState<PostCard> {
               if (p.longForm && p.replyTo == null)
                 _ArticlePreview(post: p)
               else ...[
-                if (p.body.isNotEmpty) Text(p.body),
+                if (p.body.isNotEmpty)
+                  PostBody(text: p.body, showPreview: p.replyTo == null),
                 if (p.media.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   PostMediaView(media: p.media),

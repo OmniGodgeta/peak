@@ -40,7 +40,7 @@ names.
 cd ~/Work/peak
 supabase login                      # paste the access token from 1.4
 supabase link --project-ref <ref>   # it will ask for the DB password from 1.1
-supabase db push                    # applies all 43 migrations to the cloud DB
+supabase db push                    # applies all 44 migrations to the cloud DB
 ```
 
 `db push` runs every migration from scratch — the same set CI verifies on every
@@ -53,6 +53,7 @@ supabase functions deploy app-version     # verify_jwt=false is read from config
 supabase functions deploy export
 supabase functions deploy publish
 supabase functions deploy ingest-content   # verify_jwt=false; space-feed mirror
+supabase functions deploy link-preview     # OG cards + inline video
 ```
 
 No `supabase secrets set` needed — `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
@@ -162,7 +163,7 @@ PATCHes the `app_release` row so the in-app updater sees it.
 
 - [ ] 1. Project created; ref / URL / anon / service_role saved; CLI token made
 - [ ] 2. `supabase link` + `supabase db push` clean
-- [ ] 3. `app-version`, `export`, `publish`, `ingest-content` deployed
+- [ ] 3. `app-version`, `export`, `publish`, `ingest-content`, `link-preview` deployed
 - [ ] 4. `pg_cron` + `pg_net` enabled; 3 retention jobs + `ingest-content` scheduled; `tool/seed-directory.sql` run
 - [ ] 5. Auth Site URL + redirect URLs set
 - [ ] 6. Web rebuilt against the hosted URL + redeployed; fresh APK built
