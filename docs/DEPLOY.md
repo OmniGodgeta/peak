@@ -147,10 +147,13 @@ Everything else is dashboard / DNS config.
 A public social network with **13+ and teen accounts** carries obligations from user #1.
 
 ### Legal / policy
-- [ ] Terms of Service
-- [ ] Privacy Policy (what's collected, retention, export, deletion — matches the VISION claims)
-- [ ] Community Guidelines
-- [ ] DMCA / copyright agent + contact
+- [~] **Starter drafts written** — [legal/TERMS.md](legal/TERMS.md),
+      [legal/PRIVACY.md](legal/PRIVACY.md),
+      [legal/COMMUNITY_GUIDELINES.md](legal/COMMUNITY_GUIDELINES.md),
+      [legal/DMCA.md](legal/DMCA.md). Bundled in the app (Me → Terms & policies;
+      onboarding links Terms + Privacy). **Still need:** a lawyer's review, every
+      `〈bracket〉` filled, and the DMCA agent registered. See
+      [legal/README.md](legal/README.md).
 - [ ] Cookie / tracking notice (minimal, since no ads)
 
 ### Safety & moderation

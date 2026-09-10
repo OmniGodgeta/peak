@@ -13,6 +13,7 @@ import '../communities/modmail/my_modmail_screen.dart';
 import '../moderation/my_reports_screen.dart';
 import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
+import '../settings/legal_screen.dart';
 import '../settings/wellbeing_screen.dart';
 import '../settings/your_data_screen.dart';
 import 'edit_profile_screen.dart';
@@ -223,6 +224,13 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
               const Divider(height: 32),
+              ListTile(
+                leading: const Icon(Icons.policy_outlined),
+                title: const Text('Terms & policies'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LegalScreen()),
+                ),
+              ),
               const _VersionTile(),
             ],
           );

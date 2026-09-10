@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/profile_repository.dart';
 import '../../data/supabase_providers.dart';
+import '../settings/legal_screen.dart';
 
 /// First run after sign-up: pick a handle + display name, give a date of birth
 /// (13+ enforced server-side; under-18 becomes a teen account), then create the
@@ -179,6 +180,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         )
                       : const Text('Create account'),
                 ),
+                const SizedBox(height: 8),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'By creating an account you agree to the ',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    _LegalLink('Terms', 'assets/legal/TERMS.md'),
+                    Text(' and ', style: Theme.of(context).textTheme.bodySmall),
+                    _LegalLink('Privacy Policy', 'assets/legal/PRIVACY.md'),
+                    Text('.', style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'You start with five circles — Public, Friends, Close Friends, '
@@ -188,6 +203,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink(this.label, this.asset);
+  final String label;
+  final String asset;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LegalDocScreen(title: label, asset: asset),
+        ),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          decoration: TextDecoration.underline,
         ),
       ),
     );
