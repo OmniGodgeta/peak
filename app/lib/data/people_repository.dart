@@ -61,6 +61,9 @@ class ProfileView {
     required this.followerCount,
     required this.followingCount,
     required this.postCount,
+    this.isVerifiedPerson = false,
+    this.personhoodMethod,
+    this.vouchCount = 0,
   });
 
   final String id;
@@ -80,6 +83,12 @@ class ProfileView {
   final int followerCount;
   final int followingCount;
   final int postCount;
+
+  /// Proof-of-personhood: a real-person signal, not identity verification.
+  /// [personhoodMethod] is 'staff' or 'vouch'.
+  final bool isVerifiedPerson;
+  final String? personhoodMethod;
+  final int vouchCount;
 
   String get name => displayName.isNotEmpty ? displayName : handle;
   String get fqHandle => '@$handle@$domain';
@@ -102,6 +111,9 @@ class ProfileView {
     followerCount: (m['follower_count'] as int?) ?? 0,
     followingCount: (m['following_count'] as int?) ?? 0,
     postCount: (m['post_count'] as int?) ?? 0,
+    isVerifiedPerson: (m['is_verified_person'] as bool?) ?? false,
+    personhoodMethod: m['personhood_method'] as String?,
+    vouchCount: (m['vouch_count'] as num?)?.toInt() ?? 0,
   );
 }
 

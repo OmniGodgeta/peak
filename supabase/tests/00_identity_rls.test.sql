@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(203);
+select plan(214);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -1093,6 +1093,66 @@ select is((select count(*)::int from labelers_browse('Kid private')), 0,
 select throws_ok(
   format($$select subscribe_labeler(%L)$$, :'klab'),
   'labeler not available', 'a private labeler cannot be subscribed to by others');
+
+-- ── Phase 5: proof-of-personhood ──────────────────────────────────────
+-- a fourth account, and alice + bob + dave seeded as verified people
+set local role postgres;
+insert into auth.users (id, email)
+  values ('00000000-0000-0000-0000-00000000000d', 'dave@test.peak');
+select tests.act_as('00000000-0000-0000-0000-00000000000d');
+select bootstrap_account('dave', 'Dave', date '1991-03-03');
+set local role postgres;
+insert into personhood (profile_id, method) values
+  ('00000000-0000-0000-0000-00000000000a', 'staff'),
+  ('00000000-0000-0000-0000-00000000000b', 'staff'),
+  ('00000000-0000-0000-0000-00000000000d', 'staff');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is((select verified from personhood_of('alice')), true,
+  'personhood_of reports a verified account');
+select throws_ok(
+  $$select vouch_for('alice')$$,
+  'only verified people can vouch',
+  'an unverified account cannot vouch');
+
+-- three verified people vouch for kid → auto-grant
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select vouch_for('kid');
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select vouch_for('kid');
+select is((select verified from personhood_of('kid')), false,
+  'two vouches is below the threshold');
+select tests.act_as('00000000-0000-0000-0000-00000000000d');
+select vouch_for('kid');
+select is((select verified from personhood_of('kid')), true,
+  'the third vouch grants personhood');
+select is((select method from personhood_of('kid')), 'vouch',
+  'a vouched-in badge is method vouch');
+
+-- drop below the threshold → the vouch badge is revoked
+select tests.act_as('00000000-0000-0000-0000-00000000000d');
+select unvouch('kid');
+select is((select verified from personhood_of('kid')), false,
+  'losing a vouch below the threshold revokes a vouch badge');
+
+-- staff grant sticks regardless of vouches
+select tests.act_as('00000000-0000-0000-0000-00000000000c');  -- kid is staff
+select grant_personhood('kid');
+select is((select method from personhood_of('kid')), 'staff',
+  'a staff grant marks the account method staff');
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select throws_ok(
+  $$select grant_personhood('bob')$$, 'staff only',
+  'a non-staff account cannot grant personhood');
+
+-- alice follows kid, so she can see kid's profile
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is((select is_verified_person from profile_view('kid')), true,
+  'profile_view surfaces the personhood badge');
+select is((select personhood_method from profile_view('kid')), 'staff',
+  'profile_view carries the personhood method');
+select is((select vouch_count from profile_view('kid')), 2,
+  'profile_view counts every vouch, not just the viewer''s own');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');

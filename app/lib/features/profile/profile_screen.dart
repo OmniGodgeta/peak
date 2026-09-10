@@ -12,6 +12,7 @@ import '../../data/report_repository.dart';
 import '../communities/modmail/my_modmail_screen.dart';
 import '../moderation/labelers_screen.dart';
 import '../moderation/my_reports_screen.dart';
+import '../moderation/personhood_screen.dart';
 import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
 import '../settings/legal_screen.dart';
@@ -191,6 +192,16 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              ListTile(
+                leading: const Icon(Icons.verified_outlined),
+                title: const Text('Proof of personhood'),
+                subtitle: const Text('Vouch for real people; your badge'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PersonhoodScreen(),
+                  ),
+                ),
+              ),
               ListTile(
                 leading: const Icon(Icons.label_outline),
                 title: const Text('Labelers'),

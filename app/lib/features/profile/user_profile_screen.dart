@@ -5,6 +5,8 @@ import '../../app/avatar.dart';
 import '../../data/feed_repository.dart';
 import '../../data/messaging_repository.dart';
 import '../../data/people_repository.dart';
+import '../../data/personhood_repository.dart';
+import '../../data/report_repository.dart';
 import '../feed/post_card.dart';
 import '../messaging/chat_screen.dart';
 import '../moderation/report_sheet.dart';
@@ -152,6 +154,17 @@ class _HeaderState extends ConsumerState<_Header> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (p.isVerifiedPerson) ...[
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: 'Verified person',
+                            child: Icon(
+                              Icons.verified,
+                              size: 16,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ],
                         if (p.isTeen) ...[
                           const SizedBox(width: 6),
                           Icon(
@@ -182,6 +195,7 @@ class _HeaderState extends ConsumerState<_Header> {
             ],
           ),
           if (p.bio.isNotEmpty) ...[const SizedBox(height: 12), Text(p.bio)],
+          _PersonhoodStrip(handle: p.handle, isSelf: p.isSelf),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -288,6 +302,100 @@ class _Posts extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// Proof-of-personhood status + vouch / staff controls for one profile.
+class _PersonhoodStrip extends ConsumerWidget {
+  const _PersonhoodStrip({required this.handle, required this.isSelf});
+  final String handle;
+  final bool isSelf;
+
+  Future<void> _run(
+    BuildContext context,
+    WidgetRef ref,
+    Future<void> Function() action,
+  ) async {
+    try {
+      await action();
+      ref.read(personhoodRevisionProvider.notifier).bump();
+      ref.invalidate(profileViewProvider(handle));
+    } on Exception catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'.replaceFirst('Exception: ', ''))),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ph = ref.watch(personhoodOfProvider(handle)).asData?.value;
+    if (ph == null) return const SizedBox.shrink();
+    final isStaff = ref.watch(amIStaffProvider).asData?.value ?? false;
+    final repo = ref.read(personhoodRepositoryProvider);
+    final theme = Theme.of(context);
+
+    final line = ph.verified
+        ? (ph.method == 'staff'
+              ? 'Verified person — confirmed by Peak'
+              : 'Verified person — vouched for by ${ph.vouchCount} others')
+        : ph.vouchCount > 0
+        ? '${ph.vouchCount} of 3 vouches toward verification'
+        : 'Not verified';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                ph.verified ? Icons.verified : Icons.person_outline,
+                size: 15,
+                color: ph.verified
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Flexible(child: Text(line, style: theme.textTheme.bodySmall)),
+            ],
+          ),
+          if (!isSelf)
+            Wrap(
+              spacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => _run(
+                    context,
+                    ref,
+                    () =>
+                        ph.iVouched ? repo.unvouch(handle) : repo.vouch(handle),
+                  ),
+                  child: Text(ph.iVouched ? 'Withdraw vouch' : 'Vouch'),
+                ),
+                if (isStaff)
+                  TextButton(
+                    onPressed: () => _run(
+                      context,
+                      ref,
+                      () => ph.verified && ph.method == 'staff'
+                          ? repo.revoke(handle)
+                          : repo.grant(handle),
+                    ),
+                    child: Text(
+                      ph.verified && ph.method == 'staff'
+                          ? 'Un-verify (staff)'
+                          : 'Verify (staff)',
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

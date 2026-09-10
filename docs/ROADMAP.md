@@ -202,7 +202,14 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       blurs the post behind a tap-to-reveal, always attributed. Me → Labelers to
       run your own or subscribe. Still to do: appeals SLA + quarterly
       transparency report.
-- [ ] Proof-of-personhood badges
+- [x] Proof-of-personhood badges — `personhood` (method `staff` | `vouch`) +
+      `personhood_vouch`; a staff grant, or 3 vouches from already-verified
+      people (auto-granted, auto-revoked below the threshold). `vouch_for` /
+      `unvouch` / `personhood_of` / `my_vouches` / `grant_personhood` /
+      `revoke_personhood` / `personhood_pending`. `profile_view` carries
+      `is_verified_person` / `personhood_method` / `vouch_count`; a ✓ badge on
+      profiles, a vouch button, Me → Proof of personhood. Deliberately not
+      identity verification. (Post-card badge: a later pass across the feed RPCs.)
 - [x] Wellbeing suite — per-device (never the account): a session clock that
       resets after a real break; a "take a break" sheet at 15/30/60 min
       ("no streaks, no penalty for leaving"); always-on greyscale; quiet hours
