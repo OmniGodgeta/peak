@@ -189,7 +189,14 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       in one ranked list). The Discover tab is now unified search with
       People / Communities / Posts filters. Meilisearch swap-in later if needed.
 - [ ] pgvector recommendations
-- [ ] **User-level labelers** (stackable, subscribable) + appeals SLA + quarterly transparency report
+- [~] **User-level labelers** (stackable, subscribable) — `labeler` / `labeler_label`
+      (`info`/`warn`/`hide` severity) / `content_label` / `labeler_subscription`;
+      `create_labeler` / `set_labeler_labels` / `apply_content_label` /
+      `subscribe_labeler` / `labelers_browse` / `post_labels_for_me`. Post cards
+      render the labels from labelers you own or subscribe to; a `hide` label
+      blurs the post behind a tap-to-reveal, always attributed. Me → Labelers to
+      run your own or subscribe. Still to do: appeals SLA + quarterly
+      transparency report.
 - [ ] Proof-of-personhood badges
 - [x] Wellbeing suite — per-device (never the account): a session clock that
       resets after a real break; a "take a break" sheet at 15/30/60 min

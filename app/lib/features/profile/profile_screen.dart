@@ -10,6 +10,7 @@ import '../../updater/update_service.dart';
 import '../../data/community_repository.dart';
 import '../../data/report_repository.dart';
 import '../communities/modmail/my_modmail_screen.dart';
+import '../moderation/labelers_screen.dart';
 import '../moderation/my_reports_screen.dart';
 import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
@@ -190,6 +191,18 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              ListTile(
+                leading: const Icon(Icons.label_outline),
+                title: const Text('Labelers'),
+                subtitle: const Text(
+                  'Subscribe to labels for your feed, or run your own',
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const LabelersScreen(),
+                  ),
+                ),
+              ),
               const _ComingSoonTile(
                 label: 'Circles & who is in them',
                 phase: 'Phase 1',

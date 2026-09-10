@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/community_repository.dart';
 import '../../data/data_repository.dart';
 import '../../data/feed_repository.dart';
+import '../../data/labeler_repository.dart';
 import '../../data/people_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
 import '../../wellbeing/wellbeing.dart';
+import '../moderation/labeler_edit_screen.dart';
 import '../moderation/report_sheet.dart';
 import '../compose/compose_screen.dart';
 import '../profile/user_profile_screen.dart';
@@ -47,6 +49,7 @@ class _PostCardState extends ConsumerState<PostCard> {
   late bool _reposted = widget.post.viewerReposted;
   late int _replyCount = widget.post.replyCount;
   bool _cwRevealed = false;
+  bool _labelRevealed = false;
   bool _deleted = false;
 
   void _openProfile(BuildContext context) {
@@ -182,6 +185,81 @@ class _PostCardState extends ConsumerState<PostCard> {
     }
   }
 
+  /// Apply a label from one of the viewer's own labelers to this post.
+  Future<void> _labelPost() async {
+    final repo = ref.read(labelerRepositoryProvider);
+    final mine = (await ref.read(myLabelersProvider.future))
+        .where((l) => l.owned)
+        .toList();
+    if (!mounted) return;
+    if (mine.isEmpty) {
+      final make = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Create a labeler first'),
+          content: const Text(
+            'Labels come from a labeler you run — a named set of labels other '
+            'people can subscribe to. Create one to start labelling posts.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+      if (make == true && mounted) {
+        await Navigator.of(context).push<bool>(
+          MaterialPageRoute(builder: (_) => const LabelerEditScreen()),
+        );
+      }
+      return;
+    }
+
+    final picked = await showModalBottomSheet<({String labelerId, String key})>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => ListView(
+        shrinkWrap: true,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Text('Label this post'),
+          ),
+          for (final l in mine)
+            _LabelerLabels(
+              labelerId: l.id,
+              labelerName: l.name,
+              onPick: (key) => Navigator.pop(ctx, (labelerId: l.id, key: key)),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    try {
+      await repo.applyLabel(
+        labelerId: picked.labelerId,
+        postId: widget.post.id,
+        labelKey: picked.key,
+      );
+      ref.read(labelerRevisionProvider.notifier).bump();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Label applied')));
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
   Future<String?> _askReason(String title) async {
     final c = TextEditingController();
     return showDialog<String>(
@@ -234,6 +312,14 @@ class _PostCardState extends ConsumerState<PostCard> {
     final scheme = theme.colorScheme;
     final cw = p.contentWarning;
     final hasCw = cw != null && cw.isNotEmpty;
+
+    final labels =
+        ref.watch(postLabelsProvider(p.id)).asData?.value ??
+        const <PostLabel>[];
+    final hideLabel = labels
+        .where((l) => l.severity == LabelSeverity.hide)
+        .firstOrNull;
+    final blurred = hideLabel != null && !_labelRevealed;
 
     if (_deleted) {
       return Padding(
@@ -321,6 +407,15 @@ class _PostCardState extends ConsumerState<PostCard> {
                   ],
                 ),
               ),
+            if (labels.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [for (final l in labels) _LabelChip(label: l)],
+                ),
+              ),
             Row(
               children: [
                 GestureDetector(
@@ -385,7 +480,16 @@ class _PostCardState extends ConsumerState<PostCard> {
               ],
             ),
             const SizedBox(height: 8),
-            if (hasCw && !_cwRevealed)
+            if (blurred)
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _labelRevealed = true),
+                icon: const Icon(Icons.visibility_off_outlined, size: 16),
+                label: Text(
+                  '${hideLabel.labelName} — labelled by ${hideLabel.labelerName}. '
+                  'Tap to show',
+                ),
+              )
+            else if (hasCw && !_cwRevealed)
               OutlinedButton.icon(
                 onPressed: () => setState(() => _cwRevealed = true),
                 icon: const Icon(Icons.visibility_off_outlined, size: 16),
@@ -478,6 +582,8 @@ class _PostCardState extends ConsumerState<PostCard> {
                           subjectId: widget.post.id,
                           what: 'this post',
                         );
+                      case 'apply-label':
+                        _labelPost();
                       case 'pin':
                         _togglePin();
                       case 'delete':
@@ -502,6 +608,10 @@ class _PostCardState extends ConsumerState<PostCard> {
                         value: 'report',
                         child: Text('Report post'),
                       ),
+                    const PopupMenuItem(
+                      value: 'apply-label',
+                      child: Text('Label this post…'),
+                    ),
                     if (_isMine)
                       PopupMenuItem(
                         value: 'pin',
@@ -553,6 +663,123 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 }
+
+/// A single labeler's label shown on a post — quiet for info, bold for warn,
+/// eye-off for a hide label. Always names the labeler.
+class _LabelChip extends StatelessWidget {
+  const _LabelChip({required this.label});
+  final PostLabel label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (icon, bg, fg) = switch (label.severity) {
+      LabelSeverity.hide => (
+        Icons.visibility_off_outlined,
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+      ),
+      LabelSeverity.warn => (
+        Icons.warning_amber_outlined,
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+      ),
+      LabelSeverity.info => (
+        Icons.info_outline,
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+      ),
+    };
+    return Tooltip(
+      message: label.note?.isNotEmpty == true
+          ? '${label.labelerName}: ${label.note}'
+          : 'Labelled by ${label.labelerName}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: fg),
+            const SizedBox(width: 4),
+            Text(
+              label.labelName,
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: fg),
+            ),
+            Text(
+              '  ·  ${label.labelerName}',
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: fg.withValues(alpha: 0.7)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The labels of one owned labeler, as tappable rows in the "label this post"
+/// sheet.
+class _LabelerLabels extends ConsumerWidget {
+  const _LabelerLabels({
+    required this.labelerId,
+    required this.labelerName,
+    required this.onPick,
+  });
+  final String labelerId;
+  final String labelerName;
+  final void Function(String key) onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final labels = ref.watch(labelerLabelsProvider(labelerId));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+          child: Text(
+            labelerName.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        labels.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) =>
+              Padding(padding: const EdgeInsets.all(16), child: Text('$e')),
+          data: (list) => list.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: Text('This labeler has no labels yet.'),
+                )
+              : Column(
+                  children: [
+                    for (final l in list)
+                      ListTile(
+                        dense: true,
+                        leading: Icon(_sevIcon(l.severity)),
+                        title: Text(l.name),
+                        onTap: () => onPick(l.key),
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+IconData _sevIcon(LabelSeverity s) => switch (s) {
+  LabelSeverity.hide => Icons.visibility_off_outlined,
+  LabelSeverity.warn => Icons.warning_amber_outlined,
+  LabelSeverity.info => Icons.info_outline,
+};
 
 class _ArticlePreview extends StatelessWidget {
   const _ArticlePreview({required this.post});

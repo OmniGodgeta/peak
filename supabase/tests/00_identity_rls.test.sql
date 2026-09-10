@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(184);
+select plan(195);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -1011,6 +1011,56 @@ select submit_report('post', :'cpost2', 'harassment');
 select tests.act_as('00000000-0000-0000-0000-00000000000b');
 select ok((select count(*) from review_queue()) >= 1,
   'a community moderator sees non-urgent reports about their community');
+
+-- ── Phase 5: user-level labelers ──────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select create_labeler('Bob''s Labels', 'stuff bob flags', true) as lab \gset
+select set_labeler_labels(:'lab',
+  '[{"key":"spoilers","name":"Spoilers","severity":"warn"}]'::jsonb);
+select is((select count(*)::int from labeler_labels(:'lab')), 1,
+  'set_labeler_labels installs the label set');
+
+select apply_content_label(:'lab', :'alice_pub_id', 'spoilers', 'ending revealed');
+select is(
+  (select severity::text from post_labels_for_me(array[:'alice_pub_id']::uuid[])),
+  'warn', 'the labeler owner sees their own label on a post');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select is(
+  (select count(*)::int from post_labels_for_me(array[:'alice_pub_id']::uuid[])),
+  0, 'a non-subscriber sees no labels');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
+select is((select count(*)::int from content_label where post_id = :'alice_pub_id'),
+  1, 'the labelled post author can see the content_label row');
+
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select subscribe_labeler(:'lab');
+select is(
+  (select labeler_name from post_labels_for_me(array[:'alice_pub_id']::uuid[])),
+  'Bob''s Labels', 'a subscriber sees the labeler''s label');
+select is((select subscribed from my_labelers() where id = :'lab'),
+  true, 'my_labelers marks a subscribed labeler');
+select ok(
+  (select subscriber_count from labelers_browse('bob') where id = :'lab') >= 1,
+  'labelers_browse lists a public labeler with its subscriber count');
+
+select throws_ok(
+  format($$select apply_content_label(%L, %L, 'spoilers')$$, :'lab', :'alice_pub_id'),
+  'not your labeler', 'only the owner can apply a labeler''s labels');
+
+select unsubscribe_labeler(:'lab');
+select is(
+  (select count(*)::int from post_labels_for_me(array[:'alice_pub_id']::uuid[])),
+  0, 'unsubscribing hides the labeler''s labels');
+
+select create_labeler('Kid private', '', false) as klab \gset
+select tests.act_as('00000000-0000-0000-0000-00000000000b');
+select is((select count(*)::int from labelers_browse('Kid private')), 0,
+  'a private labeler is not in the public browse list');
+select throws_ok(
+  format($$select subscribe_labeler(%L)$$, :'klab'),
+  'labeler not available', 'a private labeler cannot be subscribed to by others');
 
 -- ── Phase 3: account deletion (last — purge_due_accounts is destructive) ──
 select tests.act_as('00000000-0000-0000-0000-00000000000a');
