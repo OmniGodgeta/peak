@@ -13,25 +13,34 @@ class PendingMedia {
   PendingMedia({
     required this.bytes,
     required this.mimeType,
+    this.isVideo = false,
     this.altText = '',
     this.width,
     this.height,
+    this.durationMs,
   });
 
   final Uint8List bytes;
-  final String mimeType; // image/jpeg, image/png, image/gif, image/webp
+  final String
+  mimeType; // image/jpeg, image/png, image/gif, image/webp, video/mp4
+  final bool isVideo;
   String altText;
   int? width;
   int? height;
+  int? durationMs;
 
   bool get isGif => mimeType == 'image/gif';
+  String get kind => isVideo ? 'video' : 'image';
 
   String get _ext => switch (mimeType) {
     'image/png' => 'png',
     'image/gif' => 'gif',
     'image/webp' => 'webp',
     'image/avif' => 'avif',
-    _ => 'jpg',
+    'video/quicktime' => 'mov',
+    'video/webm' => 'webm',
+    'video/mp4' => 'mp4',
+    _ => isVideo ? 'mp4' : 'jpg',
   };
 
   String storagePathFor(String userId) => '$userId/${const Uuid().v4()}.$_ext';
@@ -70,11 +79,12 @@ class PostRepository {
           );
       rows.add({
         'post_id': postId,
-        'kind': 'image',
+        'kind': m.kind,
         'storage_path': path,
         'alt_text': m.altText.trim().isEmpty ? null : m.altText.trim(),
         'width': m.width,
         'height': m.height,
+        'duration_ms': m.durationMs,
         'sort_order': i,
       });
     }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/avatar.dart';
 import '../../data/discover_repository.dart';
+import '../../data/feed_repository.dart';
 import '../../data/people_repository.dart';
 import '../../data/search_repository.dart';
 import '../communities/community_screen.dart';
@@ -191,17 +192,67 @@ class _DiscoverLanding extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pymk = ref.watch(pymkProvider);
     final comms = ref.watch(suggestedCommunitiesProvider);
+    final popular = ref.watch(popularCommunitiesProvider);
+    final fresh = ref.watch(freshOnPeakProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(pymkProvider);
         ref.invalidate(suggestedCommunitiesProvider);
+        ref.invalidate(popularCommunitiesProvider);
+        ref.invalidate(freshOnPeakProvider);
         ref.invalidate(myInterestsProvider);
       },
       child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           const _InterestsEditor(),
+          const Divider(height: 1),
+          _Section('Popular communities'),
+          popular.when(
+            loading: () => const _Loading(),
+            error: (e, _) => _Err('$e'),
+            data: (list) => list.isEmpty
+                ? const _Empty('No communities yet.')
+                : Column(
+                    children: [
+                      for (final c in list)
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer,
+                            child: Text(c.name.characters.first.toUpperCase()),
+                          ),
+                          title: Text(c.name),
+                          subtitle: Text(
+                            '${c.memberCount} member${c.memberCount == 1 ? '' : 's'}'
+                            '${c.isMember ? ' · joined' : ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => CommunityScreen(slug: c.slug),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+          const Divider(height: 1),
+          _Section('Fresh on Peak'),
+          fresh.when(
+            loading: () => const _Loading(),
+            error: (e, _) => _Err('$e'),
+            data: (list) => list.isEmpty
+                ? const _Empty('Nothing posted publicly yet.')
+                : Column(
+                    children: [
+                      for (final p in list.take(6)) _FreshPostTile(post: p),
+                    ],
+                  ),
+          ),
           const Divider(height: 1),
           _Section('People you may know'),
           pymk.when(
@@ -371,6 +422,46 @@ class _PymkTileState extends ConsumerState<_PymkTile> {
         MaterialPageRoute<void>(
           builder: (_) => UserProfileScreen(handle: p.handle),
         ),
+      ),
+    );
+  }
+}
+
+class _FreshPostTile extends StatelessWidget {
+  const _FreshPostTile({required this.post});
+  final FeedPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = post.authorDisplayName.isNotEmpty
+        ? post.authorDisplayName
+        : post.authorHandle;
+    final preview = post.title?.trim().isNotEmpty == true
+        ? post.title!.trim()
+        : post.body.replaceAll('\n', ' ').trim();
+    return ListTile(
+      leading: AvatarCircle(
+        name: name,
+        path: post.authorAvatarPath,
+        radius: 18,
+      ),
+      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        preview.isEmpty ? '(media post)' : preview,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: post.media.isNotEmpty
+          ? Icon(
+              post.media.first.kind == 'video'
+                  ? Icons.videocam_outlined
+                  : Icons.image_outlined,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            )
+          : null,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => ThreadScreen(rootId: post.id)),
       ),
     );
   }

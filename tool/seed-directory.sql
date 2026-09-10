@@ -1,6 +1,5 @@
--- Peak — directory seed: house account, telescope + launch mirror accounts,
--- and starter communities (gaming / rockets / science / telescope images)
--- alongside the existing Space & Astronomy community.
+-- Peak — directory seed: house account, mirror/news accounts, and starter
+-- communities for space, gaming, and science.
 --
 -- NOT a migration: this inserts real content and touches auth.users, so it must
 -- never run in CI. Apply it to the hosted project by hand (Supabase MCP
@@ -8,8 +7,8 @@
 -- it upserts accounts/communities and only seeds a community's kickoff post
 -- when that community has none.
 --
--- The @webb / @hubble / @roman / @launches accounts are filled automatically by
--- the `ingest-content` Edge Function (see supabase/functions/ingest-content).
+-- The mirror/news accounts are filled automatically by the `ingest-content`
+-- Edge Function (see supabase/functions/ingest-content).
 \set ON_ERROR_STOP on
 
 do $$
@@ -21,34 +20,77 @@ declare
   v_me         uuid;   -- the human operator's account, if present
   v_now        timestamptz := now();
 
-  -- handle → (display_name, bio)
+  -- handle, display_name, bio
   bots text[][] := array[
     array['peak',    'Peak',
           'The house account. Announcements, and a hand curating the starter communities. Not a person.'],
     array['webb',    'James Webb Space Telescope',
-          'Fresh imagery from JWST, mirrored from NASA''s public image library. Community-run, not an official account.'],
+          'Fresh imagery from JWST, mirrored from ESA/Webb. Community-run, not an official account.'],
     array['hubble',  'Hubble Space Telescope',
-          'New pictures from Hubble, mirrored from NASA''s public image library. Community-run, not an official account.'],
+          'New pictures from Hubble, mirrored from ESA/Hubble. Community-run, not an official account.'],
     array['roman',   'Nancy Grace Roman Space Telescope',
           'Nancy Grace Roman Space Telescope — mission updates and imagery as it arrives (launch expected 2027). Community-run mirror.'],
     array['launches','Rocket Launches',
-          'Upcoming orbital launches worldwide, from the free Launch Library. Community-run, not affiliated with any provider.']
+          'Upcoming orbital launches worldwide, from the free Launch Library. Community-run, not affiliated with any provider.'],
+    array['playstation','PlayStation News',
+          'Headlines from PlayStation.Blog, mirrored with a link back. Community-run, not affiliated with Sony.'],
+    array['xbox',    'Xbox News',
+          'Headlines from Xbox Wire, mirrored with a link back. Community-run, not affiliated with Microsoft.'],
+    array['nintendo','Nintendo News',
+          'Nintendo headlines via Nintendo Life, mirrored with a link back. Community-run, not affiliated with Nintendo.'],
+    array['pcgaming','PC Gaming News',
+          'PC gaming headlines from PC Gamer and Rock Paper Shotgun, mirrored with a link back. Community-run.'],
+    array['pchardware','PC Hardware News',
+          'CPU / GPU / component news from Tom''s Hardware and TechPowerUp, mirrored with a link back. Community-run.'],
+    array['scinews', 'Science News',
+          'Research headlines from Phys.org and ScienceDaily, mirrored with a link back. Community-run.']
   ];
 
   -- slug, name, description, topics(csv)
   comms text[][] := array[
     array['gaming', 'Gaming',
           'Everything games — what you''re playing, news, mods, hardware, and screenshots.',
-          'gaming,games,pc-gaming,consoles,indie'],
+          'gaming,games,indie'],
+    array['playstation', 'PlayStation',
+          'PlayStation news and discussion — PS5, PS Plus, first-party studios, and the back catalogue. Fed by @playstation.',
+          'gaming,playstation,ps5,sony'],
+    array['xbox', 'Xbox',
+          'Xbox news and discussion — consoles, Game Pass, Xbox studios, and PC. Fed by @xbox.',
+          'gaming,xbox,microsoft,game-pass'],
+    array['nintendo', 'Nintendo',
+          'Nintendo news and discussion — Switch, first-party games, Directs, and the eShop. Fed by @nintendo.',
+          'gaming,nintendo,switch'],
+    array['pc-gaming', 'PC Gaming',
+          'PC gaming — new releases, storefront deals, mods, and the culture. Fed by @pcgaming.',
+          'gaming,pc-gaming,pc,steam'],
+    array['pc-hardware', 'PC Hardware',
+          'Building and upgrading PCs — CPU / GPU / memory releases, reviews, and troubleshooting. Fed by @pchardware.',
+          'hardware,pc,cpu,gpu,components'],
     array['rockets', 'Rocket Launches',
           'Spaceflight and the launch schedule — SpaceX, ULA, Rocket Lab, ESA, ISRO, CNSA and the rest. Countdowns, scrubs, and post-flight.',
           'rockets,spaceflight,spacex,launches,orbital'],
     array['science', 'Science',
           'Science across the board — physics, biology, earth, space, and the papers behind the headlines. Cite your source.',
           'science,research,physics,biology,earth'],
+    array['science-news', 'Science News',
+          'A running feed of new research, plainly summarised with a link to the source. Fed by @scinews.',
+          'science,research,news'],
     array['astrophotos', 'Telescope Images',
           'The newest images from Webb, Hubble, and (soon) Roman, plus your own astrophotography. Auto-fed by @webb, @hubble, and @roman.',
           'astrophotography,jwst,hubble,astronomy,images']
+  ];
+
+  -- bot handle -> community slug it posts into (beyond the space defaults)
+  wiring text[][] := array[
+    array['webb','astrophotos'], array['hubble','astrophotos'], array['roman','astrophotos'],
+    array['webb','space'], array['hubble','space'], array['roman','space'], array['nasa','space'],
+    array['launches','rockets'], array['launches','space'],
+    array['playstation','playstation'], array['playstation','gaming'],
+    array['xbox','xbox'], array['xbox','gaming'],
+    array['nintendo','nintendo'], array['nintendo','gaming'],
+    array['pcgaming','pc-gaming'], array['pcgaming','gaming'],
+    array['pchardware','pc-hardware'],
+    array['scinews','science-news'], array['scinews','science']
   ];
 begin
   ---------------------------------------------------------------------------
@@ -118,29 +160,28 @@ begin
     ('rockets',     'post-flight', 'Post-flight', 'How did it go?',                 2, 'members'),
     ('gaming',      'screenshots', 'Screenshots', 'Show us your best frame',        1, 'members'),
     ('gaming',      'deals',       'Deals',       'Sales and freebies',             2, 'members'),
+    ('pc-hardware', 'builds',      'Builds',      'Show your rig / parts list',     1, 'members'),
+    ('pc-hardware', 'help',        'Help',        'Troubleshooting and advice',     2, 'members'),
     ('science',     'papers',      'Papers',      'New results, with the source',   1, 'members'),
     ('astrophotos', 'yours',       'Your shots',  'Astrophotography you took',      1, 'members')
   ) as x(cslug, slug, name, descr, pos, pol) on x.cslug = c.slug
   on conflict (community_id, slug) do nothing;
 
   ---------------------------------------------------------------------------
-  -- 3. mirror accounts join the space-y communities
+  -- 3. mirror/news accounts join the communities they feed
   ---------------------------------------------------------------------------
-  insert into community_member (community_id, member_id, role, state)
-  select c.id, u.id, 'member', 'active'
-  from community c
-  cross join lateral (
-    select id, email from auth.users
-    where email in ('webb@peak.social','hubble@peak.social','roman@peak.social',
-                    'launches@peak.social','nasa@peak.social')
-  ) u
-  where (c.slug in ('space','astrophotos'))
-     or (c.slug = 'rockets' and u.email = 'launches@peak.social')
-  on conflict (community_id, member_id) do nothing;
+  for i in 1 .. array_length(wiring, 1) loop
+    insert into community_member (community_id, member_id, role, state)
+    select c.id, u.id, 'member', 'active'
+    from community c, auth.users u
+    where c.slug = wiring[i][2]
+      and u.email = wiring[i][1] || '@peak.social'
+    on conflict (community_id, member_id) do nothing;
+  end loop;
 
   ---------------------------------------------------------------------------
   -- 4. wire the human operator in (whoever holds the oldest real @handle),
-  --    so their home feed + communities are populated from day one.
+  --    so their home feed + communities + Discover are populated from day one.
   ---------------------------------------------------------------------------
   select p.id into v_me
   from profile p
@@ -152,16 +193,24 @@ begin
   if v_me is not null then
     insert into follow (follower_id, followee_id)
     select v_me, u.id from auth.users u
-    where u.email in ('nasa@peak.social','peak@peak.social','webb@peak.social',
-                      'hubble@peak.social','roman@peak.social','launches@peak.social')
-      and u.id <> v_me
+    where u.email like '%@peak.social' and u.id <> v_me
+      and u.email <> 'peak@peak.social'
+    on conflict do nothing;
+
+    insert into follow (follower_id, followee_id)
+    select v_me, u.id from auth.users u where u.email = 'peak@peak.social'
     on conflict do nothing;
 
     insert into community_member (community_id, member_id, role, state)
-    select c.id, v_me, 'member', 'active'
-    from community c
-    where c.slug in ('space','gaming','rockets','science','astrophotos')
+    select c.id, v_me, 'member', 'active' from community c
     on conflict (community_id, member_id) do nothing;
+
+    insert into profile_interest (profile_id, topic)
+    select v_me, t from unnest(array[
+      'space','astronomy','science','gaming','rockets',
+      'playstation','xbox','nintendo','pc gaming','hardware'
+    ]) as t
+    on conflict do nothing;
   end if;
 
   ---------------------------------------------------------------------------
@@ -175,18 +224,31 @@ begin
     select c.id as comm, ch.id as chan, c.slug
     from community c
     join community_channel ch on ch.community_id = c.id and ch.slug = 'general'
-    where c.slug in ('gaming','rockets','science','astrophotos')
-      and not exists (select 1 from post p where p.community_id = c.id)
+    where not exists (select 1 from post p where p.community_id = c.id)
+      and c.slug in ('gaming','rockets','science','astrophotos','playstation',
+                     'xbox','nintendo','pc-gaming','pc-hardware','science-news')
   loop
     insert into post (author_id, persona_id, community_id, channel_id, body, visibility, created_at)
     values (v_id, v_persona, r.comm, r.chan,
       case r.slug
         when 'gaming' then
-E'Welcome to Gaming on Peak. No engagement bait, no algorithm deciding what you see — just people talking about games.\n\nStart here: what are you playing this week, and is it worth it?'
+E'Welcome to Gaming on Peak. No engagement bait, no algorithm deciding what you see — just people talking about games.\n\nPlatform-specific news lives in c/playstation, c/xbox, c/nintendo, c/pc-gaming and c/pc-hardware. Start here: what are you playing this week?'
+        when 'playstation' then
+E'PlayStation news and talk. @playstation mirrors headlines from PlayStation.Blog into this community; bring your own finds and hot takes.'
+        when 'xbox' then
+E'Xbox news and talk. @xbox mirrors headlines from Xbox Wire into this community; Game Pass adds, hardware, studios — all fair game.'
+        when 'nintendo' then
+E'Nintendo news and talk. @nintendo mirrors headlines from Nintendo Life into this community. Directs, first-party games, and the perennial "new hardware when?"'
+        when 'pc-gaming' then
+E'PC gaming — releases, deals, mods, and the culture. @pcgaming mirrors PC Gamer and Rock Paper Shotgun here.'
+        when 'pc-hardware' then
+E'Building and upgrading PCs. @pchardware mirrors CPU/GPU/component news from Tom''s Hardware and TechPowerUp. Post your build in #builds, ask in #help.'
         when 'rockets' then
 E'Welcome to Rocket Launches. The #schedule channel auto-fills with upcoming orbital launches worldwide (courtesy @launches); bring countdowns, scrubs, and post-flight analysis to #general and #post-flight.'
         when 'science' then
-E'Welcome to Science. Physics, biology, earth, space — the results and the papers behind them. One rule that matters: link the source, not the press-release-of-a-press-release.'
+E'Welcome to Science. Physics, biology, earth, space — the results and the papers behind them. A running headline feed lives in c/science-news (via @scinews). One rule that matters: link the source.'
+        when 'science-news' then
+E'A running feed of new research from @scinews (Phys.org, ScienceDaily), each with a link to the source. Discuss here; take deeper threads to c/science.'
         when 'astrophotos' then
 E'Welcome to Telescope Images. @webb, @hubble, and @roman post their newest imagery straight into this community as it''s published. Post your own astrophotography in #yours.'
       end,
@@ -199,7 +261,7 @@ E'Welcome to Telescope Images. @webb, @hubble, and @roman post their newest imag
                    and p.body like 'Peak is open.%') then
     insert into post (author_id, persona_id, body, visibility, created_at)
     values (v_id, v_persona,
-E'Peak is open. No ads, no tracking, no algorithm you can''t turn off — you own your feed, your data, and your graph.\n\nFollow @webb, @hubble, and @roman for fresh telescope imagery, @launches for the orbital schedule, and @nasa for spaceflight news. Communities: c/space, c/rockets, c/science, c/gaming, c/astrophotos.',
+E'Peak is open. No ads, no tracking, no algorithm you can''t turn off — you own your feed, your data, and your graph.\n\nFollow @webb, @hubble, and @roman for telescope imagery, @launches for the orbital schedule, and @playstation / @xbox / @nintendo / @pcgaming / @pchardware / @scinews for news. Communities: c/space, c/rockets, c/gaming, c/playstation, c/xbox, c/nintendo, c/pc-gaming, c/pc-hardware, c/science, c/science-news, c/astrophotos.',
       'public', v_now - interval '2 hours');
   end if;
 end $$;
@@ -210,5 +272,4 @@ from profile p join auth.users u on u.id = p.id where u.email like '%@peak.socia
 union all
 select 'communities', string_agg(slug, ', ' order by slug) from community
 union all
-select 'posts by @peak', count(*)::text from post p
-  join profile pf on pf.id = p.author_id where pf.handle = 'peak';
+select 'posts total', count(*)::text from post;

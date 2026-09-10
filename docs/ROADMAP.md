@@ -9,8 +9,33 @@ accessible.
 
 **Status (2026-10):** phases 0–4 done. Phase 5 ~90% (labelers, custom feeds +
 directory, local feed, interests/PYMK, search, wellbeing, reports,
-proof-of-personhood all shipped; ranking Edge Function + fan-out index +
-pgvector recs remain). Hosted Supabase backend is live.
+proof-of-personhood, Discover populated with graph-free "popular communities" +
+"fresh on Peak" all shipped; ranking Edge Function + fan-out index + pgvector
+recs remain). Hosted Supabase backend is live. Feed video (post + inline player)
+shipped basic — no server-side transcoding yet.
+
+**Peak is a private beta right now.** No public domain (`@name@peak.social`
+handles are baked in, so the domain must be chosen before real users sign up).
+Reachable only on the operator's Tailscale preview + a sideloaded APK. The
+mirror/news accounts (@webb, @playstation, @scinews, …) keep the feed and
+communities alive for a small tester group. Going public is gated on the
+operator items in [HANDOFF.md §4a](HANDOFF.md) (domain, auth URL config, a
+lawyer pass on the legal drafts), not on more features.
+
+### Near-term punch-list (before "going public")
+
+Not a phase — the concrete work between here and a public launch:
+
+- **Finish Phase 5's buildables**: ranking Edge Function (open, excluded-signal
+  tests), fan-out-on-write feed index, pgvector "For you", personhood/labeler
+  badges on post cards.
+- **Video polish**: server-side transcode + poster frames + size renditions
+  (the "media pipeline" gap), a duration/really-large-file guard, moderation
+  reach for video.
+- **Operator**: register the domain → Cloudflare Pages web host + real email
+  (Resend); lawyer pass on `docs/legal/*`; Turnstile on signup.
+- **Content hygiene**: a light review queue for the mirror feeds; per-source
+  on/off switches; drop dead feeds.
 
 ---
 
@@ -122,10 +147,15 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       sweep (hourly cron).
 - [x] Profile highlights — pin up to 5 of your own posts to the top of your profile
 - [x] Data-light mode — per-device toggle; images load on tap
-- [ ] Video posts (transcode, adaptive playback), audio posts — needs `shadow` + CDN
+- [~] Video posts — **basic shipped**: pick one clip (≤60s / ≤50 MB) in the
+      composer, uploaded as-is to the `post-media` bucket (`kind: 'video'`),
+      inline tap-to-play player (scrub + mute, honours data-light) in the feed.
+      **Not yet**: server-side transcode to adaptive renditions, poster frames,
+      EXIF/metadata strip, audio-only posts — that's the "media pipeline", which
+      wants real storage + a CDN ([SELF_HOSTING.md](SELF_HOSTING.md)).
 
-Phase 3 is complete bar video/audio, which is gated on real media storage + a
-CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
+Phase 3 is complete bar the full media pipeline (transcode + CDN + audio posts),
+which arrives with the `shadow` self-host.
 
 ## Phase 4 — Communities  ·  *in progress*
 
@@ -195,8 +225,10 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
 - [~] Interests + People-you-may-know — `profile_interest` (+ `set_my_interests`
       / `my_interests`); `people_you_may_know` (friend-of-friend + co-member
       only, with the reason); `suggested_communities` (listed communities
-      matching your interests / your communities' topics). Discover now has a
-      landing: interests editor, PYMK, communities-for-you.
+      matching your interests / your communities' topics). Discover landing:
+      interests editor, **Popular communities** and **Fresh on Peak** (both
+      graph-free, so a brand-new account still sees content), PYMK,
+      communities-for-you.
 - [x] Local feed — `feed_local` (every public, top-level, non-community post on
       the instance, newest first; post RLS + your mutes still apply). In the
       Home feed switcher next to Latest / Friends first. "Here" widens with
@@ -229,14 +261,28 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       (greyscale + hide like/reply counts on a schedule). Settings under
       Me → Wellbeing.
 
-## Phase 6 — Creators & money
+## Phase 6 — Creators (money is a later, separate decision)
 
-- [ ] Payments integration (Stripe + at least one regional processor)
-- [ ] Subscriptions, tips, paid/paywalled posts
-- [ ] Payouts, fee accounting (~5% flat), analytics without dark patterns
-- [ ] Subscriber-list export (consented)
-- [ ] Multiple personas per login
-- [ ] Boosting for Discover only, always labelled; never affects followers' Latest
+The promise is **no ads, ever**. How Peak sustains itself is deliberately left
+open — Peak is fully usable without any of it, and this phase should not block a
+public launch. Ship the creator features that don't touch money first; treat
+payments as a decision to revisit once there's a real community asking for it
+(and once federation raises the "who takes a cut across instances?" question).
+
+**Now-ish (no money):**
+- [ ] Multiple personas per login (schema already supports `persona`; needs UI)
+- [ ] Boosting for **Discover only**, always labelled; never affects followers' Latest
+- [ ] Creator analytics without dark patterns (your own reach, opt-in)
+
+**Deferred — decision pending (money):**
+- [ ] Payments integration (a processor + at least one regional option)
+- [ ] Subscriptions, tips, paid/paywalled posts; consented subscriber-list export
+- [ ] Payouts + fee accounting (flat, transparent) — or a non-transactional model
+      (donations to the instance, grants, member co-op) if that fits better
+
+> Rationale for the split: monetisation is the part most likely to compromise the
+> product if rushed. Everything else in Peak — feed, communities, DMs, video,
+> federation — works and launches without it.
 
 ## Phase 7 — Federation
 

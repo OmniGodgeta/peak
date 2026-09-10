@@ -183,7 +183,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final controller = TextEditingController(text: m.body);
       final newBody = await showDialog<String>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text('Edit message'),
           content: TextField(
             controller: controller,
@@ -192,11 +192,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              onPressed: () =>
+                  Navigator.pop(dialogContext, controller.text.trim()),
               child: const Text('Save'),
             ),
           ],

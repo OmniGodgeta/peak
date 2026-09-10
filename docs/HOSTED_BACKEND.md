@@ -115,10 +115,13 @@ flutter build apk --release \
 The dev data on the Tailscale Supabase does **not** carry over — the hosted DB
 starts empty. Run `tool/seed-directory.sql` against it (Supabase SQL editor, or
 `psql` with the service role) to create the house `@peak` account, the
-`@webb` / `@hubble` / `@roman` / `@launches` mirror accounts, and the starter
-communities (`c/space` `c/gaming` `c/rockets` `c/science` `c/astrophotos`). It's
-idempotent and it auto-follows/joins the oldest real (non-`@peak.social`)
-account into everything. Then trigger the first content pull:
+`@webb` / `@hubble` / `@roman` / `@launches` / `@playstation` / `@xbox` /
+`@nintendo` / `@pcgaming` / `@pchardware` / `@scinews` mirror & news accounts,
+and the starter communities (`c/space` `c/rockets` `c/gaming` `c/playstation`
+`c/xbox` `c/nintendo` `c/pc-gaming` `c/pc-hardware` `c/science` `c/science-news`
+`c/astrophotos`). It's idempotent and auto-follows/joins the oldest real
+(non-`@peak.social`) account into everything + seeds its interests. Then trigger
+the first content pull:
 `curl -XPOST "$SUPABASE_URL/functions/v1/ingest-content?force=1" -H "Authorization: Bearer $ANON_KEY"`.
 
 ## 7. Wire the release pipeline (this is what publishes the APK)

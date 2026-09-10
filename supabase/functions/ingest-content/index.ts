@@ -1,16 +1,23 @@
-// ingest-content — mirror public space feeds into Peak as posts.
+// ingest-content — mirror public space / gaming / science feeds into Peak.
 //
-// Sources:
+// Image sources (post an image + text):
 //   webb    → ESA/Webb image releases   (esawebb.org, CC BY 4.0)
 //   hubble  → ESA/Hubble Picture of the Week (esahubble.org, CC BY 4.0)
-//   roman   → NASA image library, "Roman Space Telescope" (public domain;
-//             mostly mission milestones + renders until launch ~2027)
+//   roman   → NASA image library, "Roman Space Telescope" (public domain)
 //   launches→ Launch Library 2 upcoming launches (thespacedevs.com)
 //
-// Each source posts as its own account (@webb / @hubble / @roman / @launches)
-// into the home feed and mirrors into a community channel. Every post links and
-// credits the source. Dedup + per-source throttle live in the
-// content_ingest_seen / content_ingest_run tables.
+// News sources (post a headline + short excerpt + link, no image):
+//   playstation → PlayStation.Blog        → c/playstation
+//   xbox        → Xbox Wire               → c/xbox
+//   nintendo    → Nintendo Life           → c/nintendo
+//   pcgaming    → PC Gamer + RPS          → c/pc-gaming
+//   pchardware  → Tom's Hardware + TechPowerUp → c/pc-hardware
+//   scinews     → Phys.org + ScienceDaily → c/science-news
+//
+// Each source posts as its own account into the home feed and mirrors into a
+// community channel. Every post links and credits the source. Dedup + a
+// per-source throttle live in the content_ingest_seen / content_ingest_run
+// tables.
 //
 // Trigger: pg_cron via pg_net (see docs/HOSTED_BACKEND.md), or by hand:
 //   curl -XPOST "$SUPABASE_URL/functions/v1/ingest-content?source=webb&force=1" \
@@ -27,6 +34,11 @@ const THROTTLE_MIN = 20;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const BUCKET = "post-media";
 const UA = { "User-Agent": "peak-social/ingest (+https://peak.social)" };
+// Some outlets 403 a plain UA; present as a generic feed reader for news fetches.
+const NEWS_UA = {
+  "User-Agent":
+    "Mozilla/5.0 (compatible; peak-social/1.0; +https://peak.social) feedreader",
+};
 
 interface ImageSource {
   handle: string;
@@ -70,6 +82,68 @@ const IMAGE_SOURCES: Record<string, ImageSource> = {
   },
 };
 
+interface NewsSource {
+  handle: string;
+  community: string;
+  outlet: string; // shown as "via <outlet>"
+  urls: string[];
+  max: number;
+}
+
+const NEWS_SOURCES: Record<string, NewsSource> = {
+  playstation: {
+    handle: "playstation",
+    community: "playstation",
+    outlet: "PlayStation.Blog",
+    urls: ["https://blog.playstation.com/feed/"],
+    max: 3,
+  },
+  xbox: {
+    handle: "xbox",
+    community: "xbox",
+    outlet: "Xbox Wire",
+    urls: ["https://news.xbox.com/en-us/feed/"],
+    max: 3,
+  },
+  nintendo: {
+    handle: "nintendo",
+    community: "nintendo",
+    outlet: "Nintendo Life",
+    urls: ["https://www.nintendolife.com/feeds/latest"],
+    max: 3,
+  },
+  pcgaming: {
+    handle: "pcgaming",
+    community: "pc-gaming",
+    outlet: "PC Gamer / Rock Paper Shotgun",
+    urls: [
+      "https://www.pcgamer.com/rss/",
+      "https://www.rockpapershotgun.com/feed",
+    ],
+    max: 4,
+  },
+  pchardware: {
+    handle: "pchardware",
+    community: "pc-hardware",
+    outlet: "Tom's Hardware / TechPowerUp",
+    urls: [
+      "https://www.tomshardware.com/feeds.xml",
+      "https://www.techpowerup.com/rss/news",
+    ],
+    max: 4,
+  },
+  scinews: {
+    handle: "scinews",
+    community: "science-news",
+    outlet: "Phys.org / ScienceDaily",
+    urls: [
+      "https://phys.org/rss-feed/",
+      "https://www.sciencedaily.com/rss/all.xml",
+    ],
+    max: 4,
+  },
+};
+
 interface Ctx {
   db: SupabaseClient;
   dry: boolean;
@@ -100,7 +174,11 @@ Deno.serve(async (req) => {
   );
   const ctx: Ctx = { db, dry };
 
-  const sources = only ? [only] : [...Object.keys(IMAGE_SOURCES), "launches"];
+  const sources = only ? [only] : [
+    ...Object.keys(IMAGE_SOURCES),
+    "launches",
+    ...Object.keys(NEWS_SOURCES),
+  ];
   const results: SourceResult[] = [];
 
   for (const source of sources) {
@@ -117,6 +195,8 @@ Deno.serve(async (req) => {
       }
       const res = source === "launches"
         ? await ingestLaunches(ctx)
+        : NEWS_SOURCES[source]
+        ? await ingestNews(ctx, source)
         : await ingestImages(ctx, source);
       results.push(res);
       if (!dry) await markRun(ctx, source, res);
@@ -310,6 +390,7 @@ interface FeedItem {
   text: string;
   link: string;
   imageUrl: string | null;
+  publishedIso?: string;
 }
 
 async function ingestImages(ctx: Ctx, source: string): Promise<SourceResult> {
@@ -519,6 +600,106 @@ async function ingestLaunches(ctx: Ctx): Promise<SourceResult> {
     }
   }
   return out;
+}
+
+// ── news feeds (playstation / xbox / nintendo / pcgaming / pchardware / scinews)
+
+async function ingestNews(ctx: Ctx, source: string): Promise<SourceResult> {
+  const cfg = NEWS_SOURCES[source];
+  if (!cfg) throw new Error(`unknown source ${source}`);
+  const out: SourceResult = { source, added: 0, seen: 0, errors: [] };
+
+  const a = await author(ctx, cfg.handle);
+  const mirror = await channel(ctx, cfg.community, "general");
+  const seen = await alreadySeen(ctx, source);
+
+  const items: FeedItem[] = [];
+  const ids = new Set<string>();
+  for (const url of cfg.urls) {
+    try {
+      for (const it of await fetchNewsRss(url)) {
+        if (ids.has(it.externalId)) continue;
+        ids.add(it.externalId);
+        items.push(it);
+      }
+    } catch (e) {
+      out.errors.push(`${url}: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+  items.sort((x, y) =>
+    (y.publishedIso ?? "").localeCompare(x.publishedIso ?? "")
+  );
+  out.seen = items.length;
+
+  for (const item of items) {
+    if (out.added >= cfg.max) break;
+    if (seen.has(item.externalId)) continue;
+    try {
+      const body = [
+        item.title,
+        clip(item.text, 280),
+        `via ${cfg.outlet} · ${item.link}`,
+      ].filter(Boolean).join("\n\n");
+
+      if (ctx.dry) {
+        out.added++;
+        continue;
+      }
+      const postId = await publish(ctx, a, body, undefined, mirror);
+      await ctx.db.from("content_ingest_seen").insert({
+        source,
+        external_id: item.externalId,
+        post_id: postId,
+        title: item.title,
+        url: item.link,
+      });
+      out.added++;
+    } catch (e) {
+      out.errors.push(
+        `${item.externalId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+  return out;
+}
+
+async function fetchNewsRss(url: string): Promise<FeedItem[]> {
+  const res = await fetch(url, { headers: NEWS_UA, redirect: "follow" });
+  if (!res.ok) throw new Error(`rss ${res.status}`);
+  const xml = await res.text();
+  const items: FeedItem[] = [];
+  for (const block of xml.split(/<item>/i).slice(1)) {
+    const raw = block.split(/<\/item>/i)[0];
+    const title = decode(tag(raw, "title")).trim();
+    const link = decode(tag(raw, "link")).trim();
+    const guid = decode(tag(raw, "guid")).trim();
+    // Prefer the article link — some feeds (e.g. Nintendo Life) repeat the same
+    // useless <guid> on every item.
+    const id = (link || guid).split("#")[0];
+    if (!id || !title) continue;
+    const descRaw = tag(raw, "description") || tag(raw, "summary");
+    const when = tag(raw, "pubDate") || tag(raw, "dc:date") ||
+      tag(raw, "published");
+    let publishedIso: string | undefined;
+    if (when) {
+      const t = new Date(when.trim());
+      if (!Number.isNaN(t.getTime())) publishedIso = t.toISOString();
+    }
+    const text = stripHtml(decode(descRaw))
+      // WordPress feeds tack this onto every excerpt.
+      .replace(/\s*The post .+? appeared first on .+?\.?\s*$/i, "")
+      .replace(/\s*Continue reading[\s\S]*$/i, "")
+      .replace(/\s*Read more[\s\S]*$/i, "");
+    items.push({
+      externalId: id,
+      title,
+      text,
+      link: link || guid,
+      imageUrl: null,
+      publishedIso,
+    });
+  }
+  return items;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────

@@ -47,7 +47,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
 
   bool get _isReply => widget.replyTo != null;
   bool get _isCommunity => widget.communityId != null && !_isReply;
+  bool get _hasVideo => _media.any((m) => m.isVideo);
   static const _maxMedia = 4;
+  static const _maxVideoBytes = 50 * 1024 * 1024;
 
   @override
   void dispose() {
@@ -81,6 +83,45 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     return 'image/jpeg';
   }
 
+  Future<void> _pickVideo() async {
+    try {
+      final x = await ImagePicker().pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 60),
+      );
+      if (x == null) return;
+      final bytes = await x.readAsBytes();
+      if (bytes.length > _maxVideoBytes) {
+        setState(() {
+          _error =
+              'That video is ${(bytes.length / (1024 * 1024)).round()} MB — '
+              'keep it under 50 MB for now.';
+        });
+        return;
+      }
+      setState(() {
+        _error = null;
+        _media
+          ..clear()
+          ..add(
+            PendingMedia(bytes: bytes, mimeType: _videoMime(x), isVideo: true),
+          );
+        _article = false;
+      });
+    } on Exception catch (e) {
+      setState(() => _error = 'Could not add video: $e');
+    }
+  }
+
+  String _videoMime(XFile x) {
+    final m = x.mimeType;
+    if (m != null && m.startsWith('video/')) return m;
+    final name = x.name.toLowerCase();
+    if (name.endsWith('.mov')) return 'video/quicktime';
+    if (name.endsWith('.webm')) return 'video/webm';
+    return 'video/mp4';
+  }
+
   Future<void> _submit(List<Circle> circles) async {
     if (_body.text.trim().isEmpty && _media.isEmpty) {
       setState(() => _error = 'Say something, or add a photo.');
@@ -95,7 +136,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       return;
     }
     for (final m in _media) {
-      if (!m.isGif && m.altText.trim().isEmpty) {
+      if (!m.isGif && !m.isVideo && m.altText.trim().isEmpty) {
         // Deliberate friction, not a hard block — but nudge once.
         final proceed = await _confirmMissingAltText();
         if (!proceed) return;
@@ -160,20 +201,22 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   Future<bool> _confirmMissingAltText() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Add alt text?'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add image descriptions?'),
         content: const Text(
-          'Describing your images makes them readable to people using screen '
-          'readers. You can post without it, but it helps.',
+          'Alt text is a short description of a picture. Screen readers read it '
+          'aloud for people who are blind or low-vision, and it shows if the '
+          'image fails to load. It’s optional.\n\n'
+          'To add one, tap the “ALT” tag on a thumbnail below.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Post anyway'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Post without'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Let me add it'),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Go back'),
           ),
         ],
       ),
@@ -278,17 +321,26 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
               ),
             ],
             const SizedBox(height: 4),
-            Row(
+            Wrap(
+              spacing: 4,
               children: [
                 TextButton.icon(
-                  onPressed: _media.length >= _maxMedia ? null : _pickImages,
+                  onPressed: (_hasVideo || _media.length >= _maxMedia)
+                      ? null
+                      : _pickImages,
                   icon: const Icon(Icons.image_outlined, size: 18),
                   label: Text(
-                    _media.isEmpty
+                    _media.isEmpty || _hasVideo
                         ? 'Photo / GIF'
                         : '${_media.length}/$_maxMedia',
                   ),
                 ),
+                if (!_isReply)
+                  TextButton.icon(
+                    onPressed: _media.isEmpty ? _pickVideo : null,
+                    icon: const Icon(Icons.videocam_outlined, size: 18),
+                    label: const Text('Video'),
+                  ),
                 TextButton.icon(
                   onPressed: () => setState(() => _showCw = !_showCw),
                   icon: const Icon(Icons.warning_amber_outlined, size: 18),
@@ -345,7 +397,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     final controller = TextEditingController(text: _media[index].altText);
     final result = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Describe this image'),
         content: TextField(
           controller: controller,
@@ -358,11 +410,11 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
             child: const Text('Save'),
           ),
         ],
@@ -431,39 +483,56 @@ class _MediaStrip extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.memory(
-                  m.bytes,
-                  width: 104,
-                  height: 104,
-                  fit: BoxFit.cover,
-                ),
+                child: m.isVideo
+                    ? Container(
+                        width: 104,
+                        height: 104,
+                        color: Colors.black87,
+                        child: const Center(
+                          child: Icon(
+                            Icons.play_circle_outline,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                      )
+                    : Image.memory(
+                        m.bytes,
+                        width: 104,
+                        height: 104,
+                        fit: BoxFit.cover,
+                      ),
               ),
               Positioned(
                 top: 2,
                 right: 2,
                 child: _Chip(icon: Icons.close, onTap: () => onRemove(i)),
               ),
-              Positioned(
-                bottom: 2,
-                left: 2,
-                child: GestureDetector(
-                  onTap: () => onEditAlt(i),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      m.altText.trim().isEmpty ? 'ALT' : 'ALT ✓',
-                      style: const TextStyle(fontSize: 10, color: Colors.white),
+              if (!m.isVideo)
+                Positioned(
+                  bottom: 2,
+                  left: 2,
+                  child: GestureDetector(
+                    onTap: () => onEditAlt(i),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        m.altText.trim().isEmpty ? 'ALT' : 'ALT ✓',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           );
         },

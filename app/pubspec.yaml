@@ -39,6 +39,8 @@ dependencies:
   go_router: ^18.0.1
   flutter_secure_storage: ^11.0.0
   image_picker: ^1.2.3
+  # Inline video playback in the feed. Flutter-team package; no tracking.
+  video_player: ^2.9.2
   uuid: ^4.6.0
   url_launcher: ^6.3.2
   # In-app updater (sideloaded Android build): read the running version and

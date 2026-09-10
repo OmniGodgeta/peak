@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'community_repository.dart';
+import 'feed_repository.dart';
 import 'supabase_providers.dart';
 
 /// A person the graph suggests you might know, with the reason.
@@ -106,4 +108,25 @@ final suggestedCommunitiesProvider = FutureProvider<List<SuggestedCommunity>>((
   ref,
 ) async {
   return ref.watch(discoverRepositoryProvider).suggestedCommunities();
+});
+
+/// The most active public communities — shown on Discover so a brand-new
+/// account (no follows yet) still has somewhere to go. Graph-independent.
+final popularCommunitiesProvider = FutureProvider<List<CommunitySummary>>((
+  ref,
+) async {
+  final all = await ref.watch(communityRepositoryProvider).browse((
+    query: '',
+    topic: null,
+    sort: CommunitySort.active,
+    includeNsfw: false,
+  ));
+  return all.take(10).toList();
+});
+
+/// A peek at what's being posted across the whole instance (the Local feed),
+/// so Discover shows real content, not just suggestions. Graph-independent.
+final freshOnPeakProvider = FutureProvider<List<FeedPost>>((ref) async {
+  final posts = await ref.watch(feedRepositoryProvider).local(limit: 10);
+  return posts;
 });
