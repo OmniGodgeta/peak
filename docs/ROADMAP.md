@@ -183,7 +183,11 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
 - [ ] pgvector recommendations
 - [ ] **User-level labelers** (stackable, subscribable) + appeals SLA + quarterly transparency report
 - [ ] Proof-of-personhood badges
-- [ ] Wellbeing suite (session awareness, greyscale schedule, take-a-break)
+- [x] Wellbeing suite — per-device (never the account): a session clock that
+      resets after a real break; a "take a break" sheet at 15/30/60 min
+      ("no streaks, no penalty for leaving"); always-on greyscale; quiet hours
+      (greyscale + hide like/reply counts on a schedule). Settings under
+      Me → Wellbeing.
 
 ## Phase 6 — Creators & money
 

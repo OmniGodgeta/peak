@@ -7,6 +7,7 @@ import '../../data/feed_repository.dart';
 import '../../data/people_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
+import '../../wellbeing/wellbeing.dart';
 import '../compose/compose_screen.dart';
 import '../profile/user_profile_screen.dart';
 import 'article_screen.dart';
@@ -423,7 +424,13 @@ class _PostCardState extends ConsumerState<PostCard> {
                   tooltip: 'Like',
                   onPressed: _toggleReaction,
                 ),
-                _ReplyButton(count: _replyCount, onPressed: _reply),
+                _ReplyButton(
+                  count:
+                      ref.watch(wellbeingProvider.select((w) => w.hideCounts))
+                      ? -1
+                      : _replyCount,
+                  onPressed: _reply,
+                ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   icon: Icon(
@@ -613,7 +620,7 @@ class _ReplyButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
       ),
       icon: const Icon(Icons.mode_comment_outlined, size: 18),
-      label: Text(count == 0 ? '' : '$count'),
+      label: Text(count <= 0 ? '' : '$count'),
     );
   }
 }

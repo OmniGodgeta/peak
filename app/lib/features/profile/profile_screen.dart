@@ -9,6 +9,7 @@ import '../../updater/update_gate.dart';
 import '../../updater/update_service.dart';
 import '../communities/modmail/my_modmail_screen.dart';
 import '../settings/devices_screen.dart';
+import '../settings/wellbeing_screen.dart';
 import '../settings/your_data_screen.dart';
 import 'edit_profile_screen.dart';
 import 'user_profile_screen.dart';
@@ -182,9 +183,17 @@ class ProfileScreen extends ConsumerWidget {
                 value: ref.watch(dataLightProvider),
                 onChanged: (v) => ref.read(dataLightProvider.notifier).set(v),
               ),
-              const _ComingSoonTile(
-                label: 'Wellbeing & screen-time',
-                phase: 'Phase 5',
+              ListTile(
+                leading: const Icon(Icons.self_improvement_outlined),
+                title: const Text('Wellbeing'),
+                subtitle: const Text(
+                  'Take-a-break reminders, greyscale, quiet hours',
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const WellbeingScreen(),
+                  ),
+                ),
               ),
               const Divider(height: 32),
               const _VersionTile(),

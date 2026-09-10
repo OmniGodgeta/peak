@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../crypto/device_repository.dart';
 import '../../updater/update_gate.dart';
+import '../../wellbeing/wellbeing_gate.dart';
 
 /// The four-pillar shell: Feed · Messages · Communities · Discover, plus Me.
 class HomeShell extends ConsumerStatefulWidget {
@@ -55,18 +56,21 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final shell = widget.shell;
-    return Scaffold(
-      body: Column(
-        children: [
-          const UpdateBanner(),
-          Expanded(child: shell),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: shell.currentIndex,
-        destinations: HomeShell._destinations,
-        onDestinationSelected: (i) =>
-            shell.goBranch(i, initialLocation: i == shell.currentIndex),
+    return WellbeingScope(
+      child: Scaffold(
+        body: Column(
+          children: [
+            const UpdateBanner(),
+            const BreakReminder(),
+            Expanded(child: shell),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: shell.currentIndex,
+          destinations: HomeShell._destinations,
+          onDestinationSelected: (i) =>
+              shell.goBranch(i, initialLocation: i == shell.currentIndex),
+        ),
       ),
     );
   }
