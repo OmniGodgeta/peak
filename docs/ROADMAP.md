@@ -31,10 +31,15 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
 - [x] Profile edit (avatar, bio, links, pronouns)
 - [x] CI running green (Flutter + Supabase schema + Edge Functions jobs)
 - [x] Public backend: **hosted Supabase live** (2026-09-10) — project
-      `izvcozvfqmggyziaeeoc`, all 40 migrations applied, pg_cron retention jobs
-      scheduled, `app-version` / `export` / `publish` edge functions deployed.
-      The Tailscale preview web now points at it. Domain + public web host still
-      deferred — see [DEPLOY.md](DEPLOY.md) §1–2.
+      `izvcozvfqmggyziaeeoc`, all 41 migrations applied, `pg_cron` + `pg_net`,
+      retention jobs + `ingest-content` (every 6h) scheduled,
+      `app-version` / `export` / `publish` / `ingest-content` edge functions
+      deployed. The Tailscale preview web now points at it. Domain + public web
+      host still deferred — see [DEPLOY.md](DEPLOY.md) §1–2.
+- [x] Seed directory + automated space feeds (`tool/seed-directory.sql`,
+      `ingest-content`) — house `@peak`; `@webb` / `@hubble` / `@roman`
+      (ESA/NASA imagery) + `@launches` (Launch Library 2) mirror accounts;
+      communities `c/space` `c/gaming` `c/rockets` `c/science` `c/astrophotos`.
 - [ ] Self-hosting the stack on `shadow` remains an option later — see
       [SELF_HOSTING.md](SELF_HOSTING.md)
 - [ ] Passkey + OAuth sign-in (email works today)

@@ -23,7 +23,7 @@ app + Supabase (Postgres + RLS + Edge Functions) backend.
 
 | Thing | State |
 |---|---|
-| **Hosted backend** | **LIVE.** Supabase project `izvcozvfqmggyziaeeoc` (name "Peak Social", `https://izvcozvfqmggyziaeeoc.supabase.co`, us-west-2, PG 17). All 40 migrations applied, pg_cron + 3 retention jobs scheduled, `app-version` / `export` / `publish` edge functions deployed, security-hardened. Seeded with `@nasa` + `c/space`. |
+| **Hosted backend** | **LIVE.** Supabase project `izvcozvfqmggyziaeeoc` (name "Peak Social", `https://izvcozvfqmggyziaeeoc.supabase.co`, us-west-2, PG 17). All 41 migrations applied, `pg_cron` + `pg_net`, 3 retention jobs + `ingest-content` (every 6h), `app-version` / `export` / `publish` / `ingest-content` edge functions deployed, security-hardened. Seeded via `tool/seed-directory.sql`: house `@peak`, mirror accounts `@nasa` `@webb` `@hubble` `@roman` `@launches`, communities `c/space` `c/gaming` `c/rockets` `c/science` `c/astrophotos`. |
 | **Preview web** | `https://shadow-1.tail51f9d6.ts.net:8720/` — built against the hosted backend, served from `~/peak-web/` by the `peak-web` user systemd unit. Rebuild: `flutter build web --release --dart-define-from-file=<hosted env json>` then `rsync -a --delete build/web/ ~/peak-web/ && systemctl --user restart peak-web`. |
 | **Android APK** | **Published.** [`v1.0.0` release](https://github.com/OmniGodgeta/peak/releases/tag/v1.0.0) — signed `peak-1.0.0-release.apk` (66.7 MiB, sha256 `328efb9af51799bd1ce04587bfaf0bab5f5b50fad4ad6dc180d14650908e3435`), built against the hosted backend by `.github/workflows/release.yml`. `RELEASE_SUPABASE_URL` (var) + `RELEASE_SUPABASE_ANON_KEY` (secret) set. `SUPABASE_SERVICE_ROLE_KEY` not set, so the workflow skipped the manifest PATCH — the `app_release` row was PATCHed by hand via the MCP instead (the `app-version` edge fn now serves it). Next release: bump `app/pubspec.yaml` → `1.0.1+2`, commit, `git tag v1.0.1 && git push origin v1.0.1`. |
 | **Public domain / web host** | Not done. Deferred until a domain is registered — see [DEPLOY.md](DEPLOY.md) §0–2, §5. |
@@ -47,6 +47,12 @@ to the hosted project via the Supabase MCP:
 
 Also this session: set the `RELEASE_SUPABASE_URL` repo variable + `RELEASE_SUPABASE_ANON_KEY` secret, re-pushed the `v1.0.0` tag (was pointing at a stale commit and its release run had failed for lack of the backend config), and — after the workflow published the signed APK — PATCHed the `app_release` row via the MCP so the in-app updater serves it.
 
+Session after that — **seed content + automated space feeds**:
+
+| Commit | What |
+|---|---|
+| _(this commit)_ | **Directory seed + `ingest-content`** — `tool/seed-directory.sql` creates the house `@peak` account, the `@webb` / `@hubble` / `@roman` / `@launches` mirror accounts, and communities `c/gaming` `c/rockets` `c/science` `c/astrophotos` (with channels + kickoff posts), and follows/joins the operator into all of them. Migration `20260910070000_content_ingest.sql` adds `content_ingest_seen` / `content_ingest_run` (+ `pg_net`). Edge function `ingest-content` mirrors ESA/Webb + ESA/Hubble image releases (CC BY 4.0, screen renditions into the `post-media` bucket), NASA's Roman imagery, and Launch Library 2 upcoming launches — each as its own account, into the home feed and a community channel. `pg_cron` runs it every 6h; dedup + a 20-min throttle live in the two tables. Fires by hand with `POST /functions/v1/ingest-content?source=webb&force=1`. |
+
 ## 4. What's left
 
 ### 4a. Blocked on the user (a coding agent cannot do these)
@@ -65,6 +71,14 @@ From [ROADMAP.md](ROADMAP.md) "Phase 5":
 - **Fan-out-on-write feed index** + hybrid path for large accounts.
 - **pgvector recommendations** (Discover "For you").
 - **Personhood + labeler badges on post cards** — a pass across the feed RPCs (`feed_latest` / `feed_friends` / `feed_local` / `feed_custom` / `community_feed` / `posts_by` / `post_thread`) to return `author_is_verified` and/or batch-fetch labels, then render on `PostCard`. Right now labels are fetched per-post (`postLabelsProvider` family) and the verified badge only shows on profiles.
+
+### 4b′. Content ingestion — follow-ups
+
+- `ingest-content` posts one text+image post to the home feed **and** a mirror into `c/astrophotos` (or `c/rockets` #schedule). A "reshare"/boost model would be cleaner than a duplicate row once reposts exist server-side.
+- **Roman** has no science imagery yet (launch ~2027); the `roman` source pulls mission/milestone photos from NASA's image library, keyword-gated to `/roman/i`. Swap in an STScI/GSFC image feed when one exists.
+- **@peak account** (`peak@peak.social`) and the mirror accounts have random bcrypt passwords and no recovery — they're posted to only by the Edge Function via the service role. To let a human post as them, do a dashboard password reset.
+- A few orphaned objects sit under `post-media/ingest/webb|hubble|roman/` from the first (thumbnail / wrong-source) ingest runs — harmless, unreferenced. Clean with the Storage API (`supabase storage rm`, needs the service role) when convenient; direct `delete from storage.objects` is blocked.
+- New source? add an entry to `IMAGE_SOURCES` (or a launches-style handler), create the account + community membership in `tool/seed-directory.sql`, redeploy, and `POST …?source=<name>&force=1` once.
 
 When those land, Phase 5 closes → **Phase 6 (creators & money)**.
 

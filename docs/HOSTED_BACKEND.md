@@ -40,7 +40,7 @@ names.
 cd ~/Work/peak
 supabase login                      # paste the access token from 1.4
 supabase link --project-ref <ref>   # it will ask for the DB password from 1.1
-supabase db push                    # applies all 40 migrations to the cloud DB
+supabase db push                    # applies all 41 migrations to the cloud DB
 ```
 
 `db push` runs every migration from scratch — the same set CI verifies on every
@@ -49,9 +49,10 @@ commit, so it should apply clean. If it stops, paste the error here.
 ## 3. Deploy the edge functions
 
 ```bash
-supabase functions deploy app-version   # verify_jwt=false is read from config.toml
+supabase functions deploy app-version     # verify_jwt=false is read from config.toml
 supabase functions deploy export
 supabase functions deploy publish
+supabase functions deploy ingest-content   # verify_jwt=false; space-feed mirror
 ```
 
 No `supabase secrets set` needed — `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
@@ -63,9 +64,21 @@ Dashboard → **SQL Editor**, run once:
 
 ```sql
 create extension if not exists pg_cron;
+create extension if not exists pg_net;   -- lets cron call the ingest Edge Function
 select cron.schedule('purge-deletions', '17 4 * * *', $$select purge_expired_deletions()$$);
 select cron.schedule('purge-accounts',  '33 4 * * *', $$select purge_due_accounts()$$);
 select cron.schedule('purge-stories',   '7 * * * *',  $$select purge_expired_stories()$$);
+
+-- space-feed mirror: @webb / @hubble / @roman / @launches, every 6h
+select cron.schedule('ingest-content', '25 */6 * * *', $$
+  select net.http_post(
+    url     := 'https://<ref>.supabase.co/functions/v1/ingest-content',
+    headers := jsonb_build_object('Content-Type','application/json',
+                                  'Authorization','Bearer <anon-key>'),
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 150000
+  );
+$$);
 ```
 
 ## 5. Auth settings
@@ -100,8 +113,13 @@ flutter build apk --release \
 ```
 
 The dev data on the Tailscale Supabase does **not** carry over — the hosted DB
-starts empty. Re-run `scratchpad/seed_nasa.sql` against it if you want the demo
-content (adjust the `@ruby` UUID to your new account first).
+starts empty. Run `tool/seed-directory.sql` against it (Supabase SQL editor, or
+`psql` with the service role) to create the house `@peak` account, the
+`@webb` / `@hubble` / `@roman` / `@launches` mirror accounts, and the starter
+communities (`c/space` `c/gaming` `c/rockets` `c/science` `c/astrophotos`). It's
+idempotent and it auto-follows/joins the oldest real (non-`@peak.social`)
+account into everything. Then trigger the first content pull:
+`curl -XPOST "$SUPABASE_URL/functions/v1/ingest-content?force=1" -H "Authorization: Bearer $ANON_KEY"`.
 
 ## 7. Wire the release pipeline (this is what publishes the APK)
 
@@ -141,8 +159,8 @@ PATCHes the `app_release` row so the in-app updater sees it.
 
 - [ ] 1. Project created; ref / URL / anon / service_role saved; CLI token made
 - [ ] 2. `supabase link` + `supabase db push` clean
-- [ ] 3. `app-version`, `export`, `publish` deployed
-- [ ] 4. `pg_cron` enabled + 3 jobs scheduled
+- [ ] 3. `app-version`, `export`, `publish`, `ingest-content` deployed
+- [ ] 4. `pg_cron` + `pg_net` enabled; 3 retention jobs + `ingest-content` scheduled; `tool/seed-directory.sql` run
 - [ ] 5. Auth Site URL + redirect URLs set
 - [ ] 6. Web rebuilt against the hosted URL + redeployed; fresh APK built
 - [ ] 7. `RELEASE_SUPABASE_URL` / `RELEASE_SUPABASE_ANON_KEY` /

@@ -374,6 +374,11 @@ allow_dynamic_registration = false
 [functions.app-version]
 verify_jwt = false
 
+# Triggered by pg_cron (pg_net) on a schedule; trusts no caller input beyond the
+# ?source= name and runs entirely on the service role.
+[functions.ingest-content]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
