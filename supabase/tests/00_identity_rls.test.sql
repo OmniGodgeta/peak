@@ -392,9 +392,9 @@ select is(jsonb_typeof(export_my_data() -> 'posts'), 'array',
 select delete_post(:'del_test_id');
 set local role postgres;
 update post set deleted_at = now() - interval '40 days' where id = :'del_test_id';
-select tests.act_as('00000000-0000-0000-0000-00000000000a');
 select ok((select purge_expired_deletions()) >= 1,
   'purge_expired_deletions hard-deletes posts past the 30-day window');
+select tests.act_as('00000000-0000-0000-0000-00000000000a');
 select is((select count(*)::int from my_deleted_posts() where id = :'del_test_id'), 0,
   'the purged post is gone for good');
 
@@ -492,6 +492,7 @@ select tests.act_as('00000000-0000-0000-0000-00000000000a');
 select is(
   (select count(*)::int from story_thread('00000000-0000-0000-0000-00000000000a')),
   0, 'an expired story drops out of story_thread');
+set local role postgres;
 select ok((select purge_expired_stories()) >= 1,
   'purge_expired_stories removes expired stories');
 
@@ -1032,9 +1033,9 @@ select is(
 -- purge only after the grace window
 select tests.act_as('00000000-0000-0000-0000-00000000000c');
 select request_account_deletion();
+set local role postgres;
 select is((select purge_due_accounts()), 0,
   'purge_due_accounts spares accounts still inside the 30-day grace');
-set local role postgres;
 update profile set deletion_requested_at = now() - interval '31 days'
   where id = '00000000-0000-0000-0000-00000000000c';
 select ok((select purge_due_accounts()) >= 1,
