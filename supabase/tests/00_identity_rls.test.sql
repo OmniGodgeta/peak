@@ -3,7 +3,7 @@
 
 begin;
 create schema if not exists tests;
-select plan(200);
+select plan(203);
 
 select has_table('public', 'profile', 'profile table exists');
 select has_table('public', 'profile_private', 'profile_private table exists');
@@ -917,6 +917,21 @@ select is(
   (select reason from feed_friends(now() + interval '1 hour')
    where author_handle = 'alice' limit 1),
   'You and @alice follow each other', 'the reason names the mutual follow');
+
+-- ── Phase 5: the Local feed ───────────────────────────────────────────
+select tests.act_as('00000000-0000-0000-0000-00000000000c');
+select ok(
+  (select count(*) from feed_local(now() + interval '1 hour')
+   where id = :'alice_pub_id') = 1,
+  'feed_local shows a public post from someone you do not follow');
+select is(
+  (select count(*)::int from feed_local(now() + interval '1 hour')
+   where id = :'bob_fr_post_id'),
+  0, 'feed_local excludes a circles-only post');
+select is(
+  (select count(*)::int from feed_local(now() + interval '1 hour')
+   where id = :'kid_reply_id'),
+  0, 'feed_local is top-level posts only (no replies)');
 
 -- ── Phase 5: custom feeds ──────────────────────────────────────────────
 select tests.act_as('00000000-0000-0000-0000-00000000000c');

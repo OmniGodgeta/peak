@@ -182,6 +182,14 @@ class FeedRepository {
         .toList();
   }
 
+  /// Every public, top-level post on the instance, newest first.
+  Future<List<FeedPost>> local({int limit = 30}) async {
+    final rows = await _db.rpc('feed_local', params: {'p_limit': limit});
+    return (rows as List)
+        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<bool> toggleReaction(String postId) async {
     return await _db.rpc('toggle_reaction', params: {'p_post_id': postId})
         as bool;
@@ -211,7 +219,7 @@ final feedRepositoryProvider = Provider<FeedRepository>((ref) {
 
 /// Which home feed is selected. `latest` = everyone you follow, newest first;
 /// `friendsFirst` = only people who follow you back (`feed_friends`).
-enum FeedKind { latest, friendsFirst }
+enum FeedKind { latest, friendsFirst, local }
 
 final selectedFeedProvider = NotifierProvider<SelectedFeed, FeedKind>(
   SelectedFeed.new,
@@ -252,5 +260,9 @@ final feedProvider = FutureProvider<List<FeedPost>>((ref) async {
   final kind = ref.watch(selectedFeedProvider);
   ref.watch(feedRevisionProvider);
   final repo = ref.watch(feedRepositoryProvider);
-  return kind == FeedKind.friendsFirst ? repo.friends() : repo.latest();
+  return switch (kind) {
+    FeedKind.friendsFirst => repo.friends(),
+    FeedKind.local => repo.local(),
+    FeedKind.latest => repo.latest(),
+  };
 });

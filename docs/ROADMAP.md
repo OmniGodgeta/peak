@@ -183,7 +183,11 @@ CDN (arrives with the `shadow` self-host, [SELF_HOSTING.md](SELF_HOSTING.md)).
       / `my_interests`); `people_you_may_know` (friend-of-friend + co-member
       only, with the reason); `suggested_communities` (listed communities
       matching your interests / your communities' topics). Discover now has a
-      landing: interests editor, PYMK, communities-for-you. Local tab still to do.
+      landing: interests editor, PYMK, communities-for-you.
+- [x] Local feed — `feed_local` (every public, top-level, non-community post on
+      the instance, newest first; post RLS + your mutes still apply). In the
+      Home feed switcher next to Latest / Friends first. "Here" widens with
+      federation later.
 - [~] Search (Postgres FTS) with per-doc ACL — `post.search_vector` generated
       `tsvector` + GIN index; `search_posts` (rank blended with recency, still
       gated by `can_view_post`) and `search_all` (people + communities + posts

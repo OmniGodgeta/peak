@@ -36,7 +36,11 @@ class FeedScreen extends ConsumerWidget {
 
     final value = activeCustom != null
         ? 'cf:$activeCustom'
-        : (kind == FeedKind.friendsFirst ? 'friends' : 'latest');
+        : switch (kind) {
+            FeedKind.friendsFirst => 'friends',
+            FeedKind.local => 'local',
+            FeedKind.latest => 'latest',
+          };
 
     return Scaffold(
       appBar: AppBar(
@@ -61,6 +65,9 @@ class FeedScreen extends ConsumerWidget {
                 ref
                     .read(selectedFeedProvider.notifier)
                     .set(FeedKind.friendsFirst);
+              } else if (v == 'local') {
+                ref.read(activeCustomFeedProvider.notifier).set(null);
+                ref.read(selectedFeedProvider.notifier).set(FeedKind.local);
               } else if (v.startsWith('cf:')) {
                 ref.read(activeCustomFeedProvider.notifier).set(v.substring(3));
               }
@@ -71,6 +78,7 @@ class FeedScreen extends ConsumerWidget {
                 value: 'friends',
                 child: Text('Friends first'),
               ),
+              const DropdownMenuItem(value: 'local', child: Text('Local')),
               for (final f in customFeeds)
                 DropdownMenuItem(value: 'cf:${f.id}', child: Text(f.name)),
               const DropdownMenuItem(
@@ -106,6 +114,7 @@ class FeedScreen extends ConsumerWidget {
                     child: _EmptyFeed(
                       friendsFirst:
                           activeCustom == null && kind == FeedKind.friendsFirst,
+                      local: activeCustom == null && kind == FeedKind.local,
                       custom: activeCustom != null,
                     ),
                   )
@@ -153,8 +162,13 @@ class _CaughtUp extends StatelessWidget {
 }
 
 class _EmptyFeed extends StatelessWidget {
-  const _EmptyFeed({this.friendsFirst = false, this.custom = false});
+  const _EmptyFeed({
+    this.friendsFirst = false,
+    this.local = false,
+    this.custom = false,
+  });
   final bool friendsFirst;
+  final bool local;
   final bool custom;
 
   @override
@@ -163,6 +177,12 @@ class _EmptyFeed extends StatelessWidget {
         ? (
             'Nothing matches this feed yet.',
             'Adjust its rules from Manage feeds, or wait for matching posts.',
+          )
+        : local
+        ? (
+            'Nothing public here yet.',
+            'Local shows every public post on Peak. Be the first — tap the '
+                'pencil.',
           )
         : friendsFirst
         ? (
