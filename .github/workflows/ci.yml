@@ -32,6 +32,22 @@ jobs:
       - run: flutter test --coverage
       - name: Build web (PWA)
         run: flutter build web --dart-define=SUPABASE_URL=https://example.invalid --dart-define=SUPABASE_ANON_KEY=ci
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: peak-web
+          directory: build/web
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: peak-web
+          directory: build/web
+
 
   database:
     name: Supabase schema
