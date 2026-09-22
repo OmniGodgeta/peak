@@ -67,6 +67,8 @@ FOR EACH ROW EXECUTE FUNCTION update_post_engagement_cache();
 
 -- 5. Update feed_latest to use rank_score
 -- We'll replace the existing function to handle the new ranking capability
+DROP FUNCTION IF EXISTS feed_latest(timestamptz, int);
+DROP FUNCTION IF EXISTS feed_latest(int);
 CREATE OR REPLACE FUNCTION feed_latest(p_before timestamptz DEFAULT now(), p_limit int DEFAULT 30)
 RETURNS TABLE (
     id uuid,
