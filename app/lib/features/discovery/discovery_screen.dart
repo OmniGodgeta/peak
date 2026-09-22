@@ -336,7 +336,7 @@ class _TrendingPostTile extends StatelessWidget {
     final preview = post.title?.trim().isNotEmpty == true
         ? post.title!.trim()
         : post.body.replaceAll('\n', ' ').trim();
-    final isTrending = (post.rank_score > 5.0);
+    final isTrending = (post.rankScore > 5.0);
 
     return ListTile(
       leading: AvatarCircle(

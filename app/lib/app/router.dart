@@ -12,10 +12,11 @@ import '../updater/update_gate.dart';
 import '../updater/update_service.dart';
 import '../features/communities/communities_screen.dart';
 import '../features/feed/feed_screen.dart';
-import '../features/media/media_screen.dart';
-import '../features/media/video_link_screen.dart';
+import '../features/home/for_you_screen.dart';
 import '../features/home/home_shell.dart';
 import '../features/messaging/messaging_screen.dart';
+import '../features/media/media_screen.dart';
+import '../features/media/video_link_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/settings/not_configured_screen.dart';
 
@@ -91,6 +92,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(path: '/feed', builder: (_, _) => const FeedScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/for-you',
+                builder: (_, _) => const ForYouScreen(),
+              ),
             ],
           ),
           StatefulShellBranch(

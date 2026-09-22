@@ -75,6 +75,7 @@ class FeedPost {
     this.reason,
     this.replyTo,
     this.depth = 0,
+    this.rankScore = 0.0,
   });
 
   final String id;
@@ -113,7 +114,7 @@ class FeedPost {
   /// The author's flair in this community. Only set by `community_feed`.
   final String? authorFlair;
 
-  /// The channel this post is in. Only set by the community feeds.
+  /// The channel this post is in. The only set by the community feeds.
   final String? channelId;
   final String? channelName;
 
@@ -123,6 +124,7 @@ class FeedPost {
 
   final String? replyTo; // set in thread views
   final int depth; // set in thread views
+  final double rankScore; // for discovery ranking
 
   String get authorName =>
       authorDisplayName.isNotEmpty ? authorDisplayName : authorHandle;
@@ -164,6 +166,7 @@ class FeedPost {
         reason: m['reason'] as String?,
         replyTo: m['reply_to'] as String?,
         depth: (m['depth'] as num?)?.toInt() ?? 0,
+        rankScore: (m['rank_score'] as num?)?.toDouble() ?? 0.0,
       );
 }
 
@@ -197,6 +200,16 @@ class FeedRepository {
   /// Every public, top-level post on the instance, newest first.
   Future<List<FeedPost>> local({int limit = 30}) async {
     final rows = await _db.rpc('feed_local', params: {'p_limit': limit});
+    return (rows as List)
+        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Vector-based personal recommendations.
+  Future<List<FeedPost>> recommendations({int limit = 30}) async {
+    final user = _db.auth.currentUser;
+    if (user == null) return [];
+    final rows = await _db.rpc('recommend_posts_for_user', params: {'p_limit': limit});
     return (rows as List)
         .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -254,8 +267,7 @@ final feedRepositoryProvider = Provider<FeedRepository>((ref) {
   return FeedRepository(ref.watch(supabaseProvider));
 });
 
-/// Shareable link for a video post. (Domain is aspirational for now; the in-app
-/// `/v/:id` route and the web build both resolve it.)
+/// Shareable link for a video post.
 String videoShareLink(String postId) => 'https://peak.social/v/$postId';
 
 /// The post id embedded in a Peak `/v/<id>` link (or a bare id).
@@ -267,20 +279,61 @@ String? postIdFromShare(String raw) {
 }
 
 /// Resolve one post by id — for the `/v/:id` deep-link route.
-final postByIdProvider = FutureProvider.family<FeedPost?, String>((  ref,  id,) async {  return ref.watch(feedRepositoryProvider).byId(id);});
+final postByIdProvider = FutureProvider.family<FeedPost?, String>((ref, id) async {
+  return ref.watch(feedRepositoryProvider).byId(id);
+});
 
-/// Which home feed is selected. `latest` = everyone you follow, newest first;/// `friendsFirst` = only people who follow you back (`feed_friends`).enum FeedKind { latest, friendsFirst, local, trending }
-final selectedFeedProvider = NotifierProvider<SelectedFeed, FeedKind>(  SelectedFeed.new,);
+/// Which home feed is selected.
+enum FeedKind { latest, friendsFirst, local, trending, recommendations }
 
-class SelectedFeed extends Notifier<FeedKind> {  @override  FeedKind build() => FeedKind.latest;  void set(FeedKind kind) => state = kind;}
-/// When non-null, the home feed shows this custom feed instead of/// [selectedFeedProvider]'s built-in kind.final activeCustomFeedProvider = NotifierProvider<ActiveCustomFeed, String?>(  ActiveCustomFeed.new,);
+final selectedFeedProvider = NotifierProvider<SelectedFeed, FeedKind>(
+  SelectedFeed.new,
+);
 
-class ActiveCustomFeed extends Notifier<String?> {  @override  String? build() => null;  void set(String? id) => state = id;}
+class SelectedFeed extends Notifier<FeedKind> {
+  @override
+  FeedKind build() => FeedKind.latest;
+  void set(FeedKind kind) => state = kind;
+}
 
-/// Bumped whenever something that changes the feed happens elsewhere in the app/// (a new post, a follow/unfollow). Screens that can't easily reach the feed/// call `ref.read(feedRevisionProvider.notifier).bump()`.final feedRevisionProvider = NotifierProvider<FeedRevision, int>(  FeedRevision.new,);
+/// When non-null, the home feed shows this custom feed instead of
+/// [selectedFeedProvider]'s built-in kind.
+final activeCustomFeedProvider = NotifierProvider<ActiveCustomFeed, String?>(
+  ActiveCustomFeed.new,
+);
 
-class FeedRevision extends Notifier<int> {  @override  int build() => 0;  void bump() => state++;}
+class ActiveCustomFeed extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? id) => state = id;
+}
 
-final feedProvider = FutureProvider<List<FeedPost>>((ref) async {  final kind = ref.watch(selectedFeedProvider);  ref.watch(feedRevisionProvider);  final repo = ref.watch(feedRepositoryProvider);  return switch (kind) {    FeedKind.friendsFirst => repo.friends(),    FeedKind.local => repo.local(),    FeedKind.trending => repo.trending(),    FeedKind.latest => repo.latest(),  };});
+/// Bumped whenever something that changes the feed happens elsewhere in the app.
+final feedRevisionProvider = NotifierProvider<FeedRevision, int>(
+  FeedRevision.new,
+);
 
-/// The Media tab: `''` browses newest videos, a query full-text-searches them.final videosProvider = FutureProvider.family<List<FeedPost>, String>((  ref,  query,) async {  ref.watch(feedRevisionProvider);  return ref.watch(feedRepositoryProvider).videos(query: query.trim());});
+class FeedRevision extends Notifier<int> {
+  @override
+  int build() => 0;
+  void bump() => state++;
+}
+
+final feedProvider = FutureProvider<List<FeedPost>>((ref) async {
+  final kind = ref.watch(selectedFeedProvider);
+  ref.watch(feedRevisionProvider);
+  final repo = ref.watch(feedRepositoryProvider);
+  return switch (kind) {
+    FeedKind.friendsFirst => repo.friends(),
+    FeedKind.local => repo.local(),
+    FeedKind.trending => repo.trending(),
+    FeedKind.recommendations => repo.recommendations(),
+    FeedKind.latest => repo.latest(),
+  };
+});
+
+/// The Media tab.
+final videosProvider = FutureProvider.family<List<FeedPost>, String>((ref, query) async {
+  ref.watch(feedRevisionProvider);
+  return ref.watch(feedRepositoryProvider).videos(query: query.trim());
+});

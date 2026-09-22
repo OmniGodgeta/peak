@@ -6,7 +6,7 @@ import '../../crypto/device_repository.dart';
 import '../../updater/update_gate.dart';
 import '../../wellbeing/wellbeing_gate.dart';
 
-/// The four-pillar shell: Feed · Messages · Communities · Media, plus Me.
+/// The six-pillar shell: Feed · For You · Messages · Communities · Media, plus Me.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.shell});
 
@@ -20,6 +20,11 @@ class HomeShell extends ConsumerStatefulWidget {
       icon: Icon(Icons.dynamic_feed_outlined),
       selectedIcon: Icon(Icons.dynamic_feed),
       label: 'Feed',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.auto_awesome_outlined),
+      selectedIcon: Icon(Icons.auto_awesome),
+      label: 'For You',
     ),
     NavigationDestination(
       icon: Icon(Icons.forum_outlined),

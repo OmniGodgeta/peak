@@ -43,8 +43,8 @@ class WellbeingBreakSheet extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             status == WellbeingStatus.breakRequired
-                ? 'You've been active for a while. Taking a short break can help you stay focused and enjoy the experience more.'
-                : 'You're on a roll! Just a reminder to stay mindful of your screen time.',
+                ? 'You\'ve been active for a while. Taking a short break can help you stay focused and enjoy the experience more.'
+                : 'You\'re on a roll! Just a reminder to stay mindful of your screen time.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),

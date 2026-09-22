@@ -13,11 +13,13 @@ import 'post_card.dart';
 /// (people who follow you back). Plus any custom feeds you've made. No infinite
 /// scroll — after a page you get a "You're caught up" card.
 class FeedScreen extends ConsumerWidget {
-  const FeedScreen({super.key});
+  const FeedScreen({super.key, this.forcedKind});
+
+  final FeedKind? forcedKind;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kind = ref.watch(selectedFeedProvider);
+    final kind = forcedKind ?? ref.watch(selectedFeedProvider);
     final activeCustom = ref.watch(activeCustomFeedProvider);
     final customFeeds =
         ref.watch(myCustomFeedsProvider).asData?.value ?? const [];
@@ -34,12 +36,17 @@ class FeedScreen extends ConsumerWidget {
       }
     }
 
-    final value = activeCustom != null
+    // Handle the display value for the header dropdown.
+    // If we are in a forced mode, we want to show it but perhaps disable changing it.
+    // For simplicity, we'll show it.
+    final String value = activeCustom != null
         ? 'cf:$activeCustom'
         : switch (kind) {
             FeedKind.friendsFirst => 'friends',
             FeedKind.local => 'local',
             FeedKind.latest => 'latest',
+            FeedKind.recommendations => 'recommendations',
+            _ => 'latest',
           };
 
     return Scaffold(
@@ -47,7 +54,7 @@ class FeedScreen extends ConsumerWidget {
         title: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             value: value,
-            onChanged: (v) {
+            onChanged: forcedKind != null ? null : (v) {
               if (v == null) return;
               if (v == 'manage') {
                 Navigator.of(context).push(
@@ -68,6 +75,9 @@ class FeedScreen extends ConsumerWidget {
               } else if (v == 'local') {
                 ref.read(activeCustomFeedProvider.notifier).set(null);
                 ref.read(selectedFeedProvider.notifier).set(FeedKind.local);
+              } else if (v == 'recommendations') {
+                ref.read(activeCustomFeedProvider.notifier).set(null);
+                ref.read(selectedFeedProvider.notifier).set(FeedKind.recommendations);
               } else if (v.startsWith('cf:')) {
                 ref.read(activeCustomFeedProvider.notifier).set(v.substring(3));
               }
@@ -79,6 +89,10 @@ class FeedScreen extends ConsumerWidget {
                 child: Text('Friends first'),
               ),
               const DropdownMenuItem(value: 'local', child: Text('Local')),
+              const DropdownMenuItem(
+                value: 'recommendations',
+                child: Text('For You'),
+              ),
               for (final f in customFeeds)
                 DropdownMenuItem(value: 'cf:${f.id}', child: Text(f.name)),
               const DropdownMenuItem(
@@ -188,7 +202,7 @@ class _EmptyFeed extends StatelessWidget {
         ? (
             'No posts from your friends yet.',
             'Friends first shows only people who follow you back. '
-                'Switch to Latest for everyone you follow.',
+                'Switch to Latest for everyone you follow you back.',
           )
         : (
             'Your feed is empty.',

@@ -6,12 +6,13 @@ enum WellbeingStatus { normal, warning, breakRequired }
 
 /// A provider that tracks user engagement to detect "doomscrolling".
 /// It monitors continuous active time and scrolling velocity.
-class WellbeingNotifier extends StateNotifier<WellbeingStatus> {
-  WellbeingNotifier() : super(WellbeingStatus.normal);
-
+class WellbeingNotifier extends Notifier<WellbeingStatus> {
   DateTime? _activityStartTime;
   int _scrollCount = 0;
   Timer? _timer;
+
+  @override
+  WellbeingStatus build() => WellbeingStatus.normal;
 
   void recordActivity() {
     if (_activityStartTime == null) {
@@ -38,7 +39,6 @@ class WellbeingNotifier extends StateNotifier<WellbeingStatus> {
 
     final duration = DateTime.now().difference(_activityStartTime!);
     
-    // Logic for detecting doomscrolling
     if (duration.inMinutes >= 30 && _scrollCount > 100) {
       state = WellbeingStatus.breakRequired;
     } else if (duration.inMinutes >= 15) {
@@ -58,13 +58,12 @@ class WellbeingNotifier extends StateNotifier<WellbeingStatus> {
   @override
   void dispose() {
     _timer?.cancel();
-    super.dispose();
   }
 }
 
-final wellbeingProvider = StateNotifierProvider<WellbeingNotifier, WellbeingStatus>((ref) {
-  return WellbeingNotifier();
-});
+final wellbeingProvider = NotifierProvider<WellbeingNotifier, WellbeingStatus>(
+  WellbeingNotifier.new,
+);
 
-/// A provider to track whether the user has enabled wellbeing reminders.
-final wellbeingSettingsProvider = StateProvider<bool>((ref) => true);
+final wellbeingSettingsProvider = Provider<bool>((ref) => true);
+
