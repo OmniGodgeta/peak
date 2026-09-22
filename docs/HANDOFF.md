@@ -3,8 +3,55 @@
 **Read this first if you're picking up work on Peak.** It's the single entry
 point; deeper detail lives in the docs it links.
 
-Last updated: **2026-09-10**, end of the session that stood up the hosted
-backend and shipped the rest of Phase 5.
+Last updated: **2026-09-10** for everything below §2's table and §3; **see the
+2026-09-22 status-check note right below** for what's landed since then that
+this file never got updated for.
+
+---
+
+## 0. Status-check note (2026-09-22) — read this before trusting §2/§3
+
+A cross-project audit found 7 commits after `b90abf6` (this file's last true
+"as of" commit) that were never folded into this HANDOFF. In order:
+
+| Commit | What |
+|---|---|
+| `5c3139d` | Renamed "Communities" label to "Community" in the UI. |
+| `ba85594` | **Phase 5 ranking infrastructure** — `ranking-engine`, `fanout-executor`, `orchestrator`, `sentinel-scanner` Edge Functions; `rank_score`/`rank_reason` on `post`; `fanout_feed_index`; `feed_trending` RPC; wellbeing-break UI (`WellbeingNotifier` + `WellbeingBreakSheet`, a global overlay that nudges users to take a break based on scroll velocity/continuous engagement); a `sentinel-scanner` automated content moderator (pattern-based, webhook-triggered on insert). See `app/docs/agent.md` for the implementation log. **Also added an unrelated `app/lib/features/arcade/arcade_lobby_screen.dart`** hardcoded to `socket_io_client` → `http://localhost:8712` — that's the *RetroVerse netplay signaling server's* port from the unrelated `shadowswords-gamelib` project, not anything in Peak's scope. It isn't wired into `router.dart` so it can't run, but it shouldn't exist here at all; flag with the user (most likely: delete it). **Also committed `app/v1.0.1_web_build.tar.gz` (17MB build output) directly into git** — a repo-hygiene mistake, not something to repeat.
+| `c8a8135` | CI: added a Cloudflare Pages deployment step to `ci.yml` — partial progress on the "public domain / web host" blocker in §4a. |
+| `d8479c4` | Added a `vector-embedder` Edge Function + pgvector columns on `post`/`profile` — infra for the "pgvector recommendations" §4b item. |
+| `d9ea0e9` | **"For You" discovery engine** — wires the ranking/trending infra above into `DiscoveryScreen`/`FeedScreen`/`HomeShell` navigation. Also (accidentally, in the same commit) added `app/android/build/reports/problems/problems-report.html`, a Gradle build artifact, to git — another hygiene slip, still sitting as an uncommitted modification in the working tree as of this note. |
+
+**Net effect**: most of §4b "buildable now — rest of Phase 5" is now built
+(ranking, fan-out, personalization/discovery infra, moderation depth via
+sentinel-scanner). §4a's domain/hosting blocker has a CI-side start
+(Cloudflare Pages job) but still needs the actual domain registration and
+dashboard steps. None of this has a corresponding HANDOFF update, ROADMAP
+phase-percentage bump, or `app/docs/agent.md`-style log except for the one
+commit that added its own log. **Next agent: verify these features actually
+work (none were flagged as tested in a commit message), decide the arcade
+screen's fate, clean up the two committed build artifacts, and rewrite §2–§4
+below to match reality** before adding more Phase 5/6 work on top.
+
+**Two more corrections found on a follow-up pass (still 2026-09-22):**
+1. §2's "Android APK" row below still says "Next release: bump `app/pubspec.yaml`
+   → `1.0.1+2`" — **stale.** `v1.0.1` (2026-09-21) and `v1.0.2` "Discovery
+   Engine" (2026-09-22, current `Latest`) are both already published on
+   GitHub. Don't re-cut either of those; the actual next release needs a new
+   number above `1.0.2`.
+2. ~~A prior session added `peak/supabase/backups/` to the root `.gitignore`...
+   the pattern is wrong.~~ **Fixed (2026-09-22)**: `.gitignore` now reads
+   `supabase/backups/`, correctly relative to the repo root; verified
+   `git status` no longer shows that directory as untracked.
+
+**Resolved (2026-09-22), same pass**: `app/lib/features/arcade/arcade_lobby_screen.dart`
+was confirmed unreferenced anywhere (`grep` across `app/lib/`, including
+`router.dart`) and deleted, along with its now-empty parent directory.
+`app/android/build/reports/problems/problems-report.html` was `git rm --cached`
+and `app/android/build/` added to `.gitignore` so Gradle output stops
+reappearing as a diff. `flutter analyze` (`~/development/flutter/bin/flutter`)
+ran clean of the deletion — only 3 pre-existing, unrelated lint warnings in
+`app.dart`/`wellbeing_provider.dart`/`post_media_view.dart`.
 
 ---
 

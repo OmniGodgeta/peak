@@ -48,3 +48,5 @@ coverage/
 *.apk
 *.aab
 /dist/
+supabase/backups/
+app/android/build/
