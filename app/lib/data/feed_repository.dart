@@ -12,7 +12,7 @@ class PostMedia {
     required this.altText,
     required this.width,
     required this.height,
-    required this.durationMs,
+    this.durationMs,
     this.posterPath,
   });
 
@@ -31,14 +31,14 @@ class PostMedia {
       : null;
 
   factory PostMedia.fromMap(Map<String, dynamic> m) => PostMedia(
-    kind: (m['kind'] as String?) ?? 'image',
-    storagePath: m['storage_path'] as String,
-    posterPath: m['poster_path'] as String?,
-    altText: m['alt_text'] as String?,
-    width: (m['width'] as num?)?.toInt(),
-    height: (m['height'] as num?)?.toInt(),
-    durationMs: (m['duration_ms'] as num?)?.toInt(),
-  );
+        kind: (m['kind'] as String?) ?? 'image',
+        storagePath: m['storage_path'] as String,
+        posterPath: m['poster_path'] as String?,
+        altText: m['alt_text'] as String?,
+        width: (m['width'] as num?)?.toInt(),
+        height: (m['height'] as num?)?.toInt(),
+        durationMs: (m['duration_ms'] as num?)?.toInt(),
+      );
 }
 
 /// A row from the feed / thread RPCs: a post plus its author's public identity,
@@ -97,13 +97,12 @@ class FeedPost {
   final bool viewerReposted;
   final List<PostMedia> media;
 
-  /// Long-form article title + flag. When [longForm] is true the card shows a
+  /// Long-form article title + flag. When `longForm` is true the card shows a
   /// lede and opens a dedicated reading page instead of a thread.
   final String? title;
   final bool longForm;
 
-  /// True when the author has pinned this post to their profile (only ever set
-  /// by `posts_by`).
+  /// When the author has pinned this post to their profile (only ever set by `posts_by`).
   final bool isPinned;
 
   /// A community moderator's label on this post ("off-topic", …) + an optional
@@ -130,42 +129,42 @@ class FeedPost {
   String get authorFqHandle => '@$authorHandle@$authorDomain';
 
   factory FeedPost.fromMap(Map<String, dynamic> m) => FeedPost(
-    id: m['id'] as String,
-    body: (m['body'] as String?) ?? '',
-    contentWarning: m['content_warning'] as String?,
-    isSensitive: (m['is_sensitive'] as bool?) ?? false,
-    visibility: (m['visibility'] as String?) ?? 'circles',
-    createdAt: DateTime.parse(m['created_at'] as String),
-    editedAt: m['edited_at'] == null
-        ? null
-        : DateTime.parse(m['edited_at'] as String),
-    authorId: m['author_id'] as String,
-    authorHandle: m['author_handle'] as String,
-    authorDomain: (m['author_domain'] as String?) ?? 'peak.social',
-    authorDisplayName: (m['author_display_name'] as String?) ?? '',
-    authorIsTeen: (m['author_is_teen'] as bool?) ?? false,
-    authorAvatarPath: m['author_avatar_path'] as String?,
-    reactionCount: (m['reaction_count'] as int?) ?? 0,
-    replyCount: (m['reply_count'] as int?) ?? 0,
-    repostCount: (m['repost_count'] as int?) ?? 0,
-    viewerReacted: (m['viewer_reacted'] as bool?) ?? false,
-    viewerReposted: (m['viewer_reposted'] as bool?) ?? false,
-    media: [
-      for (final e in (m['media'] as List? ?? const []))
-        PostMedia.fromMap(e as Map<String, dynamic>),
-    ],
-    title: m['title'] as String?,
-    longForm: (m['long_form'] as bool?) ?? false,
-    isPinned: (m['is_pinned'] as bool?) ?? false,
-    communityLabel: m['label'] as String?,
-    communityLabelNote: m['label_note'] as String?,
-    authorFlair: m['author_flair'] as String?,
-    channelId: m['channel_id'] as String?,
-    channelName: m['channel_name'] as String?,
-    reason: m['reason'] as String?,
-    replyTo: m['reply_to'] as String?,
-    depth: (m['depth'] as num?)?.toInt() ?? 0,
-  );
+        id: m['id'] as String,
+        body: (m['body'] as String?) ?? '',
+        contentWarning: m['content_warning'] as String?,
+        isSensitive: (m['is_sensitive'] as bool?) ?? false,
+        visibility: (m['visibility'] as String?) ?? 'circles',
+        createdAt: DateTime.parse(m['created_at'] as String),
+        editedAt: m['edited_at'] == null
+            ? null
+            : DateTime.parse(m['edited_at'] as String),
+        authorId: m['author_id'] as String,
+        authorHandle: m['author_handle'] as String,
+        authorDomain: (m['author_domain'] as String?) ?? 'peak.social',
+        authorDisplayName: (m['author_display_name'] as String?) ?? '',
+        authorIsTeen: (m['author_is_teen'] as bool?) ?? false,
+        authorAvatarPath: m['author_avatar_path'] as String?,
+        reactionCount: (m['reaction_count'] as num?)?.toInt() ?? 0,
+        replyCount: (m['reply_count'] as num?)?.toInt() ?? 0,
+        repostCount: (m['repost_count'] as num?)?.toInt() ?? 0,
+        viewerReacted: (m['viewer_reacted'] as bool?) ?? false,
+        viewerReposted: (m['viewer_reposted'] as bool?) ?? false,
+        media: [
+          for (final e in (m['media'] as List? ?? const []))
+            PostMedia.fromMap(e as Map<String, dynamic>),
+        ],
+        title: m['title'] as String?,
+        longForm: (m['long_form'] as bool?) ?? false,
+        isPinned: (m['is_pinned'] as bool?) ?? false,
+        communityLabel: m['label'] as String?,
+        communityLabelNote: m['label_note'] as String?,
+        authorFlair: m['author_flair'] as String?,
+        channelId: m['channel_id'] as String?,
+        channelName: m['channel_name'] as String?,
+        reason: m['reason'] as String?,
+        replyTo: m['reply_to'] as String?,
+        depth: (m['depth'] as num?)?.toInt() ?? 0,
+      );
 }
 
 class FeedRepository {
@@ -174,6 +173,14 @@ class FeedRepository {
 
   Future<List<FeedPost>> latest({int limit = 30}) async {
     final rows = await _db.rpc('feed_latest', params: {'p_limit': limit});
+    return (rows as List)
+        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Trending posts based on rank_score.
+  Future<List<FeedPost>> trending({int limit = 30}) async {
+    final rows = await _db.rpc('feed_trending', params: {'p_limit': limit});
     return (rows as List)
         .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -230,7 +237,7 @@ class FeedRepository {
     return t.isEmpty ? null : t.first;
   }
 
-  /// Videos across the instance, newest-first or full-text-ranked. Backs the
+  /// Videos across the instance, newest-first, or full-text-ranked. Backs the
   /// Media tab.
   Future<List<FeedPost>> videos({String query = '', int limit = 30}) async {
     final rows = await _db.rpc(
@@ -254,74 +261,26 @@ String videoShareLink(String postId) => 'https://peak.social/v/$postId';
 /// The post id embedded in a Peak `/v/<id>` link (or a bare id).
 String? postIdFromShare(String raw) {
   final m = RegExp(
-    r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+    r'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
   ).firstMatch(raw.trim());
   return m?.group(1);
 }
 
 /// Resolve one post by id — for the `/v/:id` deep-link route.
-final postByIdProvider = FutureProvider.family<FeedPost?, String>((
-  ref,
-  id,
-) async {
-  return ref.watch(feedRepositoryProvider).byId(id);
-});
+final postByIdProvider = FutureProvider.family<FeedPost?, String>((  ref,  id,) async {  return ref.watch(feedRepositoryProvider).byId(id);});
 
-/// Which home feed is selected. `latest` = everyone you follow, newest first;
-/// `friendsFirst` = only people who follow you back (`feed_friends`).
-enum FeedKind { latest, friendsFirst, local }
+/// Which home feed is selected. `latest` = everyone you follow, newest first;/// `friendsFirst` = only people who follow you back (`feed_friends`).enum FeedKind { latest, friendsFirst, local, trending }
+final selectedFeedProvider = NotifierProvider<SelectedFeed, FeedKind>(  SelectedFeed.new,);
 
-final selectedFeedProvider = NotifierProvider<SelectedFeed, FeedKind>(
-  SelectedFeed.new,
-);
+class SelectedFeed extends Notifier<FeedKind> {  @override  FeedKind build() => FeedKind.latest;  void set(FeedKind kind) => state = kind;}
+/// When non-null, the home feed shows this custom feed instead of/// [selectedFeedProvider]'s built-in kind.final activeCustomFeedProvider = NotifierProvider<ActiveCustomFeed, String?>(  ActiveCustomFeed.new,);
 
-class SelectedFeed extends Notifier<FeedKind> {
-  @override
-  FeedKind build() => FeedKind.latest;
-  void set(FeedKind kind) => state = kind;
-}
+class ActiveCustomFeed extends Notifier<String?> {  @override  String? build() => null;  void set(String? id) => state = id;}
 
-/// When non-null, the home feed shows this custom feed instead of
-/// [selectedFeedProvider]'s built-in kind.
-final activeCustomFeedProvider = NotifierProvider<ActiveCustomFeed, String?>(
-  ActiveCustomFeed.new,
-);
+/// Bumped whenever something that changes the feed happens elsewhere in the app/// (a new post, a follow/unfollow). Screens that can't easily reach the feed/// call `ref.read(feedRevisionProvider.notifier).bump()`.final feedRevisionProvider = NotifierProvider<FeedRevision, int>(  FeedRevision.new,);
 
-class ActiveCustomFeed extends Notifier<String?> {
-  @override
-  String? build() => null;
-  void set(String? id) => state = id;
-}
+class FeedRevision extends Notifier<int> {  @override  int build() => 0;  void bump() => state++;}
 
-/// Bumped whenever something that changes the feed happens elsewhere in the app
-/// (a new post, a follow/unfollow). Screens that can't easily reach the feed
-/// call `ref.read(feedRevisionProvider.notifier).bump()`.
-final feedRevisionProvider = NotifierProvider<FeedRevision, int>(
-  FeedRevision.new,
-);
+final feedProvider = FutureProvider<List<FeedPost>>((ref) async {  final kind = ref.watch(selectedFeedProvider);  ref.watch(feedRevisionProvider);  final repo = ref.watch(feedRepositoryProvider);  return switch (kind) {    FeedKind.friendsFirst => repo.friends(),    FeedKind.local => repo.local(),    FeedKind.trending => repo.trending(),    FeedKind.latest => repo.latest(),  };});
 
-class FeedRevision extends Notifier<int> {
-  @override
-  int build() => 0;
-  void bump() => state++;
-}
-
-final feedProvider = FutureProvider<List<FeedPost>>((ref) async {
-  final kind = ref.watch(selectedFeedProvider);
-  ref.watch(feedRevisionProvider);
-  final repo = ref.watch(feedRepositoryProvider);
-  return switch (kind) {
-    FeedKind.friendsFirst => repo.friends(),
-    FeedKind.local => repo.local(),
-    FeedKind.latest => repo.latest(),
-  };
-});
-
-/// The Media tab: `''` browses newest videos, a query full-text-searches them.
-final videosProvider = FutureProvider.family<List<FeedPost>, String>((
-  ref,
-  query,
-) async {
-  ref.watch(feedRevisionProvider);
-  return ref.watch(feedRepositoryProvider).videos(query: query.trim());
-});
+/// The Media tab: `''` browses newest videos, a query full-text-searches them.final videosProvider = FutureProvider.family<List<FeedPost>, String>((  ref,  query,) async {  ref.watch(feedRevisionProvider);  return ref.watch(feedRepositoryProvider).videos(query: query.trim());});

@@ -83,8 +83,10 @@ class DiscoverRepository {
     ];
   }
 
-  Future<List<SuggestedCommunity>> suggestedCommunities() async {
-    final rows = await _db.rpc('suggested_communities') as List;
+  Future<List<SuggestedCommunity>> suggestedCommunities({List<String>? interests}) async {
+    final rows = await _db.rpc('suggested_communities', params: {
+      'p_interests': interests ?? [],
+    }) as List;
     return [
       for (final r in rows)
         SuggestedCommunity.fromMap(r as Map<String, dynamic>),
@@ -104,11 +106,14 @@ final pymkProvider = FutureProvider<List<PymkPerson>>((ref) async {
   return ref.watch(discoverRepositoryProvider).peopleYouMayKnow();
 });
 
+
 final suggestedCommunitiesProvider = FutureProvider<List<SuggestedCommunity>>((
   ref,
 ) async {
-  return ref.watch(discoverRepositoryProvider).suggestedCommunities();
+  final interests = await ref.watch(myInterestsProvider.future);
+  return ref.watch(discoverRepositoryProvider).suggestedCommunities(interests: interests);
 });
+
 
 /// The most active public communities — shown on Discover so a brand-new
 /// account (no follows yet) still has somewhere to go. Graph-independent.

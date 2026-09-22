@@ -10,6 +10,11 @@ import '../communities/community_screen.dart';
 import '../feed/thread_screen.dart';
 import '../profile/user_profile_screen.dart';
 
+/// A provider that fetches the trending posts using the new backend RPC.
+final trendingOnPeakProvider = FutureProvider<List<FeedPost>>((ref) async {
+  return ref.watch(feedRepositoryProvider).trending(limit: 6);
+});
+
 /// Find people & communities — reached from Me → Preferences. Search (people /
 /// communities / posts); when the box is empty: interests, popular communities,
 /// fresh posts, people you may know, and communities for you.
@@ -194,6 +199,7 @@ class _DiscoverLanding extends ConsumerWidget {
     final comms = ref.watch(suggestedCommunitiesProvider);
     final popular = ref.watch(popularCommunitiesProvider);
     final fresh = ref.watch(freshOnPeakProvider);
+    final trending = ref.watch(trendingOnPeakProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -202,11 +208,25 @@ class _DiscoverLanding extends ConsumerWidget {
         ref.invalidate(popularCommunitiesProvider);
         ref.invalidate(freshOnPeakProvider);
         ref.invalidate(myInterestsProvider);
+        ref.invalidate(trendingOnPeakProvider);
       },
       child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           const _InterestsEditor(),
+          const Divider(height: 1),
+          _Section('Trending on Peak'),
+          trending.when(
+            loading: () => const _Loading(),
+            error: (e, _) => _Err('$e'),
+            data: (list) => list.isEmpty
+                ? const _Empty('No trending posts yet.')
+                : Column(
+                    children: [
+                      for (final p in list.take(4)) _TrendingPostTile(post: p),
+                    ],
+                  ),
+          ),
           const Divider(height: 1),
           _Section('Popular communities'),
           popular.when(
@@ -299,6 +319,54 @@ class _DiscoverLanding extends ConsumerWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TrendingPostTile extends StatelessWidget {
+  const _TrendingPostTile({required this.post});
+  final FeedPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = post.authorDisplayName.isNotEmpty
+        ? post.authorDisplayName
+        : post.authorHandle;
+    final preview = post.title?.trim().isNotEmpty == true
+        ? post.title!.trim()
+        : post.body.replaceAll('\n', ' ').trim();
+    final isTrending = (post.rank_score > 5.0);
+
+    return ListTile(
+      leading: AvatarCircle(
+        name: name,
+        path: post.authorAvatarPath,
+        radius: 18,
+      ),
+      title: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontWeight: isTrending ? FontWeight.bold : FontWeight.normal,
+          color: isTrending ? Theme.of(context).colorScheme.primary : null,
+        ),
+      ),
+      subtitle: Text(
+        preview.isEmpty ? '(media post)' : preview,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: isTrending
+          ? Chip(
+              label: const Text('Trending', style: TextStyle(fontSize: 10)),
+              visualDensity: VisualDensity.compact,
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            )
+          : null,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => ThreadScreen(rootId: post.id)),
       ),
     );
   }
