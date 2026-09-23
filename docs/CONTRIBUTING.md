@@ -17,10 +17,16 @@ Prereqs: Flutter ≥ 3.47, Dart ≥ 3.8, Node ≥ 20, Docker, Supabase CLI.
 
 ```bash
 git clone https://github.com/OmniGodgeta/peak
-cd peak/supabase && supabase start && supabase db reset
+cd peak/supabase && supabase start   # first run only: follow with `supabase db reset` to seed
 cd ../app && cp .env.example .env   # paste the URL + anon key from `supabase start`
 flutter pub get && flutter run
 ```
+
+**Do not run `supabase db reset` or `supabase stop` against an instance that already
+has real accounts on it** — it drops and recreates the whole database, deleting every
+account, profile, and message with no built-in undo. Use `supabase migration up` to
+apply new migrations to an existing database without wiping it. This is a `db reset`
+only for a genuinely fresh clone with no user data yet.
 
 ## Project layout
 

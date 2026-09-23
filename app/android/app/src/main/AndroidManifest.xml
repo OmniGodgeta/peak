@@ -40,6 +40,16 @@
                 <data android:scheme="https" android:host="peak.social"
                       android:pathPrefix="/v/"/>
             </intent-filter>
+            <!-- Deep link: password-reset / magic-link callback. Supabase's
+                 auth email links redirect here (Env.authRedirect); handled
+                 internally by supabase_flutter, which completes the PKCE
+                 exchange and fires AuthChangeEvent.passwordRecovery. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="peak" android:host="auth-callback"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

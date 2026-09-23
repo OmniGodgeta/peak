@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/brand.dart';
 import '../../core/env.dart';
 import '../../data/supabase_providers.dart';
+import 'forgot_password_screen.dart';
 import 'turnstile/turnstile_challenge.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
@@ -105,6 +106,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                if (!_register) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.of(context).push<void>(
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen(),
+                              ),
+                            ),
+                      child: const Text('Forgot password?'),
+                    ),
+                  ),
+                ],
                 if (_needsCaptcha) ...[
                   const SizedBox(height: 16),
                   Center(

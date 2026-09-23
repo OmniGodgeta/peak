@@ -84,7 +84,13 @@ Prerequisites: Flutter ≥ 3.47, Node ≥ 20, Docker (for local Supabase), the
 # 1. Start a local backend (Postgres, Auth, Storage, Realtime) in Docker
 cd supabase
 supabase start
-supabase db reset          # applies migrations + seed
+supabase db reset          # FIRST CLONE ONLY — applies migrations + seed.
+                            # NEVER re-run this (or `supabase stop`) once the
+                            # instance has real accounts on it: it drops and
+                            # recreates the whole database, deleting every
+                            # account/profile/message with no undo. For new
+                            # migrations on an existing instance, use
+                            # `supabase migration up` instead.
 
 # 2. Run the app against it
 cd ../app
