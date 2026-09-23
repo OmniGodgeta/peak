@@ -1,34 +1,18 @@
+-- Hosted already applied the broken 20261001000002_fix_feed_rpcs.sql as
+-- originally written (see that file's current header comment for the full
+-- story). By now hosted has THREE things on top of each other:
+--   1. feed_latest(timestamptz, int)  — from 20261001000000, stripped shape
+--   2. feed_latest(int)               — from 20261001000002 as first written,
+--                                        broken (selected nonexistent
+--                                        p.author_handle/media/etc., no
+--                                        visibility filter)
+--   3. feed_trending(int)             — from 20261001000002, same bug
+-- This migration drops both feed_latest overloads and re-applies the
+-- corrected single-signature definitions from 20261001000002 (now fixed)
+-- verbatim, so hosted matches a fresh `db reset`.
 
--- Fixes two bugs introduced by 20261001000000_phase5_ranking_infrastructure.sql:
---
--- 1. That migration replaced feed_latest's real shape (id, body, author_*,
---    media, title, reason, ...) with a stripped-down one (id, author_id, body,
---    rank_score, rank_reason, counts, created_at) — breaking every field the
---    app's FeedPost.fromMap reads (author_handle, media, title, ...) and the
---    pgTAP suite's assertions against it, and dropping the p_before
---    parameter that gave the feed pagination ("load more").
--- 2. This file originally tried to restore the full shape (as
---    feed_latest(p_limit int) — a *new*, third overload, since RETURNS TABLE
---    can't be changed by CREATE OR REPLACE and the old 2-arg version was
---    never dropped) but selected `p.author_handle`, `p.media`,
---    `p.reaction_count`, etc. straight off `post p` — those columns don't
---    exist there (they're joined from `profile`/`reaction`/`repost`/
---    `post_media_json()`, same as every other feed function). Worse, neither
---    it nor feed_trending filtered on `deleted_at`, `visibility`, or
---    `can_view_post()`, so once the query stopped erroring it would have
---    hand back every user's private/circle-only posts to any authenticated
---    caller. And leaving both the 2-arg and 1-arg overloads in place made
---    PostgREST unable to pick one for a call naming only p_limit (PGRST203,
---    "Could not choose the best candidate function").
---
--- feed_trending: new in this migration, no compatibility constraint — kept
--- as p_limit-only. Publicly-visible, top-level, non-community posts, ranked
--- by rank_score (falls back to recency — rank_score defaults to 0 until the
--- ranking-engine function backfills it).
--- feed_latest: restored to its original (p_before, p_limit) signature and
--- pre-phase5 meaning (people you follow, plus your own posts, chronological)
--- — the pgTAP suite and the app's FeedPost.fromMap both depend on this exact
--- shape.
+DROP FUNCTION IF EXISTS feed_latest(timestamptz, int);
+DROP FUNCTION IF EXISTS feed_latest(int);
 
 CREATE OR REPLACE FUNCTION feed_trending(p_limit int DEFAULT 30)
 RETURNS TABLE (
@@ -93,7 +77,6 @@ LANGUAGE sql STABLE SET search_path = public AS $$
   LIMIT least(p_limit, 100);
 $$;
 
-DROP FUNCTION IF EXISTS feed_latest(timestamptz, int);
 CREATE OR REPLACE FUNCTION feed_latest(
   p_before timestamptz DEFAULT now(),
   p_limit int DEFAULT 30
