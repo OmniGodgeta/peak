@@ -163,13 +163,15 @@ class _ReportTile extends ConsumerWidget {
       leading: item.isUrgent
           ? Icon(Icons.priority_high, color: scheme.error)
           : const Icon(Icons.flag_outlined),
-      title: Text('${_reasonLabel(item.reason)} · ${item.subjectKind}'),
+      title: Text(
+        '${_reasonLabel(item.reason)} · ${_kindLabel(item.subjectKind)}',
+      ),
       subtitle: Text(
         [
           if (item.detail != null && item.detail!.isNotEmpty)
             '“${item.detail}”',
           if (item.reportCount > 1) '${item.reportCount} reports',
-          if (item.communitySlug != null) 'c/${item.communitySlug}',
+          if (item.communitySlug != null) 's/${item.communitySlug}',
           if (item.reporterHandle != null) 'by @${item.reporterHandle}',
         ].join(' · '),
         maxLines: 3,
@@ -198,3 +200,6 @@ class _ReportTile extends ConsumerWidget {
 String _reasonLabel(String key) => ReportReason.values
     .firstWhere((r) => r.key == key, orElse: () => ReportReason.other)
     .label;
+
+String _kindLabel(String subjectKind) =>
+    subjectKind == 'community' ? 'space' : subjectKind;

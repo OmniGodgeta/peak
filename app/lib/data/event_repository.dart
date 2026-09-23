@@ -74,7 +74,7 @@ class CommunityEvent {
 
     final end = endsAt ?? startsAt.add(const Duration(hours: 1));
     final desc = [
-      if (communityName != null) 'Community: $communityName',
+      if (communityName != null) 'Space: $communityName',
       if (description.isNotEmpty) description,
     ].join('\n\n');
 

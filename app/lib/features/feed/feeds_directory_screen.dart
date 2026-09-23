@@ -207,7 +207,7 @@ class _FeedsDirectoryScreenState extends ConsumerState<FeedsDirectoryScreen> {
 
 String _describe(FeedRules r) {
   final parts = <String>[
-    if (r.communities.isNotEmpty) '${r.communities.length} communities',
+    if (r.communities.isNotEmpty) '${r.communities.length} spaces',
     if (r.from.isNotEmpty) '${r.from.length} people',
     if (r.anyWords.isNotEmpty) 'has: ${r.anyWords.join(", ")}',
     if (r.notWords.isNotEmpty) 'not: ${r.notWords.join(", ")}',

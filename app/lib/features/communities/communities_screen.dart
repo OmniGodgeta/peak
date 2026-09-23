@@ -42,7 +42,7 @@ class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
     final topics = ref.watch(communityTopicsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Communities')),
+      appBar: AppBar(title: const Text('Spaces')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final slug = await Navigator.of(context).push<String>(
@@ -73,7 +73,7 @@ class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
                       children: [
                         const Padding(
                           padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-                          child: Text('Your communities'),
+                          child: Text('Your spaces'),
                         ),
                         for (final c in list)
                           ListTile(
@@ -98,7 +98,7 @@ class _CommunitiesScreenState extends ConsumerState<CommunitiesScreen> {
                 onChanged: (v) => setState(() => _query = v),
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search),
-                  hintText: 'Find a community',
+                  hintText: 'Find a space',
                   isDense: true,
                 ),
               ),

@@ -292,8 +292,8 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                     const SizedBox(width: 6),
                     Text(
                       widget.channelName != null
-                          ? 'Posting to ${widget.communityName ?? "this community"} · #${widget.channelName}'
-                          : 'Posting to ${widget.communityName ?? "this community"}',
+                          ? 'Posting to ${widget.communityName ?? "this space"} · #${widget.channelName}'
+                          : 'Posting to ${widget.communityName ?? "this space"}',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],

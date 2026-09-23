@@ -125,7 +125,7 @@ class _ItemTileState extends ConsumerState<_ItemTile> {
       ),
       subtitle: Text(
         '@${it.source}'
-        '${it.communitySlug != null ? ' → c/${it.communitySlug}' : ''}'
+        '${it.communitySlug != null ? ' → s/${it.communitySlug}' : ''}'
         ' · ${_ago(it.seenAt)}',
       ),
       trailing: it.postDeleted

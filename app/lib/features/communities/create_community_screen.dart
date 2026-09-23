@@ -76,7 +76,7 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
         _name.text.trim().length >= 2 && _slug.text.trim().length >= 2;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New community'),
+        title: const Text('New space'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),

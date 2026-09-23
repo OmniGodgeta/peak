@@ -563,8 +563,8 @@ class _PostCardState extends ConsumerState<PostCard> {
                               p.reason ??
                                   (p.channelName != null
                                       ? 'A post in #${p.channelName}, a channel '
-                                            'of a community you can see.'
-                                      : "It's in a thread or community you "
+                                            'of a space you can see.'
+                                      : "It's in a thread or space you "
                                             'opened. The home feed is only '
                                             'people you follow — never ranked '
                                             'or injected.'),

@@ -106,7 +106,7 @@ class _CommunityEditScreenState extends ConsumerState<CommunityEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit community'),
+        title: const Text('Edit space'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -127,7 +127,7 @@ class _CommunityEditScreenState extends ConsumerState<CommunityEditScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'c/${widget.community.slug}',
+            's/${widget.community.slug}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           TextField(

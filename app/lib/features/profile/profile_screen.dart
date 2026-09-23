@@ -163,7 +163,7 @@ class ProfileScreen extends ConsumerWidget {
                 leading: const Icon(Icons.mail_outline),
                 title: const Text('Moderator messages'),
                 subtitle: const Text(
-                  'Your private threads with community mods',
+                  'Your private threads with space mods',
                 ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -253,9 +253,9 @@ class ProfileScreen extends ConsumerWidget {
               ),
               ListTile(
                 leading: const Icon(Icons.travel_explore_outlined),
-                title: const Text('Find people & communities'),
+                title: const Text('Find people & spaces'),
                 subtitle: const Text(
-                  'Search, interests, who to follow, communities for you',
+                  'Search, interests, who to follow, spaces for you',
                 ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(

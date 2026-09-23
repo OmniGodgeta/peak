@@ -50,7 +50,7 @@ class CustomFeedsScreen extends ConsumerWidget {
                 padding: EdgeInsets.all(32),
                 child: Text(
                   'A custom feed is a name plus a few rules — keywords to '
-                  'include or exclude, communities, media only. It then shows '
+                  'include or exclude, spaces, media only. It then shows '
                   'up in the feed switcher on Home.',
                   textAlign: TextAlign.center,
                 ),
@@ -137,7 +137,7 @@ class CustomFeedsScreen extends ConsumerWidget {
 
 String _describe(FeedRules r) {
   final parts = <String>[
-    if (r.communities.isNotEmpty) '${r.communities.length} communities',
+    if (r.communities.isNotEmpty) '${r.communities.length} spaces',
     if (r.from.isNotEmpty) '${r.from.length} people',
     if (r.anyWords.isNotEmpty) 'has: ${r.anyWords.join(", ")}',
     if (r.notWords.isNotEmpty) 'not: ${r.notWords.join(", ")}',

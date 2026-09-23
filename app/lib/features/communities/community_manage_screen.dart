@@ -73,7 +73,7 @@ class CommunityManageScreen extends ConsumerWidget {
             if (community.isAdmin)
               ListTile(
                 leading: const Icon(Icons.tune),
-                title: const Text('Edit community'),
+                title: const Text('Edit space'),
                 subtitle: const Text('Name, description, topics, join policy'),
                 onTap: () async {
                   final saved = await Navigator.of(context).push<bool>(

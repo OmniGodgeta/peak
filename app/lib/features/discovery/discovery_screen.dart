@@ -105,7 +105,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
                             label: Text(switch (f) {
                               null => 'All',
                               SearchKind.person => 'People',
-                              SearchKind.community => 'Communities',
+                              SearchKind.community => 'Spaces',
                               SearchKind.post => 'Posts',
                             }),
                             selected: _filter == f,
@@ -228,12 +228,12 @@ class _DiscoverLanding extends ConsumerWidget {
                   ),
           ),
           const Divider(height: 1),
-          _Section('Popular communities'),
+          _Section('Popular spaces'),
           popular.when(
             loading: () => const _Loading(),
             error: (e, _) => _Err('$e'),
             data: (list) => list.isEmpty
-                ? const _Empty('No communities yet.')
+                ? const _Empty('No spaces yet.')
                 : Column(
                     children: [
                       for (final c in list)
@@ -285,13 +285,13 @@ class _DiscoverLanding extends ConsumerWidget {
                   ),
           ),
           const Divider(height: 1),
-          _Section('Communities for you'),
+          _Section('Spaces for you'),
           comms.when(
             loading: () => const _Loading(),
             error: (e, _) => _Err('$e'),
             data: (list) => list.isEmpty
                 ? const _Empty(
-                    'Add interests above to see matching communities.',
+                    'Add interests above to see matching spaces.',
                   )
                 : Column(
                     children: [

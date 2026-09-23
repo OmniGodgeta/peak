@@ -53,6 +53,62 @@ reappearing as a diff. `flutter analyze` (`~/development/flutter/bin/flutter`)
 ran clean of the deletion — only 3 pre-existing, unrelated lint warnings in
 `app.dart`/`wellbeing_provider.dart`/`post_media_view.dart`.
 
+**Session on 2026-09-22 (later the same day) — the operator hit a broken live
+app and asked for a fix + a Community→Spaces rename:**
+
+1. **Fixed a live-breaking bug**: `20261001000000_phase5_ranking_infrastructure.sql`
+   replaced `feed_latest`'s real row shape with a stripped-down one and dropped
+   `p_before`; `20261001000002_fix_feed_rpcs.sql` then tried to restore the
+   full shape as a *new* `feed_latest(p_limit int)` overload (CREATE OR REPLACE
+   can't change a table function's return columns, and the old 2-arg version
+   was never dropped) — leaving **two** `feed_latest` overloads live, so
+   PostgREST couldn't pick one for the app's call (`PGRST203`, "Could not
+   choose the best candidate function") — this is what the operator's
+   screenshot showed on the For You tab. That same rewrite also selected
+   `p.author_handle` / `p.media` / `p.reaction_count` etc. straight off `post`
+   (those columns don't exist there — they're joined from `profile`/
+   `reaction`/`repost`/`post_media_json()`) and dropped every visibility
+   filter, so once the ambiguity was fixed the functions would have both
+   errored and leaked private/circle-only posts to any caller.
+   `20261001000002_fix_feed_rpcs.sql` is now corrected in place (proper joins,
+   `can_view_post()` filtering, original `(p_before, p_limit)` signature
+   restored) and a new `20261001000005_fix_feed_latest_overload.sql` re-applies
+   the fix against hosted, which already ran the broken version. Verified
+   locally: `supabase db reset` clean, `db lint --level warning` shows only
+   the two pre-existing unrelated issues (`match_profiles`, `admin_remove_post`),
+   `supabase test db` **214/214 pgTAP assertions pass** (this suite was
+   silently broken by the phase5 migration too — it called the 2-arg
+   signature that had briefly stopped existing).
+2. **Diagnosed the empty "Who can see this?" picker**: the composer has no
+   way to post without picking a circle, but circles only exist because
+   `bootstrap_account()` creates the 5 system ones at sign-up — an account
+   bootstrapped some other way (or before that existed) ends up with zero and
+   can never post. Added `20261001000006_backfill_missing_circles.sql`: gives
+   any existing profile with zero circles the same 5 defaults. Idempotent,
+   safe to re-run.
+3. **Renamed "Community"/"Communities" → "Space"/"Spaces" everywhere in the
+   app's UI text** (nav tab, screen titles, empty states, hints, the `c/slug`
+   display prefix → `s/slug`, moderation queue labels, the wiki page path,
+   compose screen "posting to" text, ICS calendar export). Deliberately did
+   **not** rename the underlying Dart classes/files (`CommunityScreen`,
+   `community_repository.dart`, …), DB tables/columns (`community`,
+   `community_id`, …), RPC names, or report/report-queue `kind` enum values
+   (`'community'`) — those are internal identifiers with real migration/RLS
+   history behind them and renaming them has no user-visible benefit; only
+   flag this choice if the operator wants the internal names to match too.
+   `flutter analyze --fatal-infos` / `dart format` / `flutter test` all clean
+   (same 3 pre-existing warnings as above, nothing new).
+4. **Still not investigated**: why the Spaces directory and Media tab were
+   both empty for the operator on-device (`communities_browse` / `videos_browse`
+   have no known bug — they need either real seeded/posted data on hosted or a
+   permissions issue to actually be diagnosed against the live database).
+   **Not yet deployed to hosted**: none of migrations `20261001000002` (as
+   corrected), `20261001000005`, `20261001000006` have been pushed to the live
+   Supabase project yet — this session had no `supabase login` session and the
+   claude.ai Supabase MCP wasn't authenticated. Next agent (or the operator via
+   `tool/deploy-hosted.sh` / dashboard SQL editor) needs to apply them before
+   the fixes take effect for real users.
+
 ---
 
 ## 1. What Peak is

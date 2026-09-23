@@ -27,7 +27,7 @@ class MyModmailScreen extends ConsumerWidget {
                     child: Center(
                       child: Text(
                         "You haven't messaged any moderators.\n"
-                        'Open a thread from a community page.',
+                        'Open a thread from a space page.',
                         textAlign: TextAlign.center,
                       ),
                     ),

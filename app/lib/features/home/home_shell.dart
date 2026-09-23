@@ -34,7 +34,7 @@ class HomeShell extends ConsumerStatefulWidget {
     NavigationDestination(
       icon: Icon(Icons.groups_outlined),
       selectedIcon: Icon(Icons.groups),
-      label: 'Community',
+      label: 'Spaces',
     ),
     NavigationDestination(
       icon: Icon(Icons.smart_display_outlined),

@@ -136,7 +136,7 @@ class _CustomFeedEditScreenState extends ConsumerState<CustomFeedEditScreen> {
           ),
           if (myComms.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('Communities', style: Theme.of(context).textTheme.labelLarge),
+            Text('Spaces', style: Theme.of(context).textTheme.labelLarge),
             Wrap(
               spacing: 6,
               children: [

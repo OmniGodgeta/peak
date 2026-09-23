@@ -61,7 +61,7 @@ class CommunityWikiScreen extends ConsumerWidget {
                     size: 20,
                   ),
                   title: Text(p.title),
-                  subtitle: Text('c/${community.slug}/wiki/${p.slug}'),
+                  subtitle: Text('s/${community.slug}/wiki/${p.slug}'),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) =>

@@ -36,7 +36,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     final c = community.asData?.value;
     return Scaffold(
       appBar: AppBar(
-        title: Text('c/$slug'),
+        title: Text('s/$slug'),
         actions: [
           if (c != null && !c.canModerate)
             IconButton(
@@ -56,12 +56,12 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                     context,
                     kind: 'community',
                     subjectId: c.id,
-                    what: 'c/$slug',
+                    what: 's/$slug',
                   );
                 }
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'report', child: Text('Report community')),
+                PopupMenuItem(value: 'report', child: Text('Report space')),
               ],
             ),
           if (c != null && (c.isMember || c.isListed))
@@ -107,7 +107,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         data: (c) {
           if (c == null) {
             return const Center(
-              child: Text('This community is not available.'),
+              child: Text('This space is not available.'),
             );
           }
           return RefreshIndicator(
