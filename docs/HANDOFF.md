@@ -102,12 +102,38 @@ app and asked for a fix + a Community→Spaces rename:**
    both empty for the operator on-device (`communities_browse` / `videos_browse`
    have no known bug — they need either real seeded/posted data on hosted or a
    permissions issue to actually be diagnosed against the live database).
-   **Not yet deployed to hosted**: none of migrations `20261001000002` (as
-   corrected), `20261001000005`, `20261001000006` have been pushed to the live
-   Supabase project yet — this session had no `supabase login` session and the
-   claude.ai Supabase MCP wasn't authenticated. Next agent (or the operator via
-   `tool/deploy-hosted.sh` / dashboard SQL editor) needs to apply them before
-   the fixes take effect for real users.
+
+**Deployed to hosted (2026-09-22, same session)**: the operator generated a
+Supabase personal access token and ran `supabase link --project-ref
+izvcozvfqmggyziaeeoc`, which let this session inspect the live schema
+read-only (`supabase db query --linked`, schema-only — Claude Code's
+production-write guardrail correctly blocked this session from writing
+directly, by design). That inspection found the live gap was **worse** than
+the local migrations assumed: hosted's Phase 5 rollout was only ever
+partially applied — `feed_latest(timestamptz, int)` existed with the broken
+stripped-down shape from `20261001000000`, but `post.rank_score` /
+`post.rank_reason` didn't exist at all (so even that broken function would
+have errored on call, not just returned the wrong shape) and `feed_trending`
+didn't exist on hosted at all. `20261001000005`/`20261001000006`'s DDL
+(fixed `feed_latest`/`feed_trending` + the two missing columns + the circles
+backfill) was handed to the operator as a single SQL script to run by hand in
+the dashboard's SQL Editor (`supabase db push` was correctly refused too — the
+remote migration-history table doesn't line up with local filenames at all,
+because past sessions applied changes via raw `execute_sql` rather than
+tracked `apply_migration`; reconciling that whole history is a separate,
+unstarted task, not attempted here). Two failed paste attempts (`ERROR:
+42601: syntax error`) turned out to be the browser/terminal copy-paste path
+silently dropping characters mid-line, not a SQL bug — confirmed from a
+screenshot of the actual editor content. Fixed by using `wl-copy` to put the
+exact file bytes directly on the operator's system clipboard instead of
+relying on a chat copy-paste; third attempt succeeded. Verified live via
+`supabase db query --linked` afterward: exactly one `feed_latest`/one
+`feed_trending` overload each with the correct signature, `rank_score`/
+`rank_reason` present on `post`, and `0` profiles left with zero circles.
+**Not yet verified in the actual app** — the operator should reopen it (For
+You / Feed / composer) to confirm the fix is felt end to end, and Spaces/Media
+being empty is still unexplained (see item 4 above — may just be no real
+seeded/posted data on this project, not a bug).
 
 ---
 
