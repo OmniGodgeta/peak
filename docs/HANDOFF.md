@@ -135,6 +135,65 @@ You / Feed / composer) to confirm the fix is felt end to end, and Spaces/Media
 being empty is still unexplained (see item 4 above — may just be no real
 seeded/posted data on this project, not a bug).
 
+**Session on 2026-09-23 (Claude Code, via the local dev machine) — login was
+completely broken, then the local DB got wiped twice, then v1.0.3 shipped:**
+
+1. **Root-caused and fixed login end to end**, three separate broken layers,
+   in order: (a) `app/env.json`'s `SUPABASE_URL` pointed at the operator's own
+   phone's Tailscale IP instead of the dev machine's — an agent had confused
+   which device's IP to use; (b) once pointed correctly, UFW (host firewall)
+   was silently dropping the connection — this machine uses `ufw-docker`, so
+   Docker-published ports need a `DOCKER-USER`-chain rule, not just a normal
+   `ufw allow`; fixed by trusting the `tailscale0` interface the same way the
+   existing rules already trust LAN ranges; (c) the `auth.users` row itself
+   was malformed — created by a raw SQL insert missing `aud`, the matching
+   `auth.identities` row, and had `NULL` in several columns GoTrue requires as
+   `''` (crashed the admin API with `converting NULL to string is
+   unsupported`). All three fixed and verified with a real password-grant
+   token exchange.
+2. **The local Supabase DB got destroyed twice more during this same session**
+   (`supabase_db_peak` container recreated fresh — confirmed via container
+   `Created` timestamps, while every sibling container stayed up since
+   2026-09-09) — **not** by a scheduled job (checked `hermes cron`/`kanban`,
+   nothing there); most likely another agent (or the operator) literally
+   followed this repo's own quickstart, which paired `supabase db reset` with
+   routine startup. **Root cause fixed at the source**: `README.md`,
+   `docs/CONTRIBUTING.md`, and the workspace-root `AGENTS.md` all documented
+   `supabase db reset` as the normal way to bring the backend up — rewritten
+   to mark it first-clone-only, with `supabase migration up` as the
+   non-destructive way to apply new migrations to an instance that already
+   has accounts. A systemd user timer (`peak-db-backup.timer`, every 6h,
+   `supabase/backups/`) now exists as a safety net regardless — it's what
+   made the second recovery possible without asking the operator to redo
+   account setup by hand again.
+3. **"Spaces/Media being empty" (flagged as unexplained above) was just
+   day-one content**: `tool/seed-directory.sql` (creates the mirror/news
+   accounts + starter communities) and the `ingest-content` Edge Function
+   (pulls Webb/Hubble/Roman images, Launch Library 2 upcoming launches, and
+   PlayStation/Xbox/Nintendo/PC Gamer/Tom's Hardware/Phys.org news) both
+   already existed and work correctly — they'd just never been run against
+   this local instance. Ran both by hand; landed 44 real posts across 10
+   communities. **Not yet on a recurring schedule locally** — an attempt to
+   add a systemd timer for it was blocked by a permission guardrail
+   (flagged to the operator); `docs/HOSTED_BACKEND.md`'s pg_cron path is the
+   real answer for the hosted project, this is a local-dev stopgap only.
+4. **Shipped `v1.0.3`** ("Spaces & Content"): merged in an in-progress
+   forgot/reset-password flow (deep-link callback wired in
+   `AndroidManifest.xml`, found already mid-edit and uncommitted by another
+   agent — reviewed, `flutter analyze` clean, integrated cleanly, so kept
+   rather than discarded) alongside the fixes above; `pubspec.yaml` bumped
+   `1.0.0+1` → `1.0.3+4` (was never bumped past `1.0.0+1` despite `v1.0.1`/
+   `v1.0.2` already being tagged); built and uploaded to a new GitHub release.
+5. **Confirmed multiple AI agents are editing this repo concurrently,
+   uncoordinated** — this session, a separate cross-project-audit session
+   (commit `8607774`), and whatever produced the still-unpushed-at-session-
+   start forgot-password work were all active within hours of each other.
+   This is the most likely explanation for the repeated DB wipes and for
+   HANDOFF/ROADMAP staleness noted elsewhere in this file. Next agent: check
+   `git log` and this file's own edit history before assuming you're the only
+   one working here, and never re-run `supabase db reset` / `supabase stop`
+   against the local instance now that it holds real accounts.
+
 ---
 
 ## 1. What Peak is
