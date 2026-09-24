@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/creator_repository.dart';
 import '../../data/community_repository.dart';
 import '../../data/data_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/labeler_repository.dart';
 import '../../data/people_repository.dart';
+import '../../data/profile_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
 import '../../wellbeing/wellbeing.dart';
@@ -108,6 +110,33 @@ class _PostCardState extends ConsumerState<PostCard> {
   }
 
   bool get _isMine => widget.post.authorId == ref.read(currentUserProvider)?.id;
+
+  Future<void> _boost(bool on) async {
+    final repo = ref.read(creatorRepositoryProvider);
+    try {
+      if (on) {
+        await repo.boost(widget.post.id);
+      } else {
+        await repo.unboost(widget.post.id);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              on
+                  ? 'Boosted in Discover for 7 days. Latest is unchanged.'
+                  : 'Discover boost removed.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
 
   Future<void> _confirmDelete() async {
     final ok = await showDialog<bool>(
@@ -383,6 +412,20 @@ class _PostCardState extends ConsumerState<PostCard> {
                   ),
                 ),
               ),
+            if (p.reason != null && p.reason!.startsWith('Boosted'))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Chip(
+                    avatar: const Icon(Icons.campaign_outlined, size: 14),
+                    label: const Text('Boosted'),
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide.none,
+                    backgroundColor: scheme.secondaryContainer,
+                  ),
+                ),
+              ),
             if (p.communityLabel != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
@@ -596,6 +639,10 @@ class _PostCardState extends ConsumerState<PostCard> {
                         _labelPost();
                       case 'pin':
                         _togglePin();
+                      case 'boost':
+                        _boost(true);
+                      case 'unboost':
+                        _boost(false);
                       case 'delete':
                         _confirmDelete();
                       case 'mod-remove':
@@ -622,6 +669,18 @@ class _PostCardState extends ConsumerState<PostCard> {
                       value: 'apply-label',
                       child: Text('Label this post…'),
                     ),
+                    if (_isMine &&
+                        ref.watch(myProfileProvider).asData?.value?.isTeen !=
+                            true) ...[
+                      const PopupMenuItem(
+                        value: 'boost',
+                        child: Text('Boost in Discover for 7 days'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'unboost',
+                        child: Text('Stop Discover boost'),
+                      ),
+                    ],
                     if (_isMine)
                       PopupMenuItem(
                         value: 'pin',

@@ -19,6 +19,8 @@ mixed-content. No public domain; that stays deferred. Phase 5's remaining
 buildables landed in the same push: follower fan-out on write, For You from
 spaces and interests, a verified check on Latest and For You cards, and a
 ranker whose tests prove likes and follower counts do not change the score.
+Phase 6, without payments: Me → Personas, Discover-only boosts that Latest
+does not read, and Me → Your reach (opt-in counts on your own posts).
 
 ---
 

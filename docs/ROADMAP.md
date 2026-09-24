@@ -297,9 +297,15 @@ payments as a decision to revisit once there's a real community asking for it
 (and once federation raises the "who takes a cut across instances?" question).
 
 **Now-ish (no money):**
-- [ ] Multiple personas per login (schema already supports `persona`; needs UI)
-- [ ] Boosting for **Discover only**, always labelled; never affects followers' Latest
-- [ ] Creator analytics without dark patterns (your own reach, opt-in)
+- [x] Multiple personas per login — Me → Personas. Up to five labels; the
+      selected one is what new posts use. The list is not shown on your
+      public profile, and posts still carry your handle.
+- [x] Boosting for **Discover only**, always labelled; never affects followers'
+      Latest. Seven days, your own public posts, adults only. Teens do not
+      see boosted posts in For You. The card shows a Boosted chip.
+- [x] Creator analytics without dark patterns — Me → Your reach. Off until
+      you opt in. Then it counts your own posts, likes, replies, and reposts.
+      No comparisons and no prompt to post more.
 
 **Deferred — decision pending (money):**
 - [ ] Payments integration (a processor + at least one regional option)

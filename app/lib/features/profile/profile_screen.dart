@@ -21,6 +21,8 @@ import '../settings/legal_screen.dart';
 import '../settings/wellbeing_screen.dart';
 import '../settings/your_data_screen.dart';
 import 'edit_profile_screen.dart';
+import 'personas_screen.dart';
+import 'reach_screen.dart';
 import 'user_profile_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -141,6 +143,24 @@ class ProfileScreen extends ConsumerWidget {
                 const Chip(label: Text('Teen account — private by default')),
               const Divider(height: 32),
               ListTile(
+                leading: const Icon(Icons.face_outlined),
+                title: const Text('Personas'),
+                subtitle: const Text('Which face new posts use'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PersonasScreen(),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.insights_outlined),
+                title: const Text('Your reach'),
+                subtitle: const Text('Opt-in counts on your own posts'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const ReachScreen()),
+                ),
+              ),
+              ListTile(
                 leading: const Icon(Icons.article_outlined),
                 title: const Text('Your profile & posts'),
                 onTap: () => Navigator.of(context).push(
@@ -162,9 +182,7 @@ class ProfileScreen extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.mail_outline),
                 title: const Text('Moderator messages'),
-                subtitle: const Text(
-                  'Your private threads with space mods',
-                ),
+                subtitle: const Text('Your private threads with space mods'),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const MyModmailScreen(),

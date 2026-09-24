@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/env.dart';
 import '../../data/circle_repository.dart';
 import '../../data/feed_repository.dart';
+import '../../data/persona_repository.dart';
 import '../../data/post_repository.dart';
 
 /// New post or reply. Text + up to 4 photos/GIFs + a content warning. For a new
@@ -283,6 +284,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             if (_isReply) _ReplyingTo(post: widget.replyTo!),
+            const _PostingAs(),
             if (_isCommunity)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -588,6 +590,51 @@ class _Chip extends StatelessWidget {
         ),
         child: Icon(icon, size: 14, color: Colors.white),
       ),
+    );
+  }
+}
+
+class _PostingAs extends ConsumerWidget {
+  const _PostingAs();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final personas = ref.watch(myPersonasProvider);
+    return personas.maybeWhen(
+      data: (list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        final current =
+            list.where((p) => p.isDefault).firstOrNull ?? list.first;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.face_outlined, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Posting as ${current.label}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              if (list.length > 1)
+                PopupMenuButton<String>(
+                  tooltip: 'Switch persona',
+                  onSelected: (id) async {
+                    await ref.read(personaRepositoryProvider).makeDefault(id);
+                    ref.invalidate(myPersonasProvider);
+                  },
+                  itemBuilder: (_) => [
+                    for (final p in list)
+                      PopupMenuItem(value: p.id, child: Text(p.label)),
+                  ],
+                  child: const Text('Switch'),
+                ),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
