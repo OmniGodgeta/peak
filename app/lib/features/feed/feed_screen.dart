@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/custom_feed_repository.dart';
 import '../../data/feed_repository.dart';
+import '../../data/notification_repository.dart';
 import '../../data/story_repository.dart';
 import '../compose/compose_screen.dart';
+import '../home/notifications_screen.dart';
+import '../media/watch_screen.dart';
 import '../stories/stories_strip.dart';
 import 'custom_feeds_screen.dart';
 import 'post_card.dart';
@@ -51,37 +54,65 @@ class FeedScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        actions: [
+          IconButton(
+            tooltip: 'Notices',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const NotificationsScreen(),
+              ),
+            ),
+            icon: Badge(
+              isLabelVisible:
+                  (ref.watch(unreadNoticesProvider).asData?.value ?? 0) > 0,
+              label: Text(
+                '${ref.watch(unreadNoticesProvider).asData?.value ?? 0}',
+              ),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+          ),
+        ],
         title: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             value: value,
-            onChanged: forcedKind != null ? null : (v) {
-              if (v == null) return;
-              if (v == 'manage') {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const CustomFeedsScreen(),
-                  ),
-                );
-                return;
-              }
-              if (v == 'latest') {
-                ref.read(activeCustomFeedProvider.notifier).set(null);
-                ref.read(selectedFeedProvider.notifier).set(FeedKind.latest);
-              } else if (v == 'friends') {
-                ref.read(activeCustomFeedProvider.notifier).set(null);
-                ref
-                    .read(selectedFeedProvider.notifier)
-                    .set(FeedKind.friendsFirst);
-              } else if (v == 'local') {
-                ref.read(activeCustomFeedProvider.notifier).set(null);
-                ref.read(selectedFeedProvider.notifier).set(FeedKind.local);
-              } else if (v == 'recommendations') {
-                ref.read(activeCustomFeedProvider.notifier).set(null);
-                ref.read(selectedFeedProvider.notifier).set(FeedKind.recommendations);
-              } else if (v.startsWith('cf:')) {
-                ref.read(activeCustomFeedProvider.notifier).set(v.substring(3));
-              }
-            },
+            onChanged: forcedKind != null
+                ? null
+                : (v) {
+                    if (v == null) return;
+                    if (v == 'manage') {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const CustomFeedsScreen(),
+                        ),
+                      );
+                      return;
+                    }
+                    if (v == 'latest') {
+                      ref.read(activeCustomFeedProvider.notifier).set(null);
+                      ref
+                          .read(selectedFeedProvider.notifier)
+                          .set(FeedKind.latest);
+                    } else if (v == 'friends') {
+                      ref.read(activeCustomFeedProvider.notifier).set(null);
+                      ref
+                          .read(selectedFeedProvider.notifier)
+                          .set(FeedKind.friendsFirst);
+                    } else if (v == 'local') {
+                      ref.read(activeCustomFeedProvider.notifier).set(null);
+                      ref
+                          .read(selectedFeedProvider.notifier)
+                          .set(FeedKind.local);
+                    } else if (v == 'recommendations') {
+                      ref.read(activeCustomFeedProvider.notifier).set(null);
+                      ref
+                          .read(selectedFeedProvider.notifier)
+                          .set(FeedKind.recommendations);
+                    } else if (v.startsWith('cf:')) {
+                      ref
+                          .read(activeCustomFeedProvider.notifier)
+                          .set(v.substring(3));
+                    }
+                  },
             items: [
               const DropdownMenuItem(value: 'latest', child: Text('Latest')),
               const DropdownMenuItem(
@@ -117,10 +148,12 @@ class FeedScreen extends ConsumerWidget {
             onRefresh: () async {
               invalidateFeed();
               ref.invalidate(storyTrayProvider);
+              ref.invalidate(videosProvider(''));
             },
             child: ListView(
               children: [
                 const StoriesStrip(),
+                const _VideoShelf(),
                 const Divider(height: 1),
                 if (posts.isEmpty)
                   Padding(
@@ -144,6 +177,112 @@ class FeedScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Newest public videos, pinned above the chronological feed so a photo-heavy
+/// follow list does not hide them.
+class _VideoShelf extends ConsumerWidget {
+  const _VideoShelf();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final videos = ref.watch(videosProvider(''));
+    return videos.maybeWhen(
+      data: (list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        final repo = ref.watch(feedRepositoryProvider);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Text(
+                'Videos',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            SizedBox(
+              height: 148,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: list.length.clamp(0, 12),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final post = list[i];
+                  PostMedia? video;
+                  for (final m in post.media) {
+                    if (m.isVideo) {
+                      video = m;
+                      break;
+                    }
+                  }
+                  final poster = video?.posterPath;
+                  final title = post.title?.trim().isNotEmpty == true
+                      ? post.title!.trim()
+                      : post.authorHandle;
+                  return SizedBox(
+                    width: 220,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => WatchScreen(post: post),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Container(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                  ),
+                                  if (poster != null)
+                                    Image.network(
+                                      repo.mediaUrl(poster),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) =>
+                                          const SizedBox.shrink(),
+                                    ),
+                                  const Center(
+                                    child: Icon(
+                                      Icons.play_circle_fill,
+                                      color: Colors.white70,
+                                      size: 36,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
