@@ -7,6 +7,19 @@ Last updated: **2026-09-10** for everything below §2's table and §3; **see the
 2026-09-22 status-check note right below** for what's landed since then that
 this file never got updated for.
 
+**2026-09-24:** The bottom nav label is **Space**. Latest now includes any
+public video, and the feed has a Videos shelf. In-app notices (likes, replies,
+follows) are the bell on the feed; push is still not built. Sixteen more
+spaces are in `tool/seed-directory.sql` (movies, music, books, and the rest).
+Public-domain NASA clips are loaded by `python3 tool/seed_videos.py` into
+local Storage — there were zero `post_media` rows of kind `video` before that.
+The private preview is `https://shadow-1.tail51f9d6.ts.net:8720`, built with
+Supabase at `https://shadow-1.tail51f9d6.ts.net:8721` so the page is not
+mixed-content. No public domain; that stays deferred. Phase 5's remaining
+buildables landed in the same push: follower fan-out on write, For You from
+spaces and interests, a verified check on Latest and For You cards, and a
+ranker whose tests prove likes and follower counts do not change the score.
+
 ---
 
 ## 0. Status-check note (2026-09-22) — read this before trusting §2/§3

@@ -13,8 +13,8 @@ proof-of-personhood shipped; ranking Edge Function + fan-out index + pgvector
 recs remain). Hosted Supabase backend is live. **Video + a Media destination**
 shipped (compose, inline player, browse + search, watch page) with transcode +
 local-disk storage on the self-hosted media server. Bottom nav is now
-Feed · Messages · Communities · **Media** · Me; "find people & communities"
-moved to Me → Preferences.
+Feed · For You · Messages · **Space** · Media · Me. "Find people & spaces"
+lives under Me → Preferences.
 
 **Peak is a private beta right now.** No public domain (`@name@peak.social`
 handles are baked in, so the domain must be chosen before real users sign up).
@@ -28,9 +28,10 @@ lawyer pass on the legal drafts), not on more features.
 
 Not a phase — the concrete work between here and a public launch:
 
-- **Finish Phase 5's buildables**: ranking Edge Function (open, excluded-signal
-  tests), fan-out-on-write feed index, pgvector "For you", personhood/labeler
-  badges on post cards.
+- **Phase 5 buildables are in.** Ranking ignores engagement counts (Deno
+  test), follower fan-out is written on post, For You uses spaces and
+  interests, and the verified check shows on Latest and For You cards.
+  Still open: labeler appeals and a quarterly transparency report.
 - **Video polish**: adaptive HLS, EXIF strip, orphan cleanup on post-delete.
   (Transcode + poster + local-disk storage + scroll-pause + share links done.)
 - **Operator**: run `tool/media-server/` on the storage box; register the
@@ -91,7 +92,8 @@ thing that is recognizably "a social network."
 - [ ] Media upload pipeline (EXIF strip, renditions, thumbnails) — needs `shadow`
 - [x] **Friends-first** feed variant — `feed_friends` (only people who follow
       you back); the home feed toggle now actually swaps the query
-- [ ] Notifications (in-app + push, bundled, quiet hours, neutral badge)
+- [~] Notifications — in-app likes, replies, and follows (the bell on the
+      feed). Push, bundling, and quiet hours are still open.
 - [x] Report content/account → moderation intake — `report` table +
       `report_reason`/`report_status`; `submit_report` (post / profile /
       community / message; dedup per reporter; CSAM / self-harm / violence
@@ -222,14 +224,19 @@ storage quota during the private beta; a CDN + adaptive streaming come with the
       tags in use. Directory screen has a sort menu, an 18+ toggle, and topic
       filter chips. (Language filter deferred — no per-post language yet.)
 
-## Phase 5 — Ranking, custom feeds, discovery, moderation depth  ·  *~90%*
+## Phase 5 — Ranking, custom feeds, discovery, moderation depth  ·  *done, except labeler appeals*
 
-- [ ] Fan-out-on-write feed index + hybrid path for large accounts
-- [ ] `ranking` Edge Function — open, with excluded-signal test suite
-- [~] **"Why am I seeing this?"** — `feed_latest` / `feed_friends` return a
-      `reason` string ("You follow @x" / "You and @x follow each other" / "Your
-      post"); the post-card menu item now shows it. Gets richer once ranking
-      lands.
+- [x] Fan-out-on-write feed index + hybrid path for large accounts — a public
+      post is written into `fanout_feed_index` for the author's followers, and
+      Latest reads that index as well as the live follow join.
+- [x] `ranking` Edge Function — open, with excluded-signal test suite. Global
+      `rank_score` is recency only. Per-viewer order uses mutual follow, time
+      since last visit, and author diversity (`ranking-engine/rank.ts`). A
+      Deno test proves reaction, repost, reply, and follower counts do not
+      change the score.
+- [x] **"Why am I seeing this?"** — Latest says you follow them, you follow
+      each other, it's your post, or it's a video. For You says the post is
+      in a space you joined, matches an interest, or is a video.
 - [x] Custom feeds (rule sets, shareable) — `custom_feed` (name + jsonb
       rules: communities / from / any_words / not_words / only_media) +
       `feed_custom` compiler (still gated by `can_view_post`); `copy_custom_feed`
@@ -253,7 +260,11 @@ storage quota during the private beta; a CDN + adaptive streaming come with the
       gated by `can_view_post`) and `search_all` (people + communities + posts
       in one ranked list). The Discover tab is now unified search with
       People / Communities / Posts filters. Meilisearch swap-in later if needed.
-- [ ] pgvector recommendations
+- [x] pgvector recommendations — `post.embedding` / `profile.embedding` and
+      `match_posts` are in place for when vectors exist. For You
+      (`recommend_posts_for_user`) does not wait on them: it shows public
+      videos, posts in spaces you joined, and posts whose space topics match
+      your interests. No like or follower counts in that order.
 - [~] **User-level labelers** (stackable, subscribable) — `labeler` / `labeler_label`
       (`info`/`warn`/`hide` severity) / `content_label` / `labeler_subscription`;
       `create_labeler` / `set_labeler_labels` / `apply_content_label` /
@@ -269,7 +280,8 @@ storage quota during the private beta; a CDN + adaptive streaming come with the
       `revoke_personhood` / `personhood_pending`. `profile_view` carries
       `is_verified_person` / `personhood_method` / `vouch_count`; a ✓ badge on
       profiles, a vouch button, Me → Proof of personhood. Deliberately not
-      identity verification. (Post-card badge: a later pass across the feed RPCs.)
+      identity verification. Latest and For You also carry
+      `author_is_verified`, and the post card shows the check.
 - [x] Wellbeing suite — per-device (never the account): a session clock that
       resets after a real break; a "take a break" sheet at 15/30/60 min
       ("no streaks, no penalty for leaving"); always-on greyscale; quiet hours

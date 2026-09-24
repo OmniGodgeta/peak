@@ -77,3 +77,4 @@ jobs:
       - run: deno fmt --check supabase/functions
       - run: deno lint supabase/functions
       - run: find supabase/functions -name '*.ts' -print -exec deno check {} +
+      - run: deno test supabase/functions/ranking-engine

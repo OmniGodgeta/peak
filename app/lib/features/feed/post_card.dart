@@ -442,6 +442,14 @@ class _PostCardState extends ConsumerState<PostCard> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            if (p.authorIsVerified) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.verified,
+                                size: 14,
+                                color: scheme.primary,
+                              ),
+                            ],
                             if (p.authorIsTeen) ...[
                               const SizedBox(width: 4),
                               Icon(

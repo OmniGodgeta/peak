@@ -57,6 +57,7 @@ class FeedPost {
     required this.authorDomain,
     required this.authorDisplayName,
     required this.authorIsTeen,
+    this.authorIsVerified = false,
     required this.authorAvatarPath,
     required this.reactionCount,
     required this.replyCount,
@@ -90,6 +91,9 @@ class FeedPost {
   final String authorDomain;
   final String authorDisplayName;
   final bool authorIsTeen;
+
+  /// Proof of personhood, not an identity check. Set by Latest and For You.
+  final bool authorIsVerified;
   final String? authorAvatarPath;
   final int reactionCount;
   final int replyCount;
@@ -145,6 +149,7 @@ class FeedPost {
         authorDomain: (m['author_domain'] as String?) ?? 'peak.social',
         authorDisplayName: (m['author_display_name'] as String?) ?? '',
         authorIsTeen: (m['author_is_teen'] as bool?) ?? false,
+        authorIsVerified: (m['author_is_verified'] as bool?) ?? false,
         authorAvatarPath: m['author_avatar_path'] as String?,
         reactionCount: (m['reaction_count'] as num?)?.toInt() ?? 0,
         replyCount: (m['reply_count'] as num?)?.toInt() ?? 0,
