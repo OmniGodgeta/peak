@@ -43,8 +43,16 @@ unless `Last-Modified` is newer than the edit. Do not rsync from the
 Tailscale host. Build on this machine.
 
 `flutter analyze --fatal-infos` must exit 0 before a commit. Commit style is
-`feat:` or `fix:` with a body. Push to `origin main`. Do not create or
-overwrite a GitHub release.
+`feat:` or `fix:` with a body. Push to `origin main`.
+
+**Release (operator instruction, 2026-09-25 - supersedes any older "don't
+release" note in this file's history):** once a real chunk of backlog work
+is done and verified, cut a release: bump `version:` in `app/pubspec.yaml`
+(name+code, e.g. `1.1.0+20`), commit, then `git tag vX.Y.Z && git push
+origin vX.Y.Z`. `.github/workflows/release.yml` picks up the tag, builds a
+signed APK via the repo's GitHub secrets, and publishes the GitHub Release
+itself - there is no local signing/build/`gh release create` step to do by
+hand. Never overwrite an existing tag/release; always a new version.
 
 ## Done on main (updated 2026-09-25 - the list below this had gone stale;
 verified item by item against `git log`, not assumed)
