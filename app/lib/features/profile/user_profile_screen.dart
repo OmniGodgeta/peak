@@ -49,17 +49,32 @@ class UserProfileScreen extends ConsumerWidget {
                             ListTile(
                               leading: const Icon(Icons.timer),
                               title: const Text('1 hour'),
-                              onTap: () => _handleMute(ctx, repo, pv.id, const Duration(hours: 1)),
+                              onTap: () => _handleMute(
+                                ctx,
+                                repo,
+                                pv.id,
+                                const Duration(hours: 1),
+                              ),
                             ),
                             ListTile(
                               leading: const Icon(Icons.calendar_today),
                               title: const Text('1 day'),
-                              onTap: () => _handleMute(ctx, repo, pv.id, const Duration(days: 1)),
+                              onTap: () => _handleMute(
+                                ctx,
+                                repo,
+                                pv.id,
+                                const Duration(days: 1),
+                              ),
                             ),
                             ListTile(
                               leading: const Icon(Icons.calendar_month),
                               title: const Text('1 week'),
-                              onTap: () => _handleMute(ctx, repo, pv.id, const Duration(days: 7)),
+                              onTap: () => _handleMute(
+                                ctx,
+                                repo,
+                                pv.id,
+                                const Duration(days: 7),
+                              ),
                             ),
                             ListTile(
                               leading: const Icon(Icons.undo),
@@ -106,21 +121,38 @@ class UserProfileScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _handleMute(BuildContext context, PeopleRepository repo, String userId, Duration? duration) async {
+  String _durationLabel(Duration d) => switch (d) {
+    Duration(inDays: 7) => '1 week',
+    Duration(inDays: 1) => '1 day',
+    Duration(inHours: 1) => '1 hour',
+    _ => '${d.inHours}h',
+  };
+
+  Future<void> _handleMute(
+    BuildContext context,
+    PeopleRepository repo,
+    String userId,
+    Duration? duration,
+  ) async {
     try {
       await repo.mute(userId, duration: duration);
       if (context.mounted) {
         Navigator.pop(context); // Close bottom sheet
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(duration == null ? 'Account muted' : 'Account muted for ${duration.inMinutes / 60}h')),
+          SnackBar(
+            content: Text(
+              duration == null
+                  ? 'Account muted'
+                  : 'Account muted for ${_durationLabel(duration)}',
+            ),
+          ),
         );
       }
     } on Exception catch (e) {
       if (context.mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }
@@ -186,42 +218,51 @@ class _VideosTab extends ConsumerWidget {
             final v = videos[index];
             final mediaId = v['media_id'] as String;
             final posterPath = v['poster_path'] as String?;
-            
+
             return GestureDetector(
-              onTap: isSelf ? () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (ctx) => CreatorVideoEditorSheet(
-                    mediaId: mediaId,
-                    posterPath: posterPath ?? '',
-                    onSave: () {
-                      ref.invalidate(userVideosProvider(authorId));
-                    },
-                  ),
-                );
-              } : null,
+              onTap: isSelf
+                  ? () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (ctx) => CreatorVideoEditorSheet(
+                          mediaId: mediaId,
+                          posterPath: posterPath ?? '',
+                          onSave: () {
+                            ref.invalidate(userVideosProvider(authorId));
+                          },
+                        ),
+                      );
+                    }
+                  : null,
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.grey[900],
                   borderRadius: BorderRadius.circular(4),
-                  image: posterPath != null 
-                    ? DecorationImage(
-                        image: NetworkImage(posterPath),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
+                  image: posterPath != null
+                      ? DecorationImage(
+                          image: NetworkImage(posterPath),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
                 child: Stack(
                   children: [
                     const Center(
-                      child: Icon(Icons.play_circle_outline, color: Colors.white54),
+                      child: Icon(
+                        Icons.play_circle_outline,
+                        color: Colors.white54,
+                      ),
                     ),
                     if (isSelf)
                       const Positioned(
                         top: 4,
                         right: 4,
-                        child: Icon(Icons.edit, size: 16, color: Colors.white70),
+                        child: Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: Colors.white70,
+                        ),
                       ),
                   ],
                 ),
