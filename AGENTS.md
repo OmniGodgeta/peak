@@ -97,8 +97,11 @@ Then, in this order:
    Push can be a local stub. Do not invent Firebase credentials.
 3. Composer: polls, drafts, scheduling, quote-posts, reply and quote controls,
    a language tag, deliberate alt text, and visible edit history.
-4. Voice notes and disappearing messages. MLS only if `rustup` and `cargo-ndk`
-   are installed. Do not invent a fake crypto layer.
+4. Voice notes and disappearing messages are not done. `ceeeeb8` added unused
+   stubs under `app/lib/features/messaging/voice/`. `checkStatus` returns true
+   with nothing stored. Record, upload, play, and purge are still open. MLS
+   stays blocked until `rustup` and `cargo-ndk` exist. Do not invent a crypto
+   layer.
 5. Smaller gaps that need no domain: passkeys if local auth supports them,
    mute with a duration, a temporary harassment shield, hide posts of an
    account inside its 30-day deletion grace, a language filter, saved
