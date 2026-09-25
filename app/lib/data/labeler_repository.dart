@@ -214,6 +214,48 @@ class LabelerRepository {
   Future<void> unsubscribe(String labelerId) =>
       _db.rpc('unsubscribe_labeler', params: {'p_labeler_id': labelerId});
 
+  Future<List<ContentLabelOnMine>> labelsOnMyPosts() async {
+    final rows = await _db.rpc('my_content_labels') as List;
+    return [
+      for (final r in rows)
+        ContentLabelOnMine.fromMap(r as Map<String, dynamic>),
+    ];
+  }
+
+  Future<void> fileAppeal({
+    required String labelerId,
+    required String postId,
+    required String reason,
+  }) => _db.rpc(
+    'file_label_appeal',
+    params: {
+      'p_labeler_id': labelerId,
+      'p_post_id': postId,
+      'p_reason': reason,
+    },
+  );
+
+  Future<List<LabelAppeal>> appealQueue() async {
+    final rows = await _db.rpc('labeler_appeal_queue') as List;
+    return [
+      for (final r in rows) LabelAppeal.fromMap(r as Map<String, dynamic>),
+    ];
+  }
+
+  Future<void> resolveAppeal({
+    required String appealId,
+    required String status,
+  }) => _db.rpc(
+    'resolve_label_appeal',
+    params: {'p_appeal_id': appealId, 'p_status': status},
+  );
+
+  Future<LabelTransparency> transparency() async {
+    final rows = await _db.rpc('label_transparency') as List;
+    if (rows.isEmpty) return const LabelTransparency();
+    return LabelTransparency.fromMap(rows.first as Map<String, dynamic>);
+  }
+
   Future<List<PostLabel>> labelsForPosts(List<String> postIds) async {
     if (postIds.isEmpty) return const [];
     final rows = await _db.rpc(
@@ -242,6 +284,104 @@ final labelerRevisionProvider = NotifierProvider<LabelerRevision, int>(
 final myLabelersProvider = FutureProvider<List<LabelerDef>>((ref) async {
   ref.watch(labelerRevisionProvider);
   return ref.watch(labelerRepositoryProvider).mine();
+});
+
+class ContentLabelOnMine {
+  const ContentLabelOnMine({
+    required this.labelerId,
+    required this.labelerName,
+    required this.postId,
+    required this.labelKey,
+    required this.labelName,
+    this.note,
+    this.appealStatus,
+  });
+
+  final String labelerId;
+  final String labelerName;
+  final String postId;
+  final String labelKey;
+  final String labelName;
+  final String? note;
+  final String? appealStatus;
+
+  factory ContentLabelOnMine.fromMap(Map<String, dynamic> m) =>
+      ContentLabelOnMine(
+        labelerId: m['labeler_id'] as String,
+        labelerName: (m['labeler_name'] as String?) ?? '',
+        postId: m['post_id'] as String,
+        labelKey: m['label_key'] as String,
+        labelName: (m['label_name'] as String?) ?? '',
+        note: m['note'] as String?,
+        appealStatus: m['appeal_status'] as String?,
+      );
+}
+
+class LabelAppeal {
+  const LabelAppeal({
+    required this.id,
+    required this.labelerId,
+    required this.labelerName,
+    required this.postId,
+    required this.reason,
+  });
+
+  final String id;
+  final String labelerId;
+  final String labelerName;
+  final String postId;
+  final String reason;
+
+  factory LabelAppeal.fromMap(Map<String, dynamic> m) => LabelAppeal(
+    id: m['id'] as String,
+    labelerId: m['labeler_id'] as String,
+    labelerName: (m['labeler_name'] as String?) ?? '',
+    postId: m['post_id'] as String,
+    reason: (m['reason'] as String?) ?? '',
+  );
+}
+
+class LabelTransparency {
+  const LabelTransparency({
+    this.labelsApplied = 0,
+    this.appealsOpened = 0,
+    this.appealsUpheld = 0,
+    this.appealsRejected = 0,
+    this.appealsOpen = 0,
+  });
+
+  final int labelsApplied;
+  final int appealsOpened;
+  final int appealsUpheld;
+  final int appealsRejected;
+  final int appealsOpen;
+
+  factory LabelTransparency.fromMap(Map<String, dynamic> m) => LabelTransparency(
+    labelsApplied: (m['labels_applied'] as num?)?.toInt() ?? 0,
+    appealsOpened: (m['appeals_opened'] as num?)?.toInt() ?? 0,
+    appealsUpheld: (m['appeals_upheld'] as num?)?.toInt() ?? 0,
+    appealsRejected: (m['appeals_rejected'] as num?)?.toInt() ?? 0,
+    appealsOpen: (m['appeals_open'] as num?)?.toInt() ?? 0,
+  );
+}
+
+final myContentLabelsProvider = FutureProvider<List<ContentLabelOnMine>>((
+  ref,
+) async {
+  ref.watch(labelerRevisionProvider);
+  return ref.watch(labelerRepositoryProvider).labelsOnMyPosts();
+});
+
+final labelerAppealQueueProvider = FutureProvider<List<LabelAppeal>>((
+  ref,
+) async {
+  ref.watch(labelerRevisionProvider);
+  return ref.watch(labelerRepositoryProvider).appealQueue();
+});
+
+final labelTransparencyProvider = FutureProvider<LabelTransparency>((ref) async {
+  ref.watch(labelerRevisionProvider);
+  return ref.watch(labelerRepositoryProvider).transparency();
 });
 
 final labelersBrowseProvider =

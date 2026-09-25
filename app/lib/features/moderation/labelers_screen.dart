@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/labeler_repository.dart';
+import 'label_appeals_screen.dart';
 import 'labeler_edit_screen.dart';
 
 /// Browse and manage labelers — user-run labelling services you can subscribe
@@ -24,7 +25,20 @@ class _LabelersScreenState extends ConsumerState<LabelersScreen> {
     final repo = ref.read(labelerRepositoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Labelers')),
+      appBar: AppBar(
+        title: const Text('Labelers'),
+        actions: [
+          IconButton(
+            tooltip: 'Appeals',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LabelAppealsScreen()),
+              );
+            },
+            icon: const Icon(Icons.gavel_outlined),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final made = await Navigator.of(context).push<bool>(

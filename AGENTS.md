@@ -48,7 +48,7 @@ overwrite a GitHub release.
 
 ## Done on main
 
-Phases 0–4. Phase 5 except labeler appeals and a transparency count: ranking
+Phases 0–4. Phase 5, including label appeals and a 90-day count: ranking
 without engagement, follower fan-out, For You, verified check on Latest and
 For You. Phase 6 without money: personas, Discover-only boosts, opt-in reach.
 
@@ -76,34 +76,35 @@ file for status, and the roadmap for the original feature list.
 
 ## Still to build
 
-The local agent was told to finish the viewer screens, push them, and stop.
-As of that instruction, `app/lib/features/media/viewer_screens.dart` was an
-untracked scaffold: playlist names, watch-later ids with no titles, and an
-Up Next placeholder. Those screens were not linked from `MediaScreen` or the
-router. Resume position on the device was not stored.
+Development continues. Payments, a storefront, and lawyer review stay out.
 
-After that slice, in this order:
+Label appeals are in. Me → Labelers → the gavel icon. A person appeals a
+label on their own post. The labeler should answer within 7 days. Upholding
+removes the label. `label_transparency()` is a 90-day count that names nobody.
+Migration `20261006000000_label_appeals.sql`.
 
-1. Finish viewer UI if the push is still a scaffold. Playlists, watch-later
-   with real titles, up-next the viewer opens, resume position on the device,
-   posters through `MediaService.resolveUrl`. Fix `getPlaylistEntries` first.
-2. Labeler appeals (a person can file one, staff queue with a stated response
-   time) and a staff-visible count of enforcement actions. Carry
-   `author_is_verified` through Friends, Local, custom feeds, space feeds,
-   profiles, and threads. One-tap "see less of this" must not become a
-   like-based ranker.
-3. Notice quiet hours, bundling, and a neutral dot instead of a count badge.
+The viewer slice may still be open. `viewer_screens.dart` started as a
+scaffold and was not linked from `MediaScreen`. Finish it if that is still
+true: real titles, up-next, resume on the device, posters through
+`MediaService.resolveUrl`, and a fixed `getPlaylistEntries`.
+
+Then, in this order:
+
+1. Carry `author_is_verified` through Friends, Local, custom feeds, space
+   feeds, profiles, and threads. One-tap "see less of this" must not become
+   a like-based ranker.
+2. Notice quiet hours, bundling, and a neutral dot instead of a count badge.
    Push can be a local stub. Do not invent Firebase credentials.
-4. Composer: polls, drafts, scheduling, quote-posts, reply and quote controls,
+3. Composer: polls, drafts, scheduling, quote-posts, reply and quote controls,
    a language tag, deliberate alt text, and visible edit history.
-5. Voice notes and disappearing messages. MLS only if `rustup` and `cargo-ndk`
+4. Voice notes and disappearing messages. MLS only if `rustup` and `cargo-ndk`
    are installed. Do not invent a fake crypto layer.
-6. Smaller gaps that need no domain: passkeys if local auth supports them,
+5. Smaller gaps that need no domain: passkeys if local auth supports them,
    mute with a duration, a temporary harassment shield, hide posts of an
    account inside its 30-day deletion grace, a language filter, saved
    searches, story replies as DMs, and a small reaction set beyond the like.
-7. Local audio calls and live rooms. No storefront.
-8. Federation code behind a flag that defaults off. No public port. No
+6. Local audio calls and live rooms. No storefront.
+7. Federation code behind a flag that defaults off. No public port. No
    ActivityPub until someone asks.
 
 Skip payments and anything a lawyer has to sign.
