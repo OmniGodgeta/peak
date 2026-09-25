@@ -194,7 +194,7 @@ class _PostVideoState extends ConsumerState<PostVideo> {
     });
     final baseUri = Uri.parse(widget.url);
     final stunUri = baseUri.replace(queryParameters: {
-      ...?baseUri.queryParameters,
+      ...baseUri.queryParameters,
       'stun': 'stun:stun.l.google.com:19302',
     });
     final c = VideoPlayerController.networkUrl(stunUri);

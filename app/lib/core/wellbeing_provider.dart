@@ -12,7 +12,10 @@ class WellbeingNotifier extends Notifier<WellbeingStatus> {
   Timer? _timer;
 
   @override
-  WellbeingStatus build() => WellbeingStatus.normal;
+  WellbeingStatus build() {
+    ref.onDispose(() => _timer?.cancel());
+    return WellbeingStatus.normal;
+  }
 
   void recordActivity() {
     if (_activityStartTime == null) {
@@ -55,10 +58,6 @@ class WellbeingNotifier extends Notifier<WellbeingStatus> {
     state = WellbeingStatus.normal;
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-  }
 }
 
 final wellbeingProvider = NotifierProvider<WellbeingNotifier, WellbeingStatus>(

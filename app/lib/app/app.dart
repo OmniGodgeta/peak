@@ -24,7 +24,7 @@ class PeakApp extends ConsumerWidget {
       builder: (context, child) {
         return Stack(
           children: [
-            if (child != null) child,
+            ?child,
             if (wellbeingStatus != WellbeingStatus.normal)
               Positioned(
                 bottom: 0,
