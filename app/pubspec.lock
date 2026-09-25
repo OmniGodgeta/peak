@@ -254,14 +254,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_foreground_task:
-    dependency: "direct main"
-    description:
-      name: flutter_foreground_task
-      sha256: f1b800efa38d79f454e70c59737005b7fd67a81574cd21f05d2428887de7b360
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.9"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:
