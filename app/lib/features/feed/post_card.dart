@@ -9,6 +9,7 @@ import '../../data/see_less.dart';
 import '../../data/labeler_repository.dart';
 import '../../data/people_repository.dart';
 import '../../data/profile_repository.dart';
+import '../../data/reaction_types.dart';
 import '../../data/supabase_providers.dart';
 import '../../app/avatar.dart';
 import '../../wellbeing/wellbeing.dart';
@@ -49,7 +50,16 @@ class PostCard extends ConsumerStatefulWidget {
 }
 
 class _PostCardState extends ConsumerState<PostCard> {
-  late bool _reacted = widget.post.viewerReacted;
+  // The feed RPCs only return whether *any* reaction exists
+  // (`viewer_reacted`), not which kind — that would need a
+  // `viewer_reaction_kind` column added to over a dozen feed-listing
+  // functions across the schema, out of scope here. Fresh loads default an
+  // existing reaction to `like` for display; picking a kind updates this for
+  // the rest of the session.
+  late ReactionKind? _reactionKind = widget.post.viewerReacted
+      ? ReactionKind.like
+      : null;
+  bool get _reacted => _reactionKind != null;
   late bool _reposted = widget.post.viewerReposted;
   late int _replyCount = widget.post.replyCount;
   bool _cwRevealed = false;
@@ -86,17 +96,78 @@ class _PostCardState extends ConsumerState<PostCard> {
     if (posted == true && mounted) setState(() => _replyCount++);
   }
 
-  Future<void> _toggleReaction() async {
-    setState(() => _reacted = !_reacted);
+  Future<void> _toggleReaction() => _setReaction(ReactionKind.like);
+
+  Future<void> _setReaction(ReactionKind kind) async {
+    final previousKind = _reactionKind;
+    final removing = previousKind == kind;
+    setState(() => _reactionKind = removing ? null : kind);
     try {
-      final now = await ref
-          .read(feedRepositoryProvider)
-          .toggleReaction(widget.post.id);
-      if (mounted) setState(() => _reacted = now);
+      if (removing) {
+        await ref.read(feedRepositoryProvider).toggleReaction(widget.post.id);
+      } else {
+        await ref
+            .read(feedRepositoryProvider)
+            .setReaction(
+              widget.post.id,
+              kind,
+              hadAnyReaction: previousKind != null,
+            );
+      }
     } on Exception {
-      if (mounted) setState(() => _reacted = !_reacted); // revert
+      if (mounted) setState(() => _reactionKind = previousKind); // revert
     }
   }
+
+  Future<void> _pickReaction() async {
+    final kind = await showModalBottomSheet<ReactionKind>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          children: [
+            for (final k in ReactionKind.values)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
+                child: InkWell(
+                  onTap: () => Navigator.pop(context, k),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _reactionIcon(k),
+                          color: _reactionKind == k
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(k.label, style: Theme.of(context).textTheme.labelSmall),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (kind != null) await _setReaction(kind);
+  }
+
+  IconData _reactionIcon(ReactionKind kind) => switch (kind) {
+    ReactionKind.like => Icons.favorite,
+    ReactionKind.celebrate => Icons.celebration,
+    ReactionKind.support => Icons.volunteer_activism,
+    ReactionKind.insightful => Icons.lightbulb,
+    ReactionKind.curious => Icons.psychology,
+  };
 
   Future<void> _toggleRepost() async {
     setState(() => _reposted = !_reposted);
@@ -573,15 +644,20 @@ class _PostCardState extends ConsumerState<PostCard> {
             const SizedBox(height: 4),
             Row(
               children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(
-                    _reacted ? Icons.favorite : Icons.favorite_border,
-                    size: 20,
-                    color: _reacted ? scheme.primary : null,
+                GestureDetector(
+                  onLongPress: _pickReaction,
+                  child: IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      _reactionKind == null
+                          ? Icons.favorite_border
+                          : _reactionIcon(_reactionKind!),
+                      size: 20,
+                      color: _reacted ? scheme.primary : null,
+                    ),
+                    tooltip: _reactionKind?.label ?? 'Like (hold for more)',
+                    onPressed: _toggleReaction,
                   ),
-                  tooltip: 'Like',
-                  onPressed: _toggleReaction,
                 ),
                 _ReplyButton(
                   count:

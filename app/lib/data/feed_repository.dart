@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'reaction_types.dart';
 import 'see_less.dart';
 import 'supabase_providers.dart';
 
@@ -242,6 +243,27 @@ class FeedRepository {
 
   Future<bool> toggleReaction(String postId) async {
     return await _db.rpc('toggle_reaction', params: {'p_post_id': postId})
+        as bool;
+  }
+
+  /// Sets the viewer's reaction to [kind]. `toggle_reaction` deletes any
+  /// existing reaction regardless of the kind passed to it (it only inserts
+  /// when none exists) — so switching from one kind to another takes a
+  /// clear-then-set pair, not a single call. [hadAnyReaction] is whatever the
+  /// caller already knows locally (there's no server round trip just to
+  /// check). Returns true once [kind] is the active reaction.
+  Future<bool> setReaction(
+    String postId,
+    ReactionKind kind, {
+    required bool hadAnyReaction,
+  }) async {
+    if (hadAnyReaction) {
+      await _db.rpc('toggle_reaction', params: {'p_post_id': postId});
+    }
+    return await _db.rpc(
+          'toggle_reaction',
+          params: {'p_post_id': postId, 'p_kind': kind.name},
+        )
         as bool;
   }
 
