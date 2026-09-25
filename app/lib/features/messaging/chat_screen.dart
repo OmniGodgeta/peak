@@ -40,6 +40,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _sending = false;
   final _typingNames = <String>{};
   Map<String, DateTime> _reads = const {};
+  bool? _disappearingEnabled;
 
   MessagingRepository get _repo => ref.read(messagingRepositoryProvider);
   String? get _myId => ref.read(currentUserProvider)?.id;
@@ -50,7 +51,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _accepted = !widget.isRequest;
     _repo.markRead(widget.conversationId);
     _loadReads();
+    _loadDisappearingStatus();
     _subscribe();
+  }
+
+  Future<void> _loadDisappearingStatus() async {
+    if (widget.isGroup) {
+      try {
+        final enabled = await _repo.isDisappearingEnabled(widget.conversationId);
+        if (mounted) setState(() => _disappearingEnabled = enabled);
+      } on Exception {
+        /* optional */
+      }
+    }
   }
 
   @override
@@ -130,6 +143,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await _repo.send(
         widget.conversationId,
         text,
+        expiresAt: (_disappearingEnabled == true)
+            ? DateTime.now().add(const Duration(hours: 24))
+            : null,
         media: [
           for (final p in _pending) (bytes: p.bytes, mime: p.mime, alt: null),
         ],

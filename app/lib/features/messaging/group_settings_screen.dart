@@ -30,6 +30,7 @@ class GroupSettingsScreen extends ConsumerStatefulWidget {
 
 class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
   bool _shareReceipts = false;
+  bool _disappearing = false;
 
   Future<void> _addMembers() async {
     final picked = await Navigator.of(context).push<List<PersonSummary>>(
@@ -97,6 +98,19 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
               await ref
                   .read(messagingRepositoryProvider)
                   .setShareReadReceipts(widget.conversationId, v);
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Disappearing messages'),
+            subtitle: const Text(
+              'New messages in this group vanish for everyone about a day after they\'re sent.',
+            ),
+            value: _disappearing,
+            onChanged: (v) async {
+              setState(() => _disappearing = v);
+              await ref
+                  .read(messagingRepositoryProvider)
+                  .setDisappearingMessages(widget.conversationId, v);
             },
           ),
           const Divider(),

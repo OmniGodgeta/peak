@@ -304,6 +304,21 @@ class MessagingRepository {
         .eq('member_id', _db.auth.currentUser!.id);
   }
 
+  Future<void> setDisappearingMessages(String conversationId, bool enabled) =>
+      _db.rpc('set_disappearing_messages', params: {
+        'p_conversation': conversationId,
+        'p_enabled': enabled,
+      });
+
+  Future<bool> isDisappearingEnabled(String conversationId) async {
+    final row = await _db
+        .from('conversation')
+        .select('disappearing_enabled')
+        .eq('id', conversationId)
+        .single();
+    return row['disappearing_enabled'] as bool? ?? false;
+  }
+
   /// Other members' read positions — non-empty only when both sides opted in.
   Future<Map<String, DateTime>> readState(String conversationId) async {
     final rows = await _db.rpc(
