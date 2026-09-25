@@ -143,22 +143,18 @@ class ViewerRepository {
         ''')
         .filter('id', 'in', mediaIds);
 
-    final postIds = (rows as List).map((e) => e['post_id'] as String).toSet().toList();
+    final postIds = (rows as List).map((e) => e['post_id'] as String).toSet();
     if (postIds.isEmpty) return [];
 
-    // Fetch posts in one go using a select on 'post' table.
-    final postRows = await _db.from('post').select('''
-      id, body, content_warning, is_sensitive, visibility, created_at, author_id, author_handle, author_domain, author_display_name, author_is_teen, author_is_verified, author_avatar_path, reaction_count, reply_count, repost_count, viewer_reacted, viewer_reposted, title, long_form, is_pinned, community_label, community_label_note, author_flair, channel_id, channel_name, reason, reply_to, depth, rank_score
-    ''').filter('id', 'in', postIds);
-
-    final postMap = {for (var r in postRows) (r['id'] as String): r};
-
-    return (rows as List).map((e) {
-      final postId = e['post_id'] as String;
-      final postData = postMap[postId];
-      if (postData == null) throw Exception('Post $postId not found');
-      return FeedPost.fromMap(postData);
-    }).toList();
+    final posts = <FeedPost>[];
+    for (final id in postIds) {
+      final thread = await _db.rpc('post_thread', params: {'p_root': id});
+      final list = (thread as List)
+          .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+          .toList();
+      if (list.isNotEmpty) posts.add(list.first);
+    }
+    return posts;
   }
 
   Future<List<String>> getWatchLaterMediaIds() async {

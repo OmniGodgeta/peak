@@ -58,15 +58,15 @@ class NotificationRepository {
     final rows = await _db
         .from('user_notification')
         .select(
-          'id, kind, created_at, read_at, post_id, reaction_count, actor:profile!user_notification_actor_id_fkey(handle, display_name)',
+          'id, kind, created_at, read_at, post_id, reaction_count, scheduled_at, actor:profile!user_notification_actor_id_fkey(handle, display_name)',
         )
+        .or('scheduled_at.is.null,scheduled_at.lte.${DateTime.now().toUtc().toIso8601String()}')
         .order('created_at', ascending: false)
         .limit(40);
-    return (rows as List).map((row) {
-      final notice = AppNotice.fromMap(row as Map<String, dynamic>);
-      if (notice.createdAt.isAfter(DateTime.now().toUtc())) return null;
-      return notice;
-    }).whereType<AppNotice>().toList();
+    return [
+      for (final row in rows as List)
+        AppNotice.fromMap(row as Map<String, dynamic>),
+    ];
   }
 
   Future<int> unreadCount() async {
@@ -75,7 +75,7 @@ class NotificationRepository {
         .from('user_notification')
         .select('id')
         .isFilter('read_at', null)
-        .filter('created_at', '<=', now);
+        .or('scheduled_at.is.null,scheduled_at.lte.$now');
     return (rows as List).length;
   }
 
