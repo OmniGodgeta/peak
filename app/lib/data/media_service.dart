@@ -97,17 +97,6 @@ class MediaService {
     return UploadedMedia(path: path);
   }
 
-  Future<void> deleteMedia(String storagePath) async {
-    if (_isUrl(storagePath)) {
-      // It's on the media server. We can't directly tell the Deno server to delete via a simple HTTP call 
-      // unless we implement a DELETE endpoint. For now, we just leave it, or if the requirements 
-      // demand total cleanup, we'd need an API.
-      return;
-    }
-    // It's on Supabase Storage.
-    await _db.storage.from('post-media').remove([storagePath]);
-  }
-
   static bool _isUrl(String s) =>
       s.startsWith('http://') || s.startsWith('https://');
 

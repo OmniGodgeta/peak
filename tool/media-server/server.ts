@@ -146,13 +146,7 @@ async function handleUpload(req: Request): Promise<Response> {
         "128k",
         "-movflags",
         "+faststart",
-        "-hls_time",
-        "6",
-        "-hls_playlist_type",
-        "vod",
-        "-hls_segment_filename",
-        join(dir, `${id}_%03d.ts`),
-        out, // this will be the playlist file m3u8
+        out,
       ]);
       await run([
         "ffmpeg",
@@ -184,23 +178,9 @@ async function handleUpload(req: Request): Promise<Response> {
       });
     }
 
-    // image: strip exif if it's an image; otherwise just probe dimensions
+    // image: keep the bytes as-is (GIF animation intact); just probe dimensions
     const finalName = `${id}.${srcExt}`;
-    if (ct.startsWith('image/')) {
-      await run([
-        "ffmpeg",
-        "-y",
-        "-i",
-        tmp,
-        "-map_metadata",
-        "-1",
-        join(dir, finalName),
-      ]);
-      await Deno.remove(tmp).catch(() => {});
-    } else {
-      await Deno.rename(tmp, join(dir, finalName));
-    }
-
+    await Deno.rename(tmp, join(dir, finalName));
     const probe = await probeMedia(join(dir, finalName)).catch(() => ({
       width: null,
       height: null,
