@@ -8,28 +8,52 @@ import '../feed/post_body.dart';
 import '../feed/post_media_view.dart';
 import '../feed/thread_screen.dart';
 import '../profile/user_profile_screen.dart';
+import '../../data/media_service.dart';
+import '../../data/playback_persistence_service.dart';
 
 /// The watch page for one video post: a large auto-loading player, then title,
 /// uploader, description, and a jump into the discussion (the post's thread).
-class WatchScreen extends ConsumerWidget {
+class WatchScreen extends ConsumerStatefulWidget {
   const WatchScreen({super.key, required this.post});
   final FeedPost post;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final repo = ref.watch(feedRepositoryProvider);
+  ConsumerState<WatchScreen> createState() => _WatchScreenState();
+}
+
+class _WatchScreenState extends ConsumerState<WatchScreen> {
+  Duration? _savedPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedPosition();
+  }
+
+  Future<void> _loadSavedPosition() async {
+    final pos = await ref.read(playbackPersistenceServiceProvider).getPosition(widget.post.id);
+    if (mounted) setState(() => _savedPosition = pos);
+  }
+
+  Future<void> _saveCurrentPosition(Duration position) async {
+    await ref.read(playbackPersistenceServiceProvider).savePosition(widget.post.id, position);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaService = ref.watch(mediaServiceProvider);
     final scheme = Theme.of(context).colorScheme;
     PostMedia? video;
-    for (final m in post.media) {
+    for (final m in widget.post.media) {
       if (m.isVideo) {
         video = m;
         break;
       }
     }
-    final name = post.authorDisplayName.isNotEmpty
-        ? post.authorDisplayName
-        : post.authorHandle;
-    final title = post.title?.trim();
+    final name = widget.post.authorDisplayName.isNotEmpty
+        ? widget.post.authorDisplayName
+        : widget.post.authorHandle;
+    final title = widget.post.title?.trim();
 
     return Scaffold(
       appBar: AppBar(
@@ -40,7 +64,7 @@ class WatchScreen extends ConsumerWidget {
             tooltip: 'Copy link',
             onPressed: () async {
               await Clipboard.setData(
-                ClipboardData(text: videoShareLink(post.id)),
+                ClipboardData(text: videoShareLink(widget.post.id)),
               );
               if (context.mounted) {
                 ScaffoldMessenger.of(context)
@@ -62,13 +86,15 @@ class WatchScreen extends ConsumerWidget {
                     ),
                   )
                 : PostVideo(
-                    url: repo.mediaUrl(video.storagePath),
+                    url: mediaService.resolveUrl(video.storagePath),
                     posterUrl: video.posterPath == null
                         ? null
-                        : repo.mediaUrl(video.posterPath!),
+                        : mediaService.resolveUrl(video.posterPath!),
                     aspectRatio: video.aspectRatio,
                     maxHeight: 520,
                     autoLoad: true,
+                    initialPosition: _savedPosition,
+                    onPositionChanged: _saveCurrentPosition,
                   ),
           ),
           Padding(
@@ -81,38 +107,38 @@ class WatchScreen extends ConsumerWidget {
           ListTile(
             leading: AvatarCircle(
               name: name,
-              path: post.authorAvatarPath,
+              path: widget.post.authorAvatarPath,
               radius: 18,
             ),
             title: Text(name),
             subtitle: Text(
-              '@${post.authorHandle} · ${post.reactionCount} reactions',
+              '@${widget.post.authorHandle} · ${widget.post.reactionCount} reactions',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => UserProfileScreen(handle: post.authorHandle),
+                builder: (_) => UserProfileScreen(handle: widget.post.authorHandle),
               ),
             ),
           ),
-          if (post.body.trim().isNotEmpty)
+          if (widget.post.body.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: PostBody(text: post.body.trim()),
+              child: PostBody(text: widget.post.body.trim()),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: FilledButton.tonalIcon(
               icon: const Icon(Icons.forum_outlined),
               label: Text(
-                post.replyCount == 0
+                widget.post.replyCount == 0
                     ? 'Start the discussion'
-                    : 'View discussion (${post.replyCount})',
+                    : 'View discussion (${widget.post.replyCount})',
               ),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => ThreadScreen(rootId: post.id),
+                  builder: (_) => ThreadScreen(rootId: widget.post.id),
                 ),
               ),
             ),

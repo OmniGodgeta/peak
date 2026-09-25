@@ -206,6 +206,7 @@ class MessagingRepository {
     String conversationId,
     String body, {
     List<({Uint8List bytes, String mime, String? alt})> media = const [],
+    DateTime? expiresAt,
   }) async {
     final uid = _db.auth.currentUser!.id;
     final msg = await _db
@@ -214,6 +215,7 @@ class MessagingRepository {
           'conversation_id': conversationId,
           'sender_id': uid,
           'body': body,
+          if (expiresAt != null) 'expires_at': expiresAt.toIso8601String(),
         })
         .select('id')
         .single();

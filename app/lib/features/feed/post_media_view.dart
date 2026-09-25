@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
@@ -135,6 +136,8 @@ class PostVideo extends ConsumerStatefulWidget {
     this.aspectRatio,
     this.maxHeight = 440,
     this.autoLoad = false,
+    this.initialPosition,
+    this.onPositionChanged,
   });
   final String url;
   final String? posterUrl;
@@ -143,6 +146,12 @@ class PostVideo extends ConsumerStatefulWidget {
 
   /// Start loading immediately instead of on tap (the watch page).
   final bool autoLoad;
+
+  /// The position to start playing from.
+  final Duration? initialPosition;
+
+  /// Callback when the video playback position changes.
+  final ValueChanged<Duration>? onPositionChanged;
 
   @override
   ConsumerState<PostVideo> createState() => _PostVideoState();
@@ -155,6 +164,7 @@ class _PostVideoState extends ConsumerState<PostVideo> {
   // Paused because it scrolled out of view — resume it when it comes back.
   bool _pausedByScroll = false;
   final _visKey = UniqueKey();
+  Timer? _positionTimer;
 
   @override
   void initState() {
@@ -164,6 +174,23 @@ class _PostVideoState extends ConsumerState<PostVideo> {
         if (mounted && !ref.read(dataLightProvider)) _load();
       });
     }
+  }
+
+  void _startPositionTimer() {
+    _positionTimer?.cancel();
+    _positionTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      final controller = _c;
+      if (controller != null && controller.value.isInitialized && mounted) {
+        widget.onPositionChanged?.call(controller.value.position);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _positionTimer?.cancel();
+    _c?.dispose();
+    super.dispose();
   }
 
   void _onVisibility(double fraction) {
@@ -201,6 +228,12 @@ class _PostVideoState extends ConsumerState<PostVideo> {
     try {
       await c.initialize();
       await c.setLooping(true);
+      
+      // Seek to initial position if provided
+      if (widget.initialPosition != null) {
+        await c.seekTo(widget.initialPosition!);
+      }
+      
       _c = c;
       if (!mounted) {
         c.dispose();
@@ -208,6 +241,7 @@ class _PostVideoState extends ConsumerState<PostVideo> {
       }
       setState(() => _loading = false);
       await c.play();
+      _startPositionTimer();
     } on Exception {
       await c.dispose();
       if (mounted) {
@@ -217,12 +251,6 @@ class _PostVideoState extends ConsumerState<PostVideo> {
         });
       }
     }
-  }
-
-  @override
-  void dispose() {
-    _c?.dispose();
-    super.dispose();
   }
 
   @override
