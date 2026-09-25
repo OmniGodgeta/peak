@@ -20,6 +20,7 @@ import '../settings/devices_screen.dart';
 import '../settings/legal_screen.dart';
 import '../settings/wellbeing_screen.dart';
 import '../settings/your_data_screen.dart';
+import '../media/viewer_screens.dart';
 import '../settings/harassment_shield_screen.dart';
 import 'edit_profile_screen.dart';
 import 'personas_screen.dart';
@@ -159,6 +160,26 @@ class ProfileScreen extends ConsumerWidget {
                 subtitle: const Text('Opt-in counts on your own posts'),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const ReachScreen()),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.playlist_play_outlined),
+                title: const Text('Playlists'),
+                subtitle: const Text('Videos you\'ve grouped together'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PlaylistsScreen(),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.watch_later_outlined),
+                title: const Text('Watch later'),
+                subtitle: const Text('Videos you saved to watch later'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const WatchLaterScreen(),
+                  ),
                 ),
               ),
               ListTile(

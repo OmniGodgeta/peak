@@ -7,17 +7,63 @@ import '../feed/post_card.dart';
 import '../media/watch_screen.dart';
 
 /// A screen that displays all playlists owned by the current user.
-class PlaylistsScreen extends ConsumerWidget {
+class PlaylistsScreen extends ConsumerStatefulWidget {
   const PlaylistsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final repo = ref.watch(viewerRepositoryProvider);
+  ConsumerState<PlaylistsScreen> createState() => _PlaylistsScreenState();
+}
 
+class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
+  late Future<List<Playlist>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ref
+        .read(viewerRepositoryProvider)
+        .getPlaylists(publicOnly: false);
+  }
+
+  Future<void> _createPlaylist() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('New playlist'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Playlist name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    await ref.read(viewerRepositoryProvider).createPlaylist(name: name);
+    setState(() {
+      _future = ref
+          .read(viewerRepositoryProvider)
+          .getPlaylists(publicOnly: false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('My Playlists')),
       body: FutureBuilder<List<Playlist>>(
-        future: repo.getPlaylists(publicOnly: false),
+        future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -49,10 +95,7 @@ class PlaylistsScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // For now, just adding a dummy placeholder; real implementation would use a dialog.
-          await repo.createPlaylist(name: 'New Playlist');
-        },
+        onPressed: _createPlaylist,
         child: const Icon(Icons.add),
       ),
     );
@@ -94,10 +137,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                     builder: (_) => WatchScreen(post: entry.post),
                   ),
                 ),
-                child: PostCard(
-                  post: entry.post,
-                  tappable: false,
-                ),
+                child: PostCard(post: entry.post, tappable: false),
               );
             },
           );
@@ -135,10 +175,7 @@ class WatchLaterScreen extends ConsumerWidget {
             itemCount: posts.length,
             itemBuilder: (context, index) {
               final post = posts[index];
-              return PostCard(
-                post: post,
-                tappable: false,
-              );
+              return PostCard(post: post, tappable: false);
             },
           );
         },
