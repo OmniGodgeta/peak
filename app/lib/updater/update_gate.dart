@@ -236,14 +236,55 @@ class _UpdateSheet extends ConsumerStatefulWidget {
   ConsumerState<_UpdateSheet> createState() => _UpdateSheetState();
 }
 
-class _UpdateSheetState extends ConsumerState<_UpdateSheet> {
+class _UpdateSheetState extends ConsumerState<_UpdateSheet>
+    with WidgetsBindingObserver {
   DownloadProgress? _progress;
   String? _error;
   bool _running = false;
   bool _done = false;
+  bool _needsInstallPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    // They may have just come back from the "install unknown apps" settings
+    // screen — Android gives no callback for that, so re-check on resume.
+    if (state == AppLifecycleState.resumed && _needsInstallPermission) {
+      final canInstall = await ref
+          .read(updateServiceProvider)
+          .canInstallPackages();
+      if (mounted && canInstall == true) {
+        setState(() => _needsInstallPermission = false);
+      }
+    }
+  }
 
   Future<void> _start() async {
+    // On Android 8+, installing a sideloaded APK needs the per-app "install
+    // unknown apps" toggle. Without it, the system installer intent is
+    // silently blocked — the app has no way to tell, so check first rather
+    // than have the flow look like it worked while nothing installs.
+    final canInstall = await ref
+        .read(updateServiceProvider)
+        .canInstallPackages();
+    if (canInstall == false) {
+      if (mounted) setState(() => _needsInstallPermission = true);
+      return;
+    }
+
     setState(() {
+      _needsInstallPermission = false;
       _running = true;
       _error = null;
     });
@@ -261,6 +302,9 @@ class _UpdateSheetState extends ConsumerState<_UpdateSheet> {
       if (mounted) setState(() => _running = false);
     }
   }
+
+  Future<void> _openInstallSettings() =>
+      ref.read(updateServiceProvider).openInstallSettings();
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +327,14 @@ class _UpdateSheetState extends ConsumerState<_UpdateSheet> {
               Text(r.notes!, style: theme.textTheme.bodyMedium),
             ],
             const SizedBox(height: 20),
-            if (_error != null)
+            if (_needsInstallPermission)
+              Text(
+                'Peak needs permission to install updates. Tap below, turn '
+                'on "Allow from this source" for Peak, then come back and '
+                'try again.',
+                style: theme.textTheme.bodyMedium,
+              )
+            else if (_error != null)
               Text(_error!, style: TextStyle(color: theme.colorScheme.error))
             else if (_done)
               Row(
@@ -316,7 +367,12 @@ class _UpdateSheetState extends ConsumerState<_UpdateSheet> {
                     child: Text(_done ? 'Close' : 'Not now'),
                   ),
                 const SizedBox(width: 8),
-                if (!_done)
+                if (_needsInstallPermission)
+                  FilledButton(
+                    onPressed: _openInstallSettings,
+                    child: const Text('Open settings'),
+                  )
+                else if (!_done)
                   FilledButton(
                     onPressed: _running ? null : _start,
                     child: Text(
