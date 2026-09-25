@@ -20,6 +20,7 @@ import '../settings/devices_screen.dart';
 import '../settings/legal_screen.dart';
 import '../settings/wellbeing_screen.dart';
 import '../settings/your_data_screen.dart';
+import '../settings/harassment_shield_screen.dart';
 import 'edit_profile_screen.dart';
 import 'personas_screen.dart';
 import 'reach_screen.dart';
@@ -297,6 +298,16 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const WellbeingScreen(),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.shield_outlined),
+                title: const Text('Harassment shield'),
+                subtitle: const Text('Limit visibility of your posts'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const HarassmentShieldScreen(),
                   ),
                 ),
               ),

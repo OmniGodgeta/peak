@@ -35,6 +35,7 @@ class Profile {
     required this.isDiscoverable,
     required this.deletionRequestedAt,
     required this.actorUrl,
+    this.harassmentShieldExpiresAt,
   });
 
   final String id;
@@ -54,6 +55,7 @@ class Profile {
   /// 30 days after this. While set, the app is locked to the closing screen.
   final DateTime? deletionRequestedAt;
   final String? actorUrl;
+  final DateTime? harassmentShieldExpiresAt;
 
   /// The absolute time when the account will be permanently deleted.
   DateTime? get deletionPurgeAt =>
@@ -86,6 +88,9 @@ class Profile {
         ? null
         : DateTime.parse(m['deletion_requested_at'] as String),
     actorUrl: m['actor_url'] as String?,
+    harassmentShieldExpiresAt: m['harassment_shield_expires_at'] == null
+        ? null
+        : DateTime.parse(m['harassment_shield_expires_at'] as String),
   );
 }
 
@@ -117,7 +122,9 @@ class ProfileRepository {
       },
     );
 
-    final row = map is List ? map.first as Map<String, dynamic> : map as Map<String, dynamic>;
+    final row = map is List
+        ? map.first as Map<String, dynamic>
+        : map as Map<String, dynamic>;
     return Profile.fromMap(row);
   }
 
@@ -134,6 +141,13 @@ class ProfileRepository {
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> setHarassmentShield({Duration? duration}) => _db.rpc(
+    'set_harassment_shield',
+    params: {if (duration != null) 'p_duration_minutes': duration.inMinutes},
+  );
+
+  Future<void> clearHarassmentShield() => _db.rpc('clear_harassment_shield');
 
   /// Public URL for an `avatars` storage object.
   String avatarUrl(String path) =>
