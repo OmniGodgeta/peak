@@ -86,16 +86,21 @@ Every numbered item below this that used to say "still to build" is done:
    reaction set beyond like (`c3ceff2`). **Passkeys were deliberately
    skipped**, not missed - a prior operator decision recorded in kanban
    history says so explicitly; don't build them without being asked again.
-6. **Local 1:1 audio calls** are real (`8965079`): WebRTC signaled over a
-   Supabase Realtime broadcast channel per call room (same mechanism
+6. **Local 1:1 audio calls** (`8965079`) and **live rooms** (`d09610a`) are
+   both real now. Calls: WebRTC signaled over a Supabase Realtime broadcast
+   channel per call room (same mechanism
    `MessagingRepository.conversationChannel` uses for typing), STUN only
    (no TURN - calls between two devices both behind restrictive NAT may not
    connect), wired into 1:1 DM chats via a call button + an in-app
-   incoming-call dialog. No push notification for calls, so the callee has
-   to already have the chat open. **Not yet built: "live rooms"** - a
-   multi-party room inside a Space. `call_rooms`/`call_participants`
-   already support it (`space_id`, `max_participants`), but the UI/glare-
-   avoidance logic only handles exactly 2 participants right now.
+   incoming-call dialog. No push notification for calls, so the other side
+   has to already have the chat/space screen open. Live rooms: the same
+   signaling approach generalized to a full-mesh topology (one
+   RTCPeerConnection per other participant - fine for a small group,
+   `call_rooms.max_participants` defaults to 4, not meant to scale further
+   without a real SFU), browsable/startable from a Space's AppBar
+   (`SpaceLiveRoomsScreen`/`LiveRoomScreen`). Neither has been verified on a
+   physical device (none available in this environment) - correct by
+   API-doc verification and code review, not a confirmed live call.
 7. Federation (ActivityPub outbound function, WebFinger, account export/
    deletion controls - `a6c9158`) exists behind `federation_enabled = false`
    by default. **This was built ahead of the "wait until asked" project
@@ -128,22 +133,23 @@ of those roadmap phases have real remaining items not in that list.
 
 Development continues. Payments, a storefront, and lawyer review stay out.
 
-- **Channels** (Phase 9: subscribe to a creator, browse their videos, an Up
-  Next list on the watch page) - in progress as of 2026-09-25, check
-  `git log` for whether it landed; if not, `video_subscription` table +
-  `toggle_video_subscription`/`channel_subscriber_count`/
-  `is_subscribed_to_channel` RPCs are the planned schema, not yet applied.
-- **Live rooms** (Phase 8): a multi-party room inside a Space, building on
-  the 1:1 call infra above. The 2-party offerer/answerer role logic will
-  need real renegotiation for a 3rd+ participant (SDP glare becomes a real
-  problem beyond 2 parties) - don't just loop the existing 1:1 code.
+Channels and live rooms (both listed as "still to build" in an older
+version of this section) are done - see "Done on main" above. What's
+actually left:
+
 - Phase 9 remainder: a first-class `video` entity if reusing `post` gets
   strained, adaptive HLS + a CDN (real infra decision, not a code task),
-  "why this video" ranking (needs real usage data first).
+  "why this video" ranking (needs real usage data first). None of these are
+  a clean, self-contained code task right now - confirm scope with the
+  operator before picking one up.
 - Phase 7 federation remainder (inbound delivery, cross-instance follow/
   post/reply/like, account migration, instance allow/block transparency) -
   **do not start this without being asked**, per the operator's standing
   instruction above.
+
+With those out, there is no small, well-scoped, no-decision-needed backlog
+item left as of 2026-09-25. Ask the operator what's next rather than
+inventing scope.
 
 Skip payments and anything a lawyer has to sign.
 
