@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'feed_repository.dart';
 import 'supabase_providers.dart';
 
 /// Counts on the signed-in account's own posts. Null when analytics are off,
@@ -57,46 +58,107 @@ class CreatorRepository {
 
   /// Fetches the raw video rows for a specific author via existing RPC.
   /// Returns items with keys: media_id, post_id, storage_path, poster_path, etc.
-  Future<List<Map<String, dynamic>>> getUserVideos(String authorId, {int limit = 30}) async {
-    final rows = await _db.rpc('get_user_videos', params: {
-      'p_author_id': authorId,
-      'p_limit': limit,
-    });
+  Future<List<Map<String, dynamic>>> getUserVideos(
+    String authorId, {
+    int limit = 30,
+  }) async {
+    final rows = await _db.rpc(
+      'get_user_videos',
+      params: {'p_author_id': authorId, 'p_limit': limit},
+    );
     return (rows as List).map((e) => e as Map<String, dynamic>).toList();
   }
 
   /// Deletes old chapters and inserts new ones for a given media_id.
-  Future<void> saveChapters(String mediaId, List<Map<String, dynamic>> chapters) async {
+  Future<void> saveChapters(
+    String mediaId,
+    List<Map<String, dynamic>> chapters,
+  ) async {
     await _db.from('post_chapters').delete().eq('media_id', mediaId);
     if (chapters.isNotEmpty) {
-      final data = chapters.map((c) => {
-        'media_id': mediaId,
-        'label': c['label'],
-        'start_ms': c['start_ms'],
-        'end_ms': c['end_ms'],
-      }).toList();
+      final data = chapters
+          .map(
+            (c) => {
+              'media_id': mediaId,
+              'label': c['label'],
+              'start_ms': c['start_ms'],
+              'end_ms': c['end_ms'],
+            },
+          )
+          .toList();
       await _db.from('post_chapters').insert(data);
     }
   }
 
   /// Deletes old subtitles and inserts new ones for a given media_id.
-  Future<void> saveSubtitles(String mediaId, List<Map<String, dynamic>> subtitles) async {
+  Future<void> saveSubtitles(
+    String mediaId,
+    List<Map<String, dynamic>> subtitles,
+  ) async {
     await _db.from('post_subtitles').delete().eq('media_id', mediaId);
     if (subtitles.isNotEmpty) {
-      final data = subtitles.map((s) => {
-        'media_id': mediaId,
-        'language': s['language'] ?? 'en',
-        'text': s['text'],
-        'start_ms': s['start_ms'],
-        'end_ms': s['end_ms'],
-      }).toList();
+      final data = subtitles
+          .map(
+            (s) => {
+              'media_id': mediaId,
+              'language': s['language'] ?? 'en',
+              'text': s['text'],
+              'start_ms': s['start_ms'],
+              'end_ms': s['end_ms'],
+            },
+          )
+          .toList();
       await _db.from('post_subtitles').insert(data);
     }
   }
 
   /// Updates the poster path in post_media.
   Future<void> updatePosterPath(String mediaId, String path) async {
-    await _db.from('post_media').update({'poster_path': path}).eq('id', mediaId);
+    await _db
+        .from('post_media')
+        .update({'poster_path': path})
+        .eq('id', mediaId);
+  }
+
+  Future<bool> toggleSubscription(String creatorId) async {
+    final result = await _db.rpc(
+      'toggle_video_subscription',
+      params: {'p_creator_id': creatorId},
+    );
+    return result as bool;
+  }
+
+  Future<int> subscriberCount(String creatorId) async {
+    final result = await _db.rpc(
+      'channel_subscriber_count',
+      params: {'p_creator_id': creatorId},
+    );
+    return (result as num).toInt();
+  }
+
+  Future<bool> isSubscribed(String creatorId) async {
+    final result = await _db.rpc(
+      'is_subscribed_to_channel',
+      params: {'p_creator_id': creatorId},
+    );
+    return result as bool;
+  }
+
+  Future<List<FeedPost>> getUserVideoPosts(
+    String authorId, {
+    int limit = 30,
+  }) async {
+    final rows = await getUserVideos(authorId, limit: limit);
+    final posts = <FeedPost>[];
+    for (final row in rows) {
+      final postId = row['post_id'] as String;
+      final thread = await _db.rpc('post_thread', params: {'p_root': postId});
+      final list = (thread as List)
+          .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+          .toList();
+      if (list.isNotEmpty) posts.add(list.first);
+    }
+    return posts;
   }
 }
 
@@ -105,9 +167,13 @@ final creatorRepositoryProvider = Provider<CreatorRepository>((ref) {
 });
 
 // New provider for user videos in profile context
-final userVideosProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, authorId) async {
-  return ref.watch(creatorRepositoryProvider).getUserVideos(authorId);
-});
+final userVideosProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((
+      ref,
+      authorId,
+    ) async {
+      return ref.watch(creatorRepositoryProvider).getUserVideos(authorId);
+    });
 
 final reachStatsProvider = FutureProvider<ReachStats>((ref) async {
   return ref.watch(creatorRepositoryProvider).stats();

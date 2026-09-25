@@ -10,6 +10,8 @@ import '../feed/thread_screen.dart';
 import '../profile/user_profile_screen.dart';
 import '../../data/media_service.dart';
 import '../../data/playback_persistence_service.dart';
+import '../../data/creator_repository.dart';
+import 'channel_screen.dart';
 
 /// The watch page for one video post: a large auto-loading player, then title,
 /// uploader, description, and a jump into the discussion (the post's thread).
@@ -23,20 +25,50 @@ class WatchScreen extends ConsumerStatefulWidget {
 
 class _WatchScreenState extends ConsumerState<WatchScreen> {
   Duration? _savedPosition;
+  List<FeedPost>? _upNextPosts;
+  bool _isLoadingUpNext = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedPosition();
+    _fetchUpNext();
   }
 
   Future<void> _loadSavedPosition() async {
-    final pos = await ref.read(playbackPersistenceServiceProvider).getPosition(widget.post.id);
+    final pos = await ref
+        .read(playbackPersistenceServiceProvider)
+        .getPosition(widget.post.id);
     if (mounted) setState(() => _savedPosition = pos);
   }
 
+  Future<void> _fetchUpNext() async {
+    setState(() => _isLoadingUpNext = true);
+    try {
+      final posts = await ref
+          .read(creatorRepositoryProvider)
+          .getUserVideoPosts(widget.post.authorId);
+      // Filter out the current post
+      final others = posts
+          .where((p) => p.id != widget.post.id)
+          .take(6)
+          .toList();
+      if (mounted) {
+        setState(() {
+          _upNextPosts = others;
+          _isLoadingUpNext = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching up next: $e');
+      if (mounted) setState(() => _isLoadingUpNext = false);
+    }
+  }
+
   Future<void> _saveCurrentPosition(Duration position) async {
-    await ref.read(playbackPersistenceServiceProvider).savePosition(widget.post.id, position);
+    await ref
+        .read(playbackPersistenceServiceProvider)
+        .savePosition(widget.post.id, position);
   }
 
   @override
@@ -59,6 +91,22 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
       appBar: AppBar(
         title: const Text('Watch'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.subscriptions_outlined),
+            tooltip: 'View channel',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChannelScreen(
+                  authorId: widget.post.authorId,
+                  authorHandle: widget.post.authorHandle,
+                  authorDisplayName: widget.post.authorDisplayName.isNotEmpty
+                      ? widget.post.authorDisplayName
+                      : widget.post.authorHandle,
+                  authorAvatarPath: widget.post.authorAvatarPath,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Copy link',
@@ -118,7 +166,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
             ),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => UserProfileScreen(handle: widget.post.authorHandle),
+                builder: (_) =>
+                    UserProfileScreen(handle: widget.post.authorHandle),
               ),
             ),
           ),
@@ -144,6 +193,43 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
             ),
           ),
           Divider(color: scheme.outlineVariant, height: 1),
+          if (_upNextPosts != null && _upNextPosts!.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+              child: Text(
+                'UP NEXT',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            ..._upNextPosts!.map(
+              (post) => ListTile(
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    mediaService.resolveUrl(post.media.first.posterPath ?? ''),
+                    width: 100,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Container(width: 100, height: 60, color: Colors.grey),
+                  ),
+                ),
+                title: Text(
+                  post.body,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => WatchScreen(post: post)),
+                ),
+              ),
+            ),
+          ],
+          if (_isLoadingUpNext)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
         ],
       ),
     );
