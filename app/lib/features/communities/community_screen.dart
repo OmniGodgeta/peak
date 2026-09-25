@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/community_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../../data/wiki_repository.dart';
+import '../calls/space_live_rooms_screen.dart';
 import '../compose/compose_screen.dart';
 import '../feed/post_card.dart';
 import 'community_manage_screen.dart';
@@ -71,6 +72,19 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => CommunityEventsScreen(community: c),
+                ),
+              ),
+            ),
+          if (c != null && c.isMember)
+            IconButton(
+              tooltip: 'Live rooms',
+              icon: const Icon(Icons.groups_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => SpaceLiveRoomsScreen(
+                    spaceId: c.id,
+                    spaceName: c.name,
+                  ),
                 ),
               ),
             ),
