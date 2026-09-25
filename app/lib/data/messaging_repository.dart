@@ -74,20 +74,23 @@ class ChatMedia {
     this.altText,
     this.width,
     this.height,
+    this.mimeType,
   });
   final String kind;
   final String storagePath;
   final String? altText;
   final int? width;
   final int? height;
+  final String? mimeType;
 
   factory ChatMedia.fromMap(Map<String, dynamic> m) => ChatMedia(
-    kind: (m['kind'] as String?) ?? 'image',
-    storagePath: m['storage_path'] as String,
-    altText: m['alt_text'] as String?,
-    width: (m['width'] as num?)?.toInt(),
-    height: (m['height'] as num?)?.toInt(),
-  );
+        kind: (m['kind'] as String?) ?? 'image',
+        storagePath: m['storage_path'] as String,
+        altText: m['alt_text'] as String?,
+        width: (m['width'] as num?)?.toInt(),
+        height: (m['height'] as num?)?.toInt(),
+        mimeType: m['mime_type'] as String?,
+      );
 }
 
 class ChatMessage {
@@ -226,6 +229,8 @@ class MessagingRepository {
     for (var i = 0; i < media.length; i++) {
       final m = media[i];
       final ext = switch (m.mime) {
+        'audio/m4a' => 'm4a',
+        'audio/aac' => 'aac',
         'image/png' => 'png',
         'image/gif' => 'gif',
         'image/webp' => 'webp',
@@ -241,10 +246,11 @@ class MessagingRepository {
           );
       rows.add({
         'message_id': messageId,
-        'kind': 'image',
+        'kind': m.mime.startsWith('audio/') ? 'audio' : 'image',
         'storage_path': path,
         'alt_text': (m.alt ?? '').trim().isEmpty ? null : m.alt!.trim(),
         'sort_order': i,
+        'mime_type': m.mime,
       });
     }
     await _db.from('message_media').insert(rows);

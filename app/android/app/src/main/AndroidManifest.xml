@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- In-app updater: download a newer APK and launch the system installer.
          Only meaningful for the sideloaded build; a Play Store build uses the
          in-app-updates API instead. -->

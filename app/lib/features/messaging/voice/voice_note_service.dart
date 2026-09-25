@@ -1,14 +1,37 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 class VoiceNoteService {
-  Future<void> sendVoiceNote(String conversationId, String filePath) async {
-    // TODO: Implement voice note sending logic
-    // Note: MLS encryption is blocked due to missing Rust toolchain (rustup, cargo-ndk).
-    debugPrint('Sending voice note for $conversationId at $filePath');
+  final _recorder = AudioRecorder();
+
+  Future<bool> get isRecording async => _recorder.isRecording();
+
+  Future<void> startRecording() async {
+    if (await _recorder.hasPermission()) {
+      final directory = await getTemporaryDirectory();
+      final path =
+          '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+    } else {
+      throw Exception('Microphone permission denied');
+    }
   }
 
-  Future<bool> isDisappearingEnabled(String conversationId) async {
-    // TODO: Check if disappearing messages are enabled for this conversation
-    return true;
+  // Does not dispose the recorder — one VoiceNoteService instance lives for
+  // the whole chat session and records more than once. dispose() below is
+  // for when the screen itself closes.
+  Future<File?> stopRecording() async {
+    final path = await _recorder.stop();
+    return path != null ? File(path) : null;
+  }
+
+  void dispose() {
+    _recorder.dispose();
   }
 }

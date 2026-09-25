@@ -4,11 +4,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart' as ju;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/messaging_repository.dart';
 import '../../data/supabase_providers.dart';
 import 'group_settings_screen.dart';
+import 'voice/voice_note_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
@@ -58,7 +60,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _loadDisappearingStatus() async {
     if (widget.isGroup) {
       try {
-        final enabled = await _repo.isDisappearingEnabled(widget.conversationId);
+        final enabled = await _repo.isDisappearingEnabled(
+          widget.conversationId,
+        );
         if (mounted) setState(() => _disappearingEnabled = enabled);
       } on Exception {
         /* optional */
@@ -72,6 +76,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _channel?.unsubscribe();
     _input.dispose();
     _scroll.dispose();
+    _voiceService.dispose();
     super.dispose();
   }
 
@@ -117,13 +122,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _channel = ch;
   }
 
-  void _notifyTyping() {
-    _channel?.sendBroadcastMessage(
-      event: 'typing',
-      payload: {'uid': _myId, 'name': 'Someone'},
-    );
-    _typingStop?.cancel();
-    _typingStop = Timer(const Duration(seconds: 3), () {});
+  bool _isRecording = false;
+  final VoiceNoteService _voiceService = VoiceNoteService();
+
+  Future<void> _toggleVoiceRecording() async {
+    if (_isRecording) {
+      final file = await _voiceService.stopRecording();
+      setState(() => _isRecording = false);
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        final mime = 'audio/m4a';
+        _pending.add((bytes: bytes, mime: mime));
+        if (mounted) setState(() {});
+      }
+    } else {
+      try {
+        await _voiceService.startRecording();
+        setState(() => _isRecording = true);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error starting recording: $e')),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _pickImages() async {
@@ -133,6 +156,113 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _pending.add((bytes: bytes, mime: x.mimeType ?? 'image/jpeg'));
     }
     if (mounted) setState(() {});
+  }
+
+  void _notifyTyping() {
+    _channel?.sendBroadcastMessage(
+      event: 'typing',
+      payload: {'uid': _myId, 'name': 'Someone'},
+    );
+    _typingStop?.cancel();
+    _typingStop = Timer(const Duration(seconds: 3), () {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = ref.watch(messagesProvider(widget.conversationId));
+    final lastReadByOther = _reads.values.isEmpty
+        ? null
+        : _reads.values.reduce((a, b) => a.isAfter(b) ? a : b);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          if (widget.isGroup)
+            IconButton(
+              icon: const Icon(Icons.group_outlined),
+              tooltip: 'Members',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => GroupSettingsScreen(
+                    conversationId: widget.conversationId,
+                    title: widget.title,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: messages.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('$e')),
+              data: (list) {
+                if (list.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Say hello.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  );
+                }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scroll.hasClients) {
+                    _scroll.jumpTo(_scroll.position.maxScrollExtent);
+                  }
+                });
+                return ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.all(12),
+                  itemCount: list.length,
+                  itemBuilder: (context, i) {
+                    final m = list[i];
+                    final mine = m.senderId == _myId;
+                    final seen =
+                        mine &&
+                        lastReadByOther != null &&
+                        !lastReadByOther.isBefore(m.createdAt) &&
+                        i == list.length - 1;
+                    return GestureDetector(
+                      onLongPress: () => _messageActions(m),
+                      child: _Bubble(
+                        message: m,
+                        mine: mine,
+                        showSender: widget.isGroup && !mine,
+                        seen: seen,
+                        signedUrl: _repo.mediaSignedUrl,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          if (_typingNames.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Text(
+                'typing…',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          if (widget.isRequest && !_accepted)
+            _RequestBar(onAccept: _accept)
+          else
+            _Composer(
+              controller: _input,
+              pendingCount: _pending.length,
+              sending: _sending,
+              onPickImages: _pickImages,
+              onSend: _send,
+              onChanged: (_) => _notifyTyping(),
+              onVoiceRecord: _toggleVoiceRecording,
+              isRecording: _isRecording,
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _send() async {
@@ -225,103 +355,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final messages = ref.watch(messagesProvider(widget.conversationId));
-    final lastReadByOther = _reads.values.isEmpty
-        ? null
-        : _reads.values.reduce((a, b) => a.isAfter(b) ? a : b);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: [
-          if (widget.isGroup)
-            IconButton(
-              icon: const Icon(Icons.group_outlined),
-              tooltip: 'Members',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => GroupSettingsScreen(
-                    conversationId: widget.conversationId,
-                    title: widget.title,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: messages.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('$e')),
-              data: (list) {
-                if (list.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'Say hello.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  );
-                }
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scroll.hasClients) {
-                    _scroll.jumpTo(_scroll.position.maxScrollExtent);
-                  }
-                });
-                return ListView.builder(
-                  controller: _scroll,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: list.length,
-                  itemBuilder: (context, i) {
-                    final m = list[i];
-                    final mine = m.senderId == _myId;
-                    final seen =
-                        mine &&
-                        lastReadByOther != null &&
-                        !lastReadByOther.isBefore(m.createdAt) &&
-                        i == list.length - 1;
-                    return GestureDetector(
-                      onLongPress: () => _messageActions(m),
-                      child: _Bubble(
-                        message: m,
-                        mine: mine,
-                        showSender: widget.isGroup && !mine,
-                        seen: seen,
-                        signedUrl: _repo.mediaSignedUrl,
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          if (_typingNames.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Text(
-                'typing…',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          if (widget.isRequest && !_accepted)
-            _RequestBar(onAccept: _accept)
-          else
-            _Composer(
-              controller: _input,
-              pendingCount: _pending.length,
-              sending: _sending,
-              onPickImages: _pickImages,
-              onSend: _send,
-              onChanged: (_) => _notifyTyping(),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 class _Composer extends StatelessWidget {
@@ -332,6 +365,8 @@ class _Composer extends StatelessWidget {
     required this.onPickImages,
     required this.onSend,
     required this.onChanged,
+    required this.onVoiceRecord,
+    required this.isRecording,
   });
 
   final TextEditingController controller;
@@ -340,6 +375,8 @@ class _Composer extends StatelessWidget {
   final VoidCallback onPickImages;
   final VoidCallback onSend;
   final ValueChanged<String> onChanged;
+  final VoidCallback onVoiceRecord;
+  final bool isRecording;
 
   @override
   Widget build(BuildContext context) {
@@ -372,6 +409,14 @@ class _Composer extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
+            IconButton(
+              onPressed: onVoiceRecord,
+              icon: Icon(
+                isRecording ? Icons.mic : Icons.mic_none_outlined,
+                color: isRecording ? Theme.of(context).colorScheme.error : null,
+              ),
+              tooltip: isRecording ? 'Stop recording' : 'Record a voice note',
+            ),
             IconButton.filled(
               onPressed: sending ? null : onSend,
               icon: const Icon(Icons.send, size: 18),
@@ -439,10 +484,10 @@ class _Bubble extends StatelessWidget {
                       child: FutureBuilder<String>(
                         future: signedUrl(media.storagePath),
                         builder: (context, snap) => snap.hasData
-                            ? Image.network(
+                            ? _buildMediaItem(
+                                context,
                                 snap.data!,
-                                width: 220,
-                                fit: BoxFit.cover,
+                                media.mimeType,
                               )
                             : Container(
                                 width: 220,
@@ -474,10 +519,67 @@ class _Bubble extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildMediaItem(BuildContext context, String url, String? mimeType) {
+    if (mimeType != null && mimeType.startsWith('audio/')) {
+      return _VoiceNotePlayer(url: url);
+    }
+    return Image.network(url, width: 220, fit: BoxFit.cover);
+  }
+}
+
+class _VoiceNotePlayer extends ConsumerStatefulWidget {
+  const _VoiceNotePlayer({required this.url});
+
+  final String url;
+
+  @override
+  ConsumerState<_VoiceNotePlayer> createState() => _VoiceNotePlayerState();
+}
+
+class _VoiceNotePlayerState extends ConsumerState<_VoiceNotePlayer> {
+  late final ju.AudioPlayer _player;
+  bool _isPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = ju.AudioPlayer();
+    _player.setUrl(widget.url);
+    _player.playerStateStream.listen((state) {
+      if (mounted) setState(() => _isPlaying = state.playing);
+    });
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return IconButton(
+      onPressed: () async {
+        if (_isPlaying) {
+          await _player.pause();
+        } else {
+          await _player.play();
+        }
+      },
+      icon: Icon(
+        _isPlaying ? Icons.pause : Icons.play_arrow,
+        size: 32,
+        color: scheme.onSurface,
+      ),
+    );
+  }
 }
 
 class _RequestBar extends StatelessWidget {
   const _RequestBar({required this.onAccept});
+
   final VoidCallback onAccept;
 
   @override

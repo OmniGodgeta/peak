@@ -53,13 +53,15 @@ dependencies:
   # In-app updater (sideloaded Android build): read the running version and
   # write the downloaded APK somewhere the system installer can reach it.
   package_info_plus: ^10.2.1
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
   # Pure-Dart Ed25519 for the per-device identity signature key (Phase 2.5).
   # No native code — the OpenMLS FFI lib (2.5-1) is separate.
   cryptography: ^2.7.0
   web: ^1.1.1
   socket_io_client: ^2.0.2
   image: ^4.10.1
+  record: ^7.1.1
+  just_audio: ^0.10.6
 dev_dependencies:
   flutter_test:
     sdk: flutter
