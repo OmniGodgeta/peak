@@ -54,7 +54,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
   @override
   Widget build(BuildContext context) {
     final results = _query.trim().length >= 2
-        ? ref.watch(searchResultsProvider(_query.trim()))
+        ? ref.watch(searchResultsProvider((query: _query.trim(), lang: null)))
         : null;
 
     return Scaffold(
