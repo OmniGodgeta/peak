@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/story_repository.dart';
+import '../../data/messaging_repository.dart';
 import 'story_viewers_sheet.dart';
 
 /// Full-screen story viewer. Swipe (or auto-advance) between people; tap the
@@ -263,7 +264,7 @@ class _AuthorStoriesState extends ConsumerState<_AuthorStories>
                                   : 0,
                               minHeight: 2.5,
                               backgroundColor: Colors.white24,
-                              valueColor: const AlwaysStoppedAnimation(
+                              valueColor: const AlwaysStoppedAnimation<Color>(
                                 Colors.white,
                               ),
                             ),
@@ -284,6 +285,66 @@ class _AuthorStoriesState extends ConsumerState<_AuthorStories>
                         ),
                       ),
                     ),
+                    if (!widget.entry.isSelf)
+                      IconButton(
+                        icon: const Icon(Icons.reply, color: Colors.white),
+                        onPressed: () async {
+                          final conversationId = await ref
+                              .read(messagingRepositoryProvider)
+                              .startDm(widget.entry.authorId);
+
+                          if (!context.mounted) return;
+
+                          final prefix =
+                              story.caption != null && story.caption!.isNotEmpty
+                              ? 'Replying to your story: "${story.caption}"\n\n'
+                              : '${story.mediaKind == "video" ? "(video)" : "(photo)"}\n\n';
+
+                          final controller = TextEditingController();
+                          try {
+                            await showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: Text('Reply to ${widget.entry.name}'),
+                                content: TextField(
+                                  controller: controller,
+                                  autofocus: true,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Type your reply...',
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      final body = controller.text;
+                                      if (body.trim().isEmpty) return;
+                                      Navigator.pop(ctx);
+                                      await ref
+                                          .read(messagingRepositoryProvider)
+                                          .send(conversationId, '$prefix$body');
+                                      if (!context.mounted) return;
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Message sent'),
+                                            ),
+                                          );
+                                    },
+                                    child: const Text('Send'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          } finally {
+                            controller.dispose();
+                          }
+                        },
+                      ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
                       onPressed: () => Navigator.of(context).maybePop(),
