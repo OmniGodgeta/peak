@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'see_less.dart';
 import 'supabase_providers.dart';
 
 /// One attachment on a post. `kind` is 'image' | 'video' | 'audio'; for Phase 1
@@ -181,33 +182,41 @@ class FeedRepository {
 
   Future<List<FeedPost>> latest({int limit = 30}) async {
     final rows = await _db.rpc('feed_latest', params: {'p_limit': limit});
-    return (rows as List)
-        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
-        .toList();
+    return _dropSeenLess(
+      (rows as List)
+          .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
   /// Trending posts based on rank_score.
   Future<List<FeedPost>> trending({int limit = 30}) async {
     final rows = await _db.rpc('feed_trending', params: {'p_limit': limit});
-    return (rows as List)
-        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
-        .toList();
+    return _dropSeenLess(
+      (rows as List)
+          .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
   /// Posts only from people who follow you back.
   Future<List<FeedPost>> friends({int limit = 30}) async {
     final rows = await _db.rpc('feed_friends', params: {'p_limit': limit});
-    return (rows as List)
-        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
-        .toList();
+    return _dropSeenLess(
+      (rows as List)
+          .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
   /// Every public, top-level post on the instance, newest first.
   Future<List<FeedPost>> local({int limit = 30}) async {
     final rows = await _db.rpc('feed_local', params: {'p_limit': limit});
-    return (rows as List)
-        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
-        .toList();
+    return _dropSeenLess(
+      (rows as List)
+          .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
   /// Vector-based personal recommendations.
@@ -215,9 +224,20 @@ class FeedRepository {
     final user = _db.auth.currentUser;
     if (user == null) return [];
     final rows = await _db.rpc('recommend_posts_for_user', params: {'p_limit': limit});
-    return (rows as List)
-        .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
-        .toList();
+    return _dropSeenLess(
+      (rows as List)
+          .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Future<List<FeedPost>> _dropSeenLess(List<FeedPost> posts) async {
+    final hidden = await SeeLessStore(_db).reasons();
+    if (hidden.isEmpty) return posts;
+    return [
+      for (final post in posts)
+        if (post.reason == null || !hidden.contains(post.reason)) post,
+    ];
   }
 
   Future<bool> toggleReaction(String postId) async {

@@ -5,6 +5,7 @@ import '../../data/creator_repository.dart';
 import '../../data/community_repository.dart';
 import '../../data/data_repository.dart';
 import '../../data/feed_repository.dart';
+import '../../data/see_less.dart';
 import '../../data/labeler_repository.dart';
 import '../../data/people_repository.dart';
 import '../../data/profile_repository.dart';
@@ -621,6 +622,18 @@ class _PostCardState extends ConsumerState<PostCard> {
                                             'or injected.'),
                             ),
                             actions: [
+                              TextButton(
+                                onPressed: () async {
+                                  final reason = p.reason;
+                                  if (reason != null && reason.isNotEmpty) {
+                                    await ref
+                                        .read(seeLessStoreProvider)
+                                        .remember(reason);
+                                  }
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                },
+                                child: const Text('See less of this'),
+                              ),
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx),
                                 child: const Text('OK'),
