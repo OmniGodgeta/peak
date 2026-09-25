@@ -43,7 +43,9 @@ declare
     array['pchardware','PC Hardware News',
           'CPU / GPU / component news from Tom''s Hardware and TechPowerUp, mirrored with a link back. Community-run.'],
     array['scinews', 'Science News',
-          'Research headlines from Phys.org and ScienceDaily, mirrored with a link back. Community-run.']
+          'Research headlines from Phys.org and ScienceDaily, mirrored with a link back. Community-run.'],
+    array['spacevideos', 'Space Videos',
+          'Space and astronomy video picks from melodysheep, Everyday Astronaut, SpaceX, and Cool Worlds, mirrored with a link back. Community-run, not affiliated with any channel.']
   ];
 
   -- slug, name, description, topics(csv)
@@ -79,7 +81,7 @@ declare
           'The newest images from Webb, Hubble, and (soon) Roman, plus your own astrophotography. Auto-fed by @webb, @hubble, and @roman.',
           'astrophotography,jwst,hubble,astronomy,images'],
     array['space', 'Space',
-          'The home space for astronomy, missions, and anything off the planet. Imagery from @webb, @hubble, and @roman lands here.',
+          'The home space for astronomy, missions, and anything off the planet. Imagery from @webb, @hubble, and @roman lands here, plus video picks from @spacevideos.',
           'space,astronomy,nasa,missions'],
     array['movies', 'Movies',
           'Films, what you just watched, and what is worth the runtime. No spoilers in the first line.',
@@ -133,6 +135,7 @@ declare
     array['webb','astrophotos'], array['hubble','astrophotos'], array['roman','astrophotos'],
     array['webb','space'], array['hubble','space'], array['roman','space'], array['nasa','space'],
     array['launches','rockets'], array['launches','space'],
+    array['spacevideos','space'],
     array['playstation','playstation'], array['playstation','gaming'],
     array['xbox','xbox'], array['xbox','gaming'],
     array['nintendo','nintendo'], array['nintendo','gaming'],
@@ -344,7 +347,7 @@ E'Welcome to Weather. What the sky is doing where you are, and the system behind
                    and p.body like 'Peak is open.%') then
     insert into post (author_id, persona_id, body, visibility, created_at)
     values (v_id, v_persona,
-E'Peak is open. No ads, no tracking, no algorithm you can''t turn off — you own your feed, your data, and your graph.\n\nFollow @webb, @hubble, and @roman for telescope imagery, @launches for the orbital schedule, and @playstation / @xbox / @nintendo / @pcgaming / @pchardware / @scinews for news. Communities: c/space, c/rockets, c/gaming, c/playstation, c/xbox, c/nintendo, c/pc-gaming, c/pc-hardware, c/science, c/science-news, c/astrophotos.',
+E'Peak is open. No ads, no tracking, no algorithm you can''t turn off — you own your feed, your data, and your graph.\n\nFollow @webb, @hubble, and @roman for telescope imagery, @launches for the orbital schedule, @spacevideos for space video picks, and @playstation / @xbox / @nintendo / @pcgaming / @pchardware / @scinews for news. Communities: c/space, c/rockets, c/gaming, c/playstation, c/xbox, c/nintendo, c/pc-gaming, c/pc-hardware, c/science, c/science-news, c/astrophotos.',
       'public', v_now - interval '2 hours');
   end if;
 end $$;

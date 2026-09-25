@@ -14,6 +14,10 @@
 //   pchardware  → Tom's Hardware + TechPowerUp → c/pc-hardware
 //   scinews     → Phys.org + ScienceDaily → c/science-news
 //
+// Video sources (post a title + short description + YouTube link, which the
+// client renders as a playable card — see PostBody):
+//   spacevideos → melodysheep, Everyday Astronaut, SpaceX, Cool Worlds → c/space
+//
 // Each source posts as its own account into the home feed and mirrors into a
 // community channel. Every post links and credits the source. Dedup + a
 // per-source throttle live in the content_ingest_seen / content_ingest_run
@@ -144,6 +148,32 @@ const NEWS_SOURCES: Record<string, NewsSource> = {
   },
 };
 
+interface YoutubeChannel {
+  id: string; // UC... channel id
+  name: string; // shown as "via <name>"
+}
+
+interface YoutubeSource {
+  handle: string;
+  community: string;
+  channels: YoutubeChannel[];
+  max: number; // per channel, per run
+}
+
+const YOUTUBE_SOURCES: Record<string, YoutubeSource> = {
+  spacevideos: {
+    handle: "spacevideos",
+    community: "space",
+    channels: [
+      { id: "UCR9sFzaG9Ia_kXJhfxtFMBA", name: "melodysheep" },
+      { id: "UC6uKrU_WqJ1R2HMTY3LIx5Q", name: "Everyday Astronaut" },
+      { id: "UCtI0Hodo5o5dUb67FeUjDeA", name: "SpaceX" },
+      { id: "UCGHZpIpAWJQ-Jy_CeCdXhMA", name: "Cool Worlds" },
+    ],
+    max: 2,
+  },
+};
+
 interface Ctx {
   db: SupabaseClient;
   dry: boolean;
@@ -178,6 +208,7 @@ Deno.serve(async (req) => {
     ...Object.keys(IMAGE_SOURCES),
     "launches",
     ...Object.keys(NEWS_SOURCES),
+    ...Object.keys(YOUTUBE_SOURCES),
   ];
   const results: SourceResult[] = [];
 
@@ -198,6 +229,8 @@ Deno.serve(async (req) => {
         ? await ingestLaunches(ctx)
         : NEWS_SOURCES[source]
         ? await ingestNews(ctx, source)
+        : YOUTUBE_SOURCES[source]
+        ? await ingestYoutube(ctx, source)
         : await ingestImages(ctx, source);
       results.push(res);
       if (!dry) await markRun(ctx, source, res);
@@ -711,6 +744,98 @@ async function fetchNewsRss(url: string): Promise<FeedItem[]> {
       title,
       text,
       link: link || guid,
+      imageUrl: null,
+      publishedIso,
+    });
+  }
+  return items;
+}
+
+// ── video feeds (spacevideos) ───────────────────────────────────────────
+
+async function ingestYoutube(ctx: Ctx, source: string): Promise<SourceResult> {
+  const cfg = YOUTUBE_SOURCES[source];
+  if (!cfg) throw new Error(`unknown source ${source}`);
+  const out: SourceResult = { source, added: 0, seen: 0, errors: [] };
+
+  const a = await author(ctx, cfg.handle);
+  const mirror = await channel(ctx, cfg.community, "general");
+  const seen = await alreadySeen(ctx, source);
+
+  for (const ch of cfg.channels) {
+    let items: FeedItem[];
+    try {
+      items = await fetchYoutubeFeed(ch.id);
+    } catch (e) {
+      out.errors.push(`${ch.name}: ${e instanceof Error ? e.message : e}`);
+      continue;
+    }
+    out.seen += items.length;
+    items.sort((x, y) => (y.publishedIso ?? "").localeCompare(x.publishedIso ?? ""));
+
+    let addedForChannel = 0;
+    for (const item of items) {
+      if (addedForChannel >= cfg.max) break;
+      if (seen.has(item.externalId)) continue;
+      try {
+        const body = [
+          item.title,
+          clip(item.text, 240),
+          `via ${ch.name} · ${item.link}`,
+        ].filter(Boolean).join("\n\n");
+
+        if (ctx.dry) {
+          out.added++;
+          addedForChannel++;
+          continue;
+        }
+        const postId = await publish(ctx, a, body, undefined, mirror);
+        await ctx.db.from("content_ingest_seen").insert({
+          source,
+          external_id: item.externalId,
+          post_id: postId,
+          title: item.title,
+          url: item.link,
+        });
+        out.added++;
+        addedForChannel++;
+      } catch (e) {
+        out.errors.push(
+          `${item.externalId}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+  }
+  return out;
+}
+
+// YouTube's channel RSS is Atom, not RSS2 (<entry>, not <item>), so it needs
+// its own parser rather than reusing fetchNewsRss.
+async function fetchYoutubeFeed(channelId: string): Promise<FeedItem[]> {
+  const res = await fetch(
+    `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+    { headers: NEWS_UA },
+  );
+  if (!res.ok) throw new Error(`youtube feed ${res.status}`);
+  const xml = await res.text();
+  const items: FeedItem[] = [];
+  for (const block of xml.split(/<entry>/i).slice(1)) {
+    const raw = block.split(/<\/entry>/i)[0];
+    const videoId = decode(tag(raw, "yt:videoId")).trim();
+    const title = decode(tag(raw, "title")).trim();
+    if (!videoId || !title) continue;
+    const desc = decode(tag(raw, "media:description"));
+    const when = tag(raw, "published");
+    let publishedIso: string | undefined;
+    if (when) {
+      const t = new Date(when.trim());
+      if (!Number.isNaN(t.getTime())) publishedIso = t.toISOString();
+    }
+    items.push({
+      externalId: videoId,
+      title,
+      text: stripHtml(desc),
+      link: `https://www.youtube.com/watch?v=${videoId}`,
       imageUrl: null,
       publishedIso,
     });
