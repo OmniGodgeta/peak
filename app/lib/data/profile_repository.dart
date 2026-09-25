@@ -34,6 +34,7 @@ class Profile {
     required this.showFollowCounts,
     required this.isDiscoverable,
     required this.deletionRequestedAt,
+    required this.actorUrl,
   });
 
   final String id;
@@ -52,7 +53,9 @@ class Profile {
   /// Set once the owner has asked to delete the account; the account is purged
   /// 30 days after this. While set, the app is locked to the closing screen.
   final DateTime? deletionRequestedAt;
+  final String? actorUrl;
 
+  /// The absolute time when the account will be permanently deleted.
   DateTime? get deletionPurgeAt =>
       deletionRequestedAt?.add(const Duration(days: 30));
 
@@ -82,6 +85,7 @@ class Profile {
     deletionRequestedAt: m['deletion_requested_at'] == null
         ? null
         : DateTime.parse(m['deletion_requested_at'] as String),
+    actorUrl: m['actor_url'] as String?,
   );
 }
 
@@ -104,7 +108,7 @@ class ProfileRepository {
     required String displayName,
     required DateTime birthdate,
   }) async {
-    final row = await _db.rpc(
+    final map = await _db.rpc(
       'bootstrap_account',
       params: {
         'p_handle': handle,
@@ -112,10 +116,9 @@ class ProfileRepository {
         'p_birthdate': isoDate(birthdate),
       },
     );
-    final map = row is List
-        ? row.first as Map<String, dynamic>
-        : row as Map<String, dynamic>;
-    return Profile.fromMap(map);
+
+    final row = map is List ? map.first as Map<String, dynamic> : map as Map<String, dynamic>;
+    return Profile.fromMap(row);
   }
 
   Future<bool> handleAvailable(String handle) async {
@@ -175,13 +178,13 @@ class ProfileRepository {
           'location_coarse': (locationCoarse ?? '').trim().isEmpty
               ? null
               : locationCoarse!.trim(),
-          'avatar_path': ?avatarPath,
+          'avatar_path': avatarPath,
           'links': links
               .where((l) => l.url.trim().isNotEmpty)
               .map((l) => l.toJson())
               .toList(),
-          'show_follow_counts': ?showFollowCounts,
-          'is_discoverable': ?isDiscoverable,
+          'show_follow_counts': showFollowCounts,
+          'is_discoverable': isDiscoverable,
         })
         .eq('id', uid);
   }
