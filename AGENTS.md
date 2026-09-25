@@ -46,11 +46,54 @@ Tailscale host. Build on this machine.
 `feat:` or `fix:` with a body. Push to `origin main`. Do not create or
 overwrite a GitHub release.
 
-## Done on main
+## Done on main (updated 2026-09-25 - the list below this had gone stale;
+verified item by item against `git log`, not assumed)
 
-Phases 0–4. Phase 5, including label appeals and a 90-day count: ranking
-without engagement, follower fan-out, For You, verified check on Latest and
-For You. Phase 6 without money: personas, Discover-only boosts, opt-in reach.
+Phases 0–4. Phase 5 complete, including label appeals + a 90-day count
+(`2a657e7`, `20261006000000_label_appeals.sql`). Phase 6 without money:
+personas, Discover-only boosts, opt-in reach.
+
+The viewer slice is done: `getPlaylistEntries` fixed (mirrors the correct
+`getWatchLaterPosts` pattern via `post_thread`, not a raw embed), a real
+"name this playlist" dialog, and Playlists/Watch Later linked into the Me
+tab (`ffac78b`). A kanban worker had claimed this done earlier while making
+zero actual changes to the repo (verified via empty `git log`/`reflog`/
+`stash list`) - implemented directly instead.
+
+Every numbered item below this that used to say "still to build" is done:
+
+1. `author_is_verified` carried through feeds/profiles/threads; "see less"
+   hides the reason without becoming a like-based ranker (`c4dbff2`,
+   `5d6702f`).
+2. Notice quiet hours + bundling (`20261007000000_notice_bundling_and_quiet_hours.sql`).
+3. Composer writes polls, drafts, scheduling, `quote_of` (`9ee7509`, wired
+   into the composer in `d89010a`).
+4. Voice notes (record/send/play, `d92aa3c`) and disappearing messages
+   (`429553e`) are real - not the `ceeeeb8` stubs this section used to warn
+   about, which are gone.
+5. Mute with a duration (`cbfaae8`), a temporary harassment shield
+   (`0a8d766`, plus hiding posts during it: `d676776`), hiding posts during
+   an account's 30-day deletion grace (`c4828c1`), a language filter +
+   saved searches (`6144696`), story replies as DMs (`f204ae8`), and a
+   reaction set beyond like (`c3ceff2`). **Passkeys were deliberately
+   skipped**, not missed - a prior operator decision recorded in kanban
+   history says so explicitly; don't build them without being asked again.
+6. **Local 1:1 audio calls** are real (`8965079`): WebRTC signaled over a
+   Supabase Realtime broadcast channel per call room (same mechanism
+   `MessagingRepository.conversationChannel` uses for typing), STUN only
+   (no TURN - calls between two devices both behind restrictive NAT may not
+   connect), wired into 1:1 DM chats via a call button + an in-app
+   incoming-call dialog. No push notification for calls, so the callee has
+   to already have the chat open. **Not yet built: "live rooms"** - a
+   multi-party room inside a Space. `call_rooms`/`call_participants`
+   already support it (`space_id`, `max_participants`), but the UI/glare-
+   avoidance logic only handles exactly 2 participants right now.
+7. Federation (ActivityPub outbound function, WebFinger, account export/
+   deletion controls - `a6c9158`) exists behind `federation_enabled = false`
+   by default. **This was built ahead of the "wait until asked" project
+   rule; the operator said "leave it as is for now" - do not extend it
+   (inbound federation, cross-instance follow, account migration) without
+   being asked again.**
 
 Also on main:
 
@@ -66,53 +109,33 @@ Also on main:
   editor to save chapters and captions. Thumbnails still use the raw storage
   path. Use `MediaService.resolveUrl`. The editor does not set `poster_path`
   yet (`updatePosterPath` exists and is unused).
-- `app/lib/data/viewer_repository.dart` can create playlists and watch-later
-  rows. `getPlaylistEntries` embeds `post:media.post_id` and then calls
-  `FeedPost.fromMap`. That embed is not a feed row and will throw. Nothing
-  shipped calls it. Fix it before a screen uses it.
 
 `docs/ROADMAP.md` and `docs/HANDOFF.md` are older than this file. Trust this
-file for status, and the roadmap for the original feature list.
+file for status, and the roadmap for the original feature list - but check
+the roadmap's Phase 9 (Video) and Phase 8 (Calls/events) sections too, since
+this file only tracked the original "Still to build" numbered list and both
+of those roadmap phases have real remaining items not in that list.
 
 ## Still to build
 
 Development continues. Payments, a storefront, and lawyer review stay out.
 
-Label appeals are in. Me → Labelers → the gavel icon. A person appeals a
-label on their own post. The labeler should answer within 7 days. Upholding
-removes the label. `label_transparency()` is a 90-day count that names nobody.
-Migration `20261006000000_label_appeals.sql`.
-
-The viewer slice may still be open. `viewer_screens.dart` started as a
-scaffold and was not linked from `MediaScreen`. Finish it if that is still
-true: real titles, up-next, resume on the device, posters through
-`MediaService.resolveUrl`, and a fixed `getPlaylistEntries`.
-
-Then, in this order:
-
-1. Carry `author_is_verified` through Friends, Local, custom feeds, space
-   feeds, profiles, and threads. One-tap "see less of this" must not become
-   a like-based ranker.
-2. Notice quiet hours, bundling, and a neutral dot instead of a count badge.
-   Push can be a local stub. Do not invent Firebase credentials.
-3. Composer writes polls, drafts, a schedule time, `quote_of`, and a language
-   tag. Drafts stay visible only to the author. Image alt text stays on each
-   media row; there is no `post.alt_text` column. A post card already shows
-   "edited" after the body changes, and `post_edit_history` is filled by
-   trigger. Nothing in the app lists those old bodies or opens an edit.
-   Scheduled posts are not hidden from feeds yet.
-4. Voice notes and disappearing messages are not done. `ceeeeb8` added unused
-   stubs under `app/lib/features/messaging/voice/`. `checkStatus` returns true
-   with nothing stored. Record, upload, play, and purge are still open. MLS
-   stays blocked until `rustup` and `cargo-ndk` exist. Do not invent a crypto
-   layer.
-5. Smaller gaps that need no domain: passkeys if local auth supports them,
-   mute with a duration, a temporary harassment shield, hide posts of an
-   account inside its 30-day deletion grace, a language filter, saved
-   searches, story replies as DMs, and a small reaction set beyond the like.
-6. Local audio calls and live rooms. No storefront.
-7. Federation code behind a flag that defaults off. No public port. No
-   ActivityPub until someone asks.
+- **Channels** (Phase 9: subscribe to a creator, browse their videos, an Up
+  Next list on the watch page) - in progress as of 2026-09-25, check
+  `git log` for whether it landed; if not, `video_subscription` table +
+  `toggle_video_subscription`/`channel_subscriber_count`/
+  `is_subscribed_to_channel` RPCs are the planned schema, not yet applied.
+- **Live rooms** (Phase 8): a multi-party room inside a Space, building on
+  the 1:1 call infra above. The 2-party offerer/answerer role logic will
+  need real renegotiation for a 3rd+ participant (SDP glare becomes a real
+  problem beyond 2 parties) - don't just loop the existing 1:1 code.
+- Phase 9 remainder: a first-class `video` entity if reusing `post` gets
+  strained, adaptive HLS + a CDN (real infra decision, not a code task),
+  "why this video" ranking (needs real usage data first).
+- Phase 7 federation remainder (inbound delivery, cross-instance follow/
+  post/reply/like, account migration, instance allow/block transparency) -
+  **do not start this without being asked**, per the operator's standing
+  instruction above.
 
 Skip payments and anything a lawyer has to sign.
 
