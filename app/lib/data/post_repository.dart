@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'media_service.dart';
 import 'supabase_providers.dart';
 
-enum PostVisibility { circles, public, followers }
+enum PostVisibility { circles, public, mentioned, followers }
 
 /// A picked-but-not-yet-uploaded attachment held by the composer.
 class PendingMedia {
@@ -21,8 +21,7 @@ class PendingMedia {
   });
 
   final Uint8List bytes;
-  final String
-  mimeType; // image/jpeg, image/png, image/gif, image/webp, video/mp4
+  final String mimeType; // image/jpeg, image/png, image/gif, image/webp
   final bool isVideo;
   String altText;
   int? width;
@@ -89,27 +88,40 @@ class PostRepository {
     bool longForm = false,
     String? communityId,
     String? channelId,
+    // New Phase 5 fields
+    String? languageTag,
+    bool isDraft = false,
+    DateTime? scheduledAt,
+    String? quoteId,
+    Map<String, dynamic>? pollData, // {'question': string, 'options': List<string>},
   }) async {
     final uid = _db.auth.currentUser!.id;
     final personaId = await _defaultPersonaId(uid);
 
-    final post = await _db
-        .from('post')
-        .insert({
-          'author_id': uid,
-          'persona_id': personaId,
-          'body': body,
-          'visibility': visibility.name,
-          'content_warning': contentWarning,
-          'is_sensitive': isSensitive,
-          'long_form': longForm,
-          if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
-          'community_id': ?communityId,
-          'channel_id': ?channelId,
-        })
-        .select('id')
-        .single();
+    final postInsert = {
+      'author_id': uid,
+      'persona_id': personaId,
+      'body': body,
+      'visibility': visibility.name,
+      'content_warning': contentWarning,
+      'is_sensitive': isSensitive,
+      'long_form': longForm,
+      if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+      'community_id': ?communityId,
+      'channel_id': ?channelId,
+      'language_tag': ?languageTag,
+      'is_draft': isDraft,
+      'scheduled_at': ?scheduledAt?.toIso8601String(),
+      'quote_of': ?quoteId,
+    };
+    final post = await _db.from('post').insert(postInsert).select('id').single();
     final postId = post['id'] as String;
+
+    // Handle Poll creation if present
+    if (pollData != null && pollData['question'] != null) {
+      final pollId = await _createPoll(pollData);
+      await _db.from('post').update({'poll_id': pollId}).eq('id', postId);
+    }
 
     if (visibility == PostVisibility.circles && circleIds.isNotEmpty) {
       await _db.from('post_audience').insert([
@@ -117,6 +129,20 @@ class PostRepository {
       ]);
     }
     await _attachMedia(postId, uid, media);
+  }
+
+  Future<String> _createPoll(Map<String, dynamic> data) async {
+    final pollId = (await _db.from('poll').insert({
+      'question': data['question'],
+    }).select('id').single())['id'] as String;
+
+    for (var optionText in (data['options'] as List<dynamic>)) {
+      await _db.from('poll_option').insert({
+        'poll_id': pollId,
+        'text': optionText as String,
+      });
+    }
+    return pollId;
   }
 
   /// Reply to a post. Replies inherit the parent's visibility and (for circles
@@ -127,6 +153,11 @@ class PostRepository {
     List<PendingMedia> media = const [],
     String? contentWarning,
     bool isSensitive = false,
+    // New Phase 5 fields for replies
+    String? languageTag,
+    bool isDraft = false,
+    DateTime? scheduledAt,
+    Map<String, dynamic>? pollData,
   }) async {
     final uid = _db.auth.currentUser!.id;
     final personaId = await _defaultPersonaId(uid);
@@ -138,25 +169,58 @@ class PostRepository {
         .single();
     final rootId = (parent['root_id'] as String?) ?? parentId;
 
-    // The reply carries the root's visibility value (and community, if any);
-    // `post_thread` gates the whole thread on the root, so a reply is seen
-    // exactly when the root is.
-    final reply = await _db
-        .from('post')
-        .insert({
-          'author_id': uid,
-          'persona_id': personaId,
-          'body': body,
-          'visibility': parent['visibility'],
-          'reply_to': parentId,
-          'root_id': rootId,
-          'content_warning': contentWarning,
-          'is_sensitive': isSensitive,
-          'community_id': ?parent['community_id'],
-        })
-        .select('id')
-        .single();
-    await _attachMedia(reply['id'] as String, uid, media);
+    final replyInsert = {
+      'author_id': uid,
+      'persona_id': personaId,
+      'body': body,
+      'visibility': parent['visibility'],
+      'reply_to': parentId,
+      'root_id': rootId,
+      'content_warning': contentWarning,
+      'is_sensitive': isSensitive,
+      'community_id': ?parent['community_id'],
+      'language_tag': ?languageTag,
+      'is_draft': isDraft,
+      if (scheduledAt != null) 'scheduled_at': scheduledAt.toIso8601String(),
+    };
+
+    final reply = await _db.from('post').insert(replyInsert).select('id').single();
+    final replyId = reply['id'] as String;
+
+    // Handle Poll creation if present in reply
+    if (pollData != null && pollData['question'] != null) {
+      final pollId = await _createPoll(pollData);
+      await _db.from('post').update({'poll_id': pollId}).eq('id', replyId);
+    }
+
+    await _attachMedia(replyId, uid, media);
+  }
+
+  /// Update an existing post and record history.
+  Future<void> updatePost({
+    required String postId,
+    String? body,
+    String? title,
+    String? contentWarning,
+    bool? isSensitive,
+    bool? isDraft,
+    DateTime? scheduledAt,
+    String? languageTag,
+  }) async {
+    final current = await _db.from('post').select('body, title, content_warning, is_sensitive, is_draft, scheduled_at, language_tag').eq('id', postId).single();
+
+    final updates = <String, dynamic>{};
+    if (body != null && body != current['body']) updates['body'] = body;
+    if (title != null && title != current['title']) updates['title'] = title;
+    if (contentWarning != null && contentWarning != current['content_warning']) updates['content_warning'] = contentWarning;
+    if (isSensitive != null && isSensitive != current['is_sensitive']) updates['is_sensitive'] = isSensitive;
+    if (isDraft != null && isDraft != current['is_draft']) updates['is_draft'] = isDraft;
+    if (scheduledAt != null && scheduledAt != current['scheduled_at']) updates['scheduled_at'] = scheduledAt.toIso8601String();
+    if (languageTag != null && languageTag != current['language_tag']) updates['language_tag'] = languageTag;
+
+    if (updates.isEmpty) return;
+
+    await _db.from('post').update(updates).eq('id', postId);
   }
 }
 

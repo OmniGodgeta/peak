@@ -41,22 +41,143 @@ class ComposeScreen extends ConsumerStatefulWidget {
 }
 
 class _ComposeScreenState extends ConsumerState<ComposeScreen> {
+  void _addPollOption() {
+    setState(() {
+      _pollOptions.add(TextEditingController());
+    });
+  }
+
+  void _removePollOption(int index) {
+    setState(() {
+      _pollOptions[index].dispose();
+      _pollOptions.removeAt(index);
+    });
+  }
+
+  Widget _buildPollSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          title: const Text('Poll'),
+          value: _isPoll,
+          onChanged: (val) => setState(() => _isPoll = val),
+        ),
+        if (_isPoll) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _pollQuestion,
+              decoration: const InputDecoration(labelText: 'Poll Question'),
+            ),
+          ),
+          ..._pollOptions.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final controller = entry.value;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      decoration: InputDecoration(labelText: 'Option ${idx + 1}'),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: () => _removePollOption(idx),
+                  ),
+                ],
+              ),
+            );
+          }),
+          TextButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('Add Option'),
+            onPressed: _addPollOption,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSettingsSection() {
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text('Draft'),
+          value: _isDraft,
+          onChanged: (val) => setState(() => _isDraft = val),
+        ),
+        CheckboxListTile(
+          title: const Text('Schedule Post'),
+          value: _scheduleTime.text.isNotEmpty,
+          onChanged: (val) => setState(() {
+             if (val == true) {
+               // Simple way for now - maybe a date/time picker later
+               _scheduleTime.text = DateTime.now().add(const Duration(days: 1)).toIso8601String();
+             } else {
+               _scheduleTime.clear();
+             }
+          }),
+        ),
+        if (_scheduleTime.text.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _scheduleTime,
+              decoration: const InputDecoration(labelText: 'Scheduled At (ISO8601)'),
+            ),
+          ),
+        CheckboxListTile(
+          title: const Text('Language Tag'),
+          value: _langTag.text.isNotEmpty,
+          onChanged: (val) => setState(() {
+            if (val == true) {
+              _langTag.text = 'en';
+            } else {
+              _langTag.clear();
+            }
+          }),
+        ),
+        if (_langTag.text.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _langTag,
+              decoration: const InputDecoration(labelText: 'Language Tag (e.g. en)'),
+            ),
+          ),
+        TextField(
+          controller: _quoteId,
+          decoration: const InputDecoration(labelText: 'Quote Post ID'),
+        ),
+      ],
+    );
+  }
+
   final _body = TextEditingController();
   final _cw = TextEditingController();
   final _title = TextEditingController();
+  final _langTag = TextEditingController();
+  final _scheduleTime = TextEditingController();
+  final _quoteId = TextEditingController();
+  final _pollQuestion = TextEditingController();
+  final List<TextEditingController> _pollOptions = [];
   final _selected = <String>{};
   final _media = <PendingMedia>[];
   bool _showCw = false;
   bool _article = false;
   bool _busy = false;
+  bool _isDraft = false;
+  bool _isPoll = false;
   String? _error;
 
   bool get _isReply => widget.replyTo != null;
   bool get _isCommunity => widget.communityId != null && !_isReply;
   bool get _hasVideo => _media.any((m) => m.isVideo);
 
-  // The self-hosted media server transcodes + has room; without it we fall back
-  // to Supabase Storage, so keep clips small.
   int get _maxVideoBytes =>
       Env.mediaServerConfigured ? 400 * 1024 * 1024 : 50 * 1024 * 1024;
   Duration? get _maxVideoDuration =>
@@ -79,6 +200,13 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     _body.dispose();
     _cw.dispose();
     _title.dispose();
+    _langTag.dispose();
+    _scheduleTime.dispose();
+    _quoteId.dispose();
+    _pollQuestion.dispose();
+    for (var c in _pollOptions) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -183,6 +311,12 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           body: _body.text.trim(),
           media: _media,
           contentWarning: cw,
+          languageTag: _langTag.text.trim().isEmpty ? null : _langTag.text.trim(),
+          isDraft: _isDraft,
+          scheduledAt: _scheduleTime.text.isEmpty ? null : DateTime.tryParse(_scheduleTime.text),
+          pollData: _isPoll
+              ? {'question': _pollQuestion.text.trim(), 'options': _pollOptions.map((c) => c.text.trim()).toList()}
+              : null,
         );
       } else if (_isCommunity) {
         await repo.createPost(
@@ -195,24 +329,33 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           title: title,
           communityId: widget.communityId,
           channelId: widget.channelId,
+          languageTag: _langTag.text.trim().isEmpty ? null : _langTag.text.trim(),
+          isDraft: _isDraft,
+          scheduledAt: _scheduleTime.text.isEmpty ? null : DateTime.tryParse(_scheduleTime.text),
+          quoteId: _quoteId.text.trim().isEmpty ? null : _quoteId.text.trim(),
+          pollData: _isPoll
+              ? {'question': _pollQuestion.text.trim(), 'options': _pollOptions.map((c) => c.text.trim()).toList()}
+              : null,
         );
       } else {
-        final publicIds = circles
-            .where((c) => c.isPublic)
-            .map((c) => c.id)
-            .toSet();
+        final publicIds = circles.where((c) => c.isPublic).map((c) => c.id).toSet();
         final onlyPublic =
             _selected.length == 1 && publicIds.contains(_selected.first);
         await repo.createPost(
           body: _body.text.trim(),
-          visibility: onlyPublic
-              ? PostVisibility.public
-              : PostVisibility.circles,
+          visibility: onlyPublic ? PostVisibility.public : PostVisibility.circles,
           circleIds: _selected.toList(),
           media: _media,
           contentWarning: cw,
           longForm: _article,
           title: title,
+          languageTag: _langTag.text.trim().isEmpty ? null : _langTag.text.trim(),
+          isDraft: _isDraft,
+          scheduledAt: _scheduleTime.text.isEmpty ? null : DateTime.tryParse(_scheduleTime.text),
+          quoteId: _quoteId.text.trim().isEmpty ? null : _quoteId.text.trim(),
+          pollData: _isPoll
+              ? {'question': _pollQuestion.text.trim(), 'options': _pollOptions.map((c) => c.text.trim()).toList()}
+              : null,
         );
       }
       ref.invalidate(feedProvider);
@@ -337,8 +480,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                 hintText: _isReply
                     ? 'Write a reply'
                     : _article
-                    ? 'Write your article. Blank lines start new paragraphs; '
-                          '“# ” and “## ” make headings; “- ” makes a list.'
+                    ? 'Write your article. Blank lines start new paragraphs; “# ” and “## ” make headings; “- ” makes a list.'
                     : _hasVideo
                     ? 'Describe your video (optional)'
                     : "What's happening?",
@@ -353,6 +495,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
               ),
             ],
             const SizedBox(height: 4),
+            _buildPollSection(),
+            _buildSettingsSection(),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 4,
               children: [

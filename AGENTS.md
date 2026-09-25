@@ -95,8 +95,12 @@ Then, in this order:
    a like-based ranker.
 2. Notice quiet hours, bundling, and a neutral dot instead of a count badge.
    Push can be a local stub. Do not invent Firebase credentials.
-3. Composer: polls, drafts, scheduling, quote-posts, reply and quote controls,
-   a language tag, deliberate alt text, and visible edit history.
+3. Composer writes polls, drafts, a schedule time, `quote_of`, and a language
+   tag. Drafts stay visible only to the author. Image alt text stays on each
+   media row; there is no `post.alt_text` column. A post card already shows
+   "edited" after the body changes, and `post_edit_history` is filled by
+   trigger. Nothing in the app lists those old bodies or opens an edit.
+   Scheduled posts are not hidden from feeds yet.
 4. Voice notes and disappearing messages are not done. `ceeeeb8` added unused
    stubs under `app/lib/features/messaging/voice/`. `checkStatus` returns true
    with nothing stored. Record, upload, play, and purge are still open. MLS
