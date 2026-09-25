@@ -30,7 +30,7 @@ class UserProfileScreen extends ConsumerWidget {
         actions: [
           if (pv != null && !pv.isSelf)
             PopupMenuButton<String>(
-              onSelected: (v) {
+              onSelected: (v) async {
                 if (v == 'report') {
                   showReportSheet(
                     context,
@@ -38,10 +38,44 @@ class UserProfileScreen extends ConsumerWidget {
                     subjectId: pv.id,
                     what: '@$handle',
                   );
+                } else if (v == 'mute') {
+                  final repo = ref.read(peopleRepositoryProvider);
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (ctx) {
+                      return SafeArea(
+                        child: Wrap(
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.timer),
+                              title: const Text('1 hour'),
+                              onTap: () => _handleMute(ctx, repo, pv.id, const Duration(hours: 1)),
+                            ),
+                            ListTile(
+                              leading: const Icon(Icons.calendar_today),
+                              title: const Text('1 day'),
+                              onTap: () => _handleMute(ctx, repo, pv.id, const Duration(days: 1)),
+                            ),
+                            ListTile(
+                              leading: const Icon(Icons.calendar_month),
+                              title: const Text('1 week'),
+                              onTap: () => _handleMute(ctx, repo, pv.id, const Duration(days: 7)),
+                            ),
+                            ListTile(
+                              leading: const Icon(Icons.undo),
+                              title: const Text('Until I unmute'),
+                              onTap: () => _handleMute(ctx, repo, pv.id, null),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
                 }
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'report', child: Text('Report account')),
+                PopupMenuItem(value: 'mute', child: Text('Mute')),
               ],
             ),
         ],
@@ -70,6 +104,25 @@ class UserProfileScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _handleMute(BuildContext context, PeopleRepository repo, String userId, Duration? duration) async {
+    try {
+      await repo.mute(userId, duration: duration);
+      if (context.mounted) {
+        Navigator.pop(context); // Close bottom sheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(duration == null ? 'Account muted' : 'Account muted for ${duration.inMinutes / 60}h')),
+        );
+      }
+    } on Exception catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
   }
 }
 

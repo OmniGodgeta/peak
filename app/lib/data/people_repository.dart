@@ -164,6 +164,15 @@ class PeopleRepository {
         .eq('follower_id', _db.auth.currentUser!.id)
         .eq('followee_id', userId);
   }
+
+  Future<void> mute(String userId, {Duration? duration}) =>
+      _db.rpc('set_mute', params: {
+        'p_target': userId,
+        if (duration != null) 'p_duration_minutes': duration.inMinutes,
+      });
+
+  Future<void> unmute(String userId) =>
+      _db.rpc('clear_mute', params: {'p_target': userId});
 }
 
 final peopleRepositoryProvider = Provider<PeopleRepository>((ref) {
