@@ -104,8 +104,8 @@ class PostRepository {
           'is_sensitive': isSensitive,
           'long_form': longForm,
           if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
-          'community_id': ?communityId,
-          'channel_id': ?channelId,
+          'community_id': communityId,
+          'channel_id': channelId,
         })
         .select('id')
         .single();
@@ -152,11 +152,28 @@ class PostRepository {
           'root_id': rootId,
           'content_warning': contentWarning,
           'is_sensitive': isSensitive,
-          'community_id': ?parent['community_id'],
+          'community_id': parent['community_id'],
         })
         .select('id')
         .single();
     await _attachMedia(reply['id'] as String, uid, media);
+  }
+
+  Future<void> deletePost({required String postId}) async {
+    // 1. Fetch the media associated with this post before deleting it
+    final mediaRows = await _db
+        .from('post_media')
+        .select('storage_path')
+        .eq('post_id', postId);
+
+    // 2. Perform the soft-delete via RPC
+    await _db.rpc('delete_post', params: {'p_post_id': postId});
+
+    // 3. Cleanup media (Supabase or Media Server)
+    for (final row in mediaRows) {
+      final path = row['storage_path'] as String;
+      await _media.deleteMedia(path);
+    }
   }
 }
 
