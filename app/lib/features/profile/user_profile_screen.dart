@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/avatar.dart';
+import '../../data/creator_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/messaging_repository.dart';
 import '../../data/people_repository.dart';
 import '../../data/personhood_repository.dart';
 import '../../data/report_repository.dart';
+import '../../features/media/creator_video_editor_sheet.dart';
 import '../feed/post_card.dart';
 import '../messaging/chat_screen.dart';
 import '../moderation/report_sheet.dart';
+import './creator_video_editor_sheet.dart';
 
 /// Someone else's profile (or your own, viewed by handle): identity, a follow
 /// button, and their posts.
@@ -55,17 +58,126 @@ class UserProfileScreen extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(profileViewProvider(handle));
               ref.invalidate(postsByProvider(p.id));
+              ref.invalidate(userVideosProvider(p.id));
             },
             child: ListView(
               children: [
                 _Header(profile: p),
                 const Divider(height: 1),
-                _Posts(authorId: p.id),
+                _ProfileTabs(authorId: p.id, isSelf: p.isSelf),
               ],
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class _ProfileTabs extends ConsumerWidget {
+  const _ProfileTabs({required this.authorId, required this.isSelf});
+  final String authorId;
+  final bool isSelf;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 0, 4),
+          child: Text('Posts', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        _Posts(authorId: authorId),
+        const Divider(height: 32),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 0, 4),
+          child: Text('Videos', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        _VideosTab(authorId: authorId, isSelf: isSelf),
+      ],
+    );
+  }
+}
+
+class _VideosTab extends ConsumerWidget {
+  const _VideosTab({required this.authorId, required this.isSelf});
+  final String authorId;
+  final bool isSelf;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final videoModels = ref.watch(userVideosProvider(authorId));
+
+    return videoModels.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('$e')),
+      data: (videos) {
+        if (videos.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: Text('No videos yet.')),
+          );
+        }
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 4,
+            mainAxisSpacing: 4,
+            childAspectRatio: 9 / 16,
+          ),
+          itemCount: videos.length,
+          itemBuilder: (context, index) {
+            final v = videos[index];
+            final mediaId = v['media_id'] as String;
+            final posterPath = v['poster_path'] as String?;
+            
+            return GestureDetector(
+              onTap: isSelf ? () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (ctx) => CreatorVideoEditorSheet(
+                    mediaId: mediaId,
+                    posterPath: posterPath ?? '',
+                    onSave: () {
+                      ref.invalidate(userVideosProvider(authorId));
+                    },
+                  ),
+                );
+              } : null,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(4),
+                  image: posterPath != null 
+                    ? DecorationImage(
+                        image: NetworkImage(posterPath),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+                ),
+                child: Stack(
+                  children: [
+                    const Center(
+                      child: Icon(Icons.play_circle_outline, color: Colors.white54),
+                    ),
+                    if (isSelf)
+                      const Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Icon(Icons.edit, size: 16, color: Colors.white70),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
