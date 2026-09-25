@@ -12,6 +12,7 @@ class AppNotice {
     required this.actorHandle,
     required this.actorName,
     this.postId,
+    this.reactionCount = 1,
   });
 
   final String id;
@@ -21,9 +22,12 @@ class AppNotice {
   final String actorHandle;
   final String actorName;
   final String? postId;
+  final int reactionCount;
 
   String get line => switch (kind) {
-    'like' => '$actorName liked your post',
+    'like' => reactionCount > 1
+        ? '$actorName and ${reactionCount - 1} others liked your post'
+        : '$actorName liked your post',
     'reply' => '$actorName replied to you',
     'follow' => '$actorName followed you',
     _ => '$actorName · $kind',
@@ -41,6 +45,7 @@ class AppNotice {
       actorHandle: handle,
       actorName: name.isEmpty ? '@$handle' : name,
       postId: m['post_id'] as String?,
+      reactionCount: m['reaction_count'] as int? ?? 1,
     );
   }
 }
@@ -53,21 +58,24 @@ class NotificationRepository {
     final rows = await _db
         .from('user_notification')
         .select(
-          'id, kind, created_at, read_at, post_id, actor:profile!user_notification_actor_id_fkey(handle, display_name)',
+          'id, kind, created_at, read_at, post_id, reaction_count, actor:profile!user_notification_actor_id_fkey(handle, display_name)',
         )
         .order('created_at', ascending: false)
         .limit(40);
-    return [
-      for (final row in rows as List)
-        AppNotice.fromMap(row as Map<String, dynamic>),
-    ];
+    return (rows as List).map((row) {
+      final notice = AppNotice.fromMap(row as Map<String, dynamic>);
+      if (notice.createdAt.isAfter(DateTime.now().toUtc())) return null;
+      return notice;
+    }).whereType<AppNotice>().toList();
   }
 
   Future<int> unreadCount() async {
+    final now = DateTime.now().toUtc().toIso8601String();
     final rows = await _db
         .from('user_notification')
         .select('id')
-        .isFilter('read_at', null);
+        .isFilter('read_at', null)
+        .filter('created_at', '<=', now);
     return (rows as List).length;
   }
 

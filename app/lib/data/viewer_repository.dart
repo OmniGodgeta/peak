@@ -130,7 +130,36 @@ class ViewerRepository {
     await _db.from('playlist_item').delete().eq('playlist_id', playlistId).eq('media_id', mediaId);
   }
 
-  // --- Watch-Later ---
+  Future<List<FeedPost>> getWatchLaterPosts() async {
+    final mediaIds = await getWatchLaterMediaIds();
+    if (mediaIds.isEmpty) return [];
+
+    final rows = await _db
+        .from('post_media')
+        .select('''
+          id,
+          post_id,
+          kind, storage_path, poster_path, alt_text, width, height, duration_ms
+        ''')
+        .filter('id', 'in', mediaIds);
+
+    final postIds = (rows as List).map((e) => e['post_id'] as String).toSet().toList();
+    if (postIds.isEmpty) return [];
+
+    // Fetch posts in one go using a select on 'post' table.
+    final postRows = await _db.from('post').select('''
+      id, body, content_warning, is_sensitive, visibility, created_at, author_id, author_handle, author_domain, author_display_name, author_is_teen, author_is_verified, author_avatar_path, reaction_count, reply_count, repost_count, viewer_reacted, viewer_reposted, title, long_form, is_pinned, community_label, community_label_note, author_flair, channel_id, channel_name, reason, reply_to, depth, rank_score
+    ''').filter('id', 'in', postIds);
+
+    final postMap = {for (var r in postRows) (r['id'] as String): r};
+
+    return (rows as List).map((e) {
+      final postId = e['post_id'] as String;
+      final postData = postMap[postId];
+      if (postData == null) throw Exception('Post $postId not found');
+      return FeedPost.fromMap(postData);
+    }).toList();
+  }
 
   Future<List<String>> getWatchLaterMediaIds() async {
     final rows = await _db.from('watch_later').select('media_id').eq('user_id', _userId);
@@ -169,7 +198,7 @@ class PlaylistEntry {
   factory PlaylistEntry.fromMap(Map<String, dynamic> m) {
     final mediaData = m['media'] as Map<String, dynamic>;
     final postData = m['post'] as Map<String, dynamic>;
-    
+
     return PlaylistEntry(
       id: m['id'] as String,
       sortOrder: (m['sort_order'] as num?)?.toInt() ?? 0,
