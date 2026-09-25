@@ -7,8 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart' as ju;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/call_repository.dart';
 import '../../data/messaging_repository.dart';
 import '../../data/supabase_providers.dart';
+import '../calls/call_room_screen.dart';
 import 'group_settings_screen.dart';
 import 'voice/voice_note_service.dart';
 
@@ -117,6 +119,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (mounted) setState(() => _typingNames.remove(name));
           });
         },
+      )
+      ..onBroadcast(
+        event: 'incoming_call',
+        callback: (payload) {
+          final uid = payload['uid'] as String?;
+          final roomId = payload['roomId'] as String?;
+          if (uid == _myId || roomId == null) return;
+          _showIncomingCall(roomId);
+        },
       );
     ch.subscribe();
     _channel = ch;
@@ -167,6 +178,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _typingStop = Timer(const Duration(seconds: 3), () {});
   }
 
+  Future<void> _startCall() async {
+    final roomId = await ref.read(callRepositoryProvider).createRoom(title: widget.title);
+    _channel?.sendBroadcastMessage(
+      event: 'incoming_call',
+      payload: {'uid': _myId, 'roomId': roomId},
+    );
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CallRoomScreen(roomId: roomId, title: widget.title),
+      ),
+    );
+  }
+
+  void _showIncomingCall(String roomId) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Incoming call from ${widget.title}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('DECLINE'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CallRoomScreen(roomId: roomId, title: widget.title),
+                ),
+              );
+            },
+            child: const Text('ANSWER'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final messages = ref.watch(messagesProvider(widget.conversationId));
@@ -177,6 +229,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
+          if (!widget.isGroup && widget.otherId != null)
+            IconButton(
+              icon: const Icon(Icons.call_outlined),
+              tooltip: 'Start a call',
+              onPressed: _startCall,
+            ),
           if (widget.isGroup)
             IconButton(
               icon: const Icon(Icons.group_outlined),
