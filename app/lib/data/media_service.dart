@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image/image.dart' as img;
 
 import '../core/env.dart';
 import 'supabase_providers.dart';
@@ -42,8 +43,31 @@ class MediaService {
     required String contentType,
     required bool isVideo,
   }) async {
-    if (usingServer) return _uploadToServer(bytes, contentType);
-    return _uploadToSupabase(bytes, contentType, isVideo);
+    Uint8List processedBytes = bytes;
+    if (!isVideo && (contentType == 'image/jpeg' || contentType == 'image/png')) {
+      processedBytes = _stripMetadata(bytes, contentType);
+    }
+
+    if (usingServer) return _uploadToServer(processedBytes, contentType);
+    return _uploadToSupabase(processedBytes, contentType, isVideo);
+  }
+
+  Uint8List _stripMetadata(Uint8List bytes, String contentType) {
+    try {
+      final image = img.decodeImage(bytes);
+      if (image == null) return bytes;
+
+      // Re-encoding with 'image' package strips metadata by default
+      // as we are creating a new image object from pixels.
+      final encoded = contentType == 'image/jpeg' 
+          ? img.encodeJpg(image) 
+          : img.encodePng(image);
+      
+      return Uint8List.fromList(encoded);
+    } catch (e) {
+      // If decoding fails, fall back to original bytes for safety
+      return bytes;
+    }
   }
 
   /// A loadable URL for a value previously stored in `post_media.storage_path`
