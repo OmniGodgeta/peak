@@ -159,7 +159,28 @@ Skip payments and anything a lawyer has to sign.
   `community_member.user_id`. The column is `member_id`. Its global mode
   writes the feed for every profile. The live path is the SQL trigger that
   fans out to followers only. Do not point Latest at that function.
-- Hosted project `izvcozvfqmggyziaeeoc` does not match local migration
-  history. Develop against the local database.
+- **Hosted project `izvcozvfqmggyziaeeoc` drifts from local migration
+  history if you don't push.** This caused a real production outage
+  (2026-09-26): the feed and For You both hard-failed for the operator
+  because 36 migrations covering ~2 weeks of work (all of Oct 1 onward -
+  ranking, video enhancements, phase 6 creators, label appeals, notice
+  bundling, safety moderation, calls, federation, mute/shield/disappearing
+  messages, video subscriptions, live rooms) had only ever been run with
+  `supabase migration up` (local) and never `supabase db push` (hosted).
+  Fixed by linking with a Supabase personal access token
+  (`SUPABASE_ACCESS_TOKEN`, from the operator - full/unscoped, a
+  scopes-restricted one will fail CLI calls with cryptic missing-permission
+  errors), reconciling `supabase migration list`'s drift with
+  `supabase migration repair --status applied <versions...>` for the ones
+  that already existed on hosted (verified first via the Management API's
+  `/database/query` endpoint - don't guess the boundary, check real table/
+  function existence), then a real `supabase db push`. **Get in the habit
+  of pushing to hosted as part of finishing a phase, not just committing
+  the migration file** - "committed to git" is not "live." A separate, real
+  bug was also found and fixed in the same incident: `community_member`'s
+  own `select` RLS policy queried `community_member` again inside itself,
+  which is genuine infinite recursion (`42P17`) - present since the table
+  was created, not new. Fixed in
+  `20261011000000_fix_community_member_recursion.sql`.
 - `app/v1.0.1_web_build.tar.gz` is already in git. Do not commit new build
   output.
