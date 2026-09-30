@@ -50,3 +50,7 @@ coverage/
 /dist/
 supabase/backups/
 app/android/build/
+
+# native MLS build outputs (tool/build_mls.sh)
+native/peak_mls/target/
+app/android/app/src/main/jniLibs/*/libpeak_mls.so

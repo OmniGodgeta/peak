@@ -2,7 +2,12 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/env.dart';
+import '../data/supabase_providers.dart';
+import 'device_repository.dart';
+import 'mls/mls.dart';
 import 'noop_e2ee.dart';
+import 'openmls_e2ee.dart';
 
 /// The seam between Peak's messaging code and the encryption layer.
 ///
@@ -33,7 +38,14 @@ abstract class E2eeService {
   Future<Uint8List> decrypt(String conversationId, Uint8List ciphertext);
 }
 
+/// MLS only when the build opts in (PEAK_E2EE=mls) and the native library
+/// is packaged; otherwise the transport-only [NoopE2ee].
 final e2eeServiceProvider = Provider<E2eeService>((ref) {
-  // TODO(phase-2.5-1): return OpenMlsE2ee once the native lib + FFI land.
+  if (Env.e2eeMls && MlsClient.available()) {
+    return OpenMlsE2ee(
+      ref.watch(supabaseProvider),
+      ref.watch(deviceRepositoryProvider),
+    );
+  }
   return const NoopE2ee();
 });

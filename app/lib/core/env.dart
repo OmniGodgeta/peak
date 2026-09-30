@@ -44,6 +44,10 @@ class Env {
   static const turnUsername = String.fromEnvironment('TURN_USERNAME');
   static const turnCredential = String.fromEnvironment('TURN_CREDENTIAL');
 
+  /// `PEAK_E2EE=mls` turns on the MLS layer (device keys + key-package
+  /// pool) when the native library is packaged. Off by default.
+  static const e2eeMls = String.fromEnvironment('PEAK_E2EE') == 'mls';
+
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }

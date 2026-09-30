@@ -5,10 +5,10 @@ stores **ciphertext only** and never holds a key that can read message content.
 Multi-device is in scope from the start — phone + tablet + web at once, with
 history available on new devices.
 
-Status: **design + schema landed; native crypto integration is the next
-milestone.** Messaging currently runs in the transport-only Phase 2 mode; the
-switch to E2E is staged (see §7) and gated behind a feature flag until every
-piece is in place.
+Status: **native MLS layer done and verified (2.5-1), device key packages
+done (2.5-2); encrypted conversations (2.5-3) are next.** Messaging still runs
+in the transport-only Phase 2 mode; the MLS layer is behind the `PEAK_E2EE=mls`
+build flag and nothing in the UI claims end-to-end encryption.
 
 ---
 
@@ -157,17 +157,22 @@ in the enclave.
 
 - [x] **2.5-0** — this doc + schema (`device`, `key_package`, `mls_*`,
       `history_blob`) + `E2eeService` seam with the no-op impl.
-- [ ] **2.5-1** — native build: OpenMLS → static lib for android
-      (cargo-ndk + CMake) and iOS (xcframework); `dart:ffi` bindings; a smoke
-      test that generates a keypair and round-trips a message locally.
-      *(needs the Rust toolchain + native config — coordinate with infra/ops.)*
-- [~] **2.5-2** — device registration + key-package pool + device-list UI.
-      *Done:* every install registers a `device` with a pure-Dart Ed25519
-      signature key; Settings → Devices lists / renames / revokes them
-      (`register_device`, `my_devices`, `rename_device`, `revoke_device`).
-      *Waiting on 2.5-1:* real KeyPackage generation — `publish_key_packages`
-      / `key_package_pool` plumbing is in place but the pool stays empty until
-      the native lib can mint KeyPackages.
+- [x] **2.5-1** — `native/peak_mls` (OpenMLS 0.9, Rust) behind a flat C ABI
+      (every call panic-guarded, errors via `peak_mls_last_error`);
+      `tool/build_mls.sh` builds `libpeak_mls.so` for arm64-v8a /
+      armeabi-v7a / x86_64 (cargo-ndk; outputs gitignored) and the host;
+      `app/lib/crypto/mls/` has the `dart:ffi` bindings (web gets a stub).
+      Verified: 7 Rust tests (two-way messaging, restart via save/load, a
+      third device joining + commits, a removed device locked out, errors not
+      panics, single-use key packages), a Dart→native round-trip test, and an
+      on-device integration test on the Android emulator. iOS (xcframework)
+      and web (WASM) builds are not done.
+- [x] **2.5-2** — device registration + key-package pool + device-list UI.
+      Every install registers a `device`; Settings → Devices lists / renames
+      / revokes. With `PEAK_E2EE=mls`, `OpenMlsE2ee` gives the device an MLS
+      identity (`<account>:<device>`), keeps its state AES-256-GCM encrypted
+      on disk (key in the platform keystore), and tops the server pool up to
+      20 real KeyPackages whenever it drops below 10.
 - [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
       messages; server relays `mls_message` blobs; feature flag on for new
       conversations.

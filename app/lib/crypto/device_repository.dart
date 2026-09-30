@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/supabase_providers.dart';
+import 'e2ee_service.dart';
 
 /// One of the account owner's app installs, as seen by the Devices screen.
 class PeakDevice {
@@ -157,5 +158,12 @@ final deviceRepositoryProvider = Provider<DeviceRepository>((ref) {
 final myDevicesProvider = FutureProvider<List<PeakDevice>>((ref) async {
   final repo = ref.watch(deviceRepositoryProvider);
   await repo.ensureRegistered();
+  // With the MLS build, keep this device's KeyPackage pool topped up.
+  final e2ee = ref.read(e2eeServiceProvider);
+  if (e2ee.available) {
+    try {
+      await e2ee.ensureDeviceRegistered();
+    } catch (_) {}
+  }
   return repo.myDevices();
 });
