@@ -18,6 +18,7 @@ import '../moderation/transparency_report_screen.dart';
 import '../moderation/personhood_screen.dart';
 import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
+import '../settings/push_settings_screen.dart';
 import '../settings/sign_in_methods_screen.dart';
 import '../settings/legal_screen.dart';
 import '../settings/wellbeing_screen.dart';
@@ -28,6 +29,7 @@ import 'edit_profile_screen.dart';
 import 'personas_screen.dart';
 import 'reach_screen.dart';
 import 'user_profile_screen.dart';
+import '../../push/push_service.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -43,7 +45,7 @@ class ProfileScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
-            onPressed: () => ref.read(supabaseProvider).auth.signOut(),
+            onPressed: () => PushService.instance.signOut(ref.read(supabaseProvider)),
           ),
         ],
       ),
@@ -190,6 +192,16 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => UserProfileScreen(handle: p.handle),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('Push notifications'),
+                subtitle: const Text('Private, via UnifiedPush'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PushSettingsScreen(),
                   ),
                 ),
               ),

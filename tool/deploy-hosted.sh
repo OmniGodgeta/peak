@@ -28,6 +28,7 @@ supabase functions deploy app-version
 supabase functions deploy export
 supabase functions deploy publish
 supabase functions deploy purge-media
+supabase functions deploy push-dispatch
 
 echo "==> Rebuilding the web app against the hosted backend"
 ( cd app && flutter build web --release \

@@ -34,6 +34,23 @@ class CallRepository {
     return row['id'] as String;
   }
 
+  /// Asks push-dispatch to ring the other members of [conversationId] for
+  /// a room the caller just created. The server checks the caller owns the
+  /// room and is in the conversation. Never throws.
+  Future<void> ringByPush({
+    required String roomId,
+    required String conversationId,
+  }) async {
+    try {
+      await _db.functions.invoke(
+        'push-dispatch',
+        body: {
+          'ring': {'room': roomId, 'conversation': conversationId},
+        },
+      );
+    } catch (_) {}
+  }
+
   Future<void> joinRoom(String roomId) async {
     await _db.from('call_participants').upsert(
       {

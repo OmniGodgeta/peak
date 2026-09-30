@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Per-device wellbeing preferences. Like [dataLightProvider], this lives on the
 /// device, not the account — it's about your relationship with the phone.
@@ -97,14 +98,40 @@ class Wellbeing extends Notifier<WellbeingSettings> {
     try {
       state = WellbeingSettings.decode(await _store.read(key: _key));
     } catch (_) {}
+    // Re-sync on launch: the UTC offset moves with travel and daylight saving.
+    await syncQuietHoursToServer(state);
   }
 
   Future<void> update(WellbeingSettings next) async {
+    final quietChanged = next.quietStartMin != state.quietStartMin ||
+        next.quietEndMin != state.quietEndMin;
     state = next;
     try {
       await _store.write(key: _key, value: next.encode());
     } catch (_) {}
+    if (quietChanged) await syncQuietHoursToServer(next);
   }
+}
+
+String _hhmm(int min) =>
+    '${(min ~/ 60).toString().padLeft(2, '0')}:${(min % 60).toString().padLeft(2, '0')}';
+
+/// Quiet hours also hold back pushes and notices on the server, which needs
+/// them plus this device's UTC offset. Best-effort: signed out, offline or
+/// not configured just means the server keeps what it had.
+Future<void> syncQuietHoursToServer(WellbeingSettings w) async {
+  try {
+    final db = Supabase.instance.client;
+    if (db.auth.currentUser == null) return;
+    await db.rpc(
+      'set_my_quiet_hours',
+      params: {
+        'p_start': w.hasQuietHours ? _hhmm(w.quietStartMin!) : null,
+        'p_end': w.hasQuietHours ? _hhmm(w.quietEndMin!) : null,
+        'p_utc_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
+      },
+    );
+  } catch (_) {}
 }
 
 final wellbeingProvider = NotifierProvider<Wellbeing, WellbeingSettings>(

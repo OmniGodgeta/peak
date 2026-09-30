@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/profile_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../settings/legal_screen.dart';
+import '../../push/push_service.dart';
 
 /// First run after sign-up: pick a handle + display name, give a date of birth
 /// (13+ enforced server-side; under-18 becomes a teen account), then create the
@@ -98,7 +99,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         title: const Text('Set up your account'),
         actions: [
           TextButton(
-            onPressed: () => ref.read(supabaseProvider).auth.signOut(),
+            onPressed: () => PushService.instance.signOut(ref.read(supabaseProvider)),
             child: const Text('Sign out'),
           ),
         ],

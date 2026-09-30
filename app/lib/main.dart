@@ -4,8 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
 import 'core/env.dart';
+import 'push/push_service.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (Env.isConfigured) {
@@ -21,5 +22,13 @@ Future<void> main() async {
     );
   }
 
+  // Started headless by the UnifiedPush connector to deliver a push while
+  // the app is closed: show it, don't build any UI.
+  if (args.contains('--unifiedpush-bg')) {
+    await PushService.instance.startBackground();
+    return;
+  }
+
   runApp(const ProviderScope(child: PeakApp()));
+  await PushService.instance.start();
 }

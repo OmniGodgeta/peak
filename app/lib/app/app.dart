@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'router.dart';
+import '../push/push_service.dart';
 import 'theme.dart';
 import '../core/wellbeing_provider.dart';
 import '../features/moderation/wellbeing_break_sheet.dart';
@@ -12,6 +13,10 @@ class PeakApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    PushService.instance.onTap = (p) {
+      final to = pushRoute(p);
+      to.startsWith('/call/') ? router.push(to) : router.go(to);
+    };
     final wellbeingStatus = ref.watch(wellbeingProvider);
 
     return MaterialApp.router(

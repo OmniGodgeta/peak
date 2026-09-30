@@ -184,6 +184,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       event: 'incoming_call',
       payload: {'uid': _myId, 'roomId': roomId},
     );
+    // The broadcast only reaches someone with this chat open; a push rings
+    // their phone otherwise. Best-effort — the call works without it.
+    ref
+        .read(callRepositoryProvider)
+        .ringByPush(roomId: roomId, conversationId: widget.conversationId);
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(

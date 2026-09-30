@@ -81,6 +81,17 @@ select cron.schedule('purge-media', '47 4 * * *', $$
   );
 $$);
 
+-- push notifications (UnifiedPush / Web Push): send what's due, every minute.
+-- Calls don't wait for this — the caller's app asks push-dispatch to ring.
+select cron.schedule('push-dispatch', '* * * * *', $$
+  select net.http_post(
+    url     := 'https://<ref>.supabase.co/functions/v1/push-dispatch',
+    headers := jsonb_build_object('Content-Type','application/json',
+                                  'Authorization','Bearer <anon-key>'),
+    body    := '{}'::jsonb
+  );
+$$);
+
 -- space-feed mirror: @webb / @hubble / @roman / @launches, every 6h
 select cron.schedule('ingest-content', '25 */6 * * *', $$
   select net.http_post(

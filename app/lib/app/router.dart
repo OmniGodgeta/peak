@@ -6,6 +6,7 @@ import '../core/env.dart';
 import '../data/profile_repository.dart';
 import '../data/supabase_providers.dart';
 import '../features/auth/onboarding_screen.dart';
+import '../features/calls/call_room_screen.dart';
 import '../features/auth/sign_in_screen.dart';
 import '../features/settings/account_closing_screen.dart';
 import '../updater/update_gate.dart';
@@ -72,6 +73,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/sign-in', builder: (_, _) => const SignInScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
+      // Opened from a call push notification.
+      GoRoute(
+        path: '/call/:id',
+        builder: (_, state) => CallRoomScreen(
+          roomId: state.pathParameters['id']!,
+          title: state.uri.queryParameters['title'] ?? 'Call',
+        ),
+      ),
       GoRoute(
         path: '/account-closing',
         builder: (_, _) => const AccountClosingScreen(),

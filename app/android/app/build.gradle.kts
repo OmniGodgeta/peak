@@ -26,6 +26,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications (push) needs java.time on old Androids.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -71,4 +73,15 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
+// The UnifiedPush connector pulls in Tink for the JVM, flutter_secure_storage
+// pulls in tink-android — same classes twice. tink-android has the full API,
+// so drop the JVM artifact.
+configurations.all {
+    exclude(group = "com.google.crypto.tink", module = "tink")
 }

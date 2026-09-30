@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../crypto/device_repository.dart';
 import '../../data/supabase_providers.dart';
+import '../../push/push_service.dart';
 
 /// Settings → Devices: every app install signed in to this account, with a
 /// long-lived signature key. The owner can rename or revoke any of them;
@@ -174,7 +175,7 @@ class _DeviceTile extends ConsumerWidget {
 
     await ref.read(deviceRepositoryProvider).revoke(device.id);
     if (isThisDevice) {
-      await ref.read(supabaseProvider).auth.signOut();
+      await PushService.instance.signOut(ref.read(supabaseProvider));
     } else {
       ref.invalidate(myDevicesProvider);
     }

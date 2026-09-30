@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/data_repository.dart';
 import '../../data/profile_repository.dart';
 import '../../data/supabase_providers.dart';
+import '../../push/push_service.dart';
 
 /// Shown for the whole 30-day grace window after someone asks to delete their
 /// account. The only ways forward are to keep the account or to sign out.
@@ -86,7 +87,7 @@ class _AccountClosingScreenState extends ConsumerState<AccountClosingScreen> {
                   TextButton(
                     onPressed: _busy
                         ? null
-                        : () => ref.read(supabaseProvider).auth.signOut(),
+                        : () => PushService.instance.signOut(ref.read(supabaseProvider)),
                     child: const Text('Sign out'),
                   ),
                 ],
