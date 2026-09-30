@@ -17,6 +17,7 @@ integrity that RLS + triggers can't guarantee. See
 | `federation`     | 7     | ActivityPub inbox/outbox, account `Move`                                                                                                                                                                                                     |
 | `export`         | 3     | Build a user's full data archive                                                                                                                                                                                                             |
 | `ingest-content` | 5     | Mirror public space feeds (ESA/Webb, ESA/Hubble, NASA/Roman, Launch Library 2) into Peak as posts by `@webb`/`@hubble`/`@roman`/`@launches`. `verify_jwt=false`; runs on the service role; pg_cron every 6h. Dedup in `content_ingest_seen`. |
+| `purge-media`    | 3     | Drain `media_pending_delete` through the Storage API (SQL can't delete from `storage.objects`). pg_cron daily at 04:47, after `purge-deletions`. Only removes paths the database already queued.                                             |
 
 ## Local dev
 

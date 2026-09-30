@@ -70,6 +70,17 @@ select cron.schedule('purge-deletions', '17 4 * * *', $$select purge_expired_del
 select cron.schedule('purge-accounts',  '33 4 * * *', $$select purge_due_accounts()$$);
 select cron.schedule('purge-stories',   '7 * * * *',  $$select purge_expired_stories()$$);
 
+-- remove the Storage objects the purge queued (media_pending_delete), daily
+-- after purge-deletions. The function only removes already-queued paths.
+select cron.schedule('purge-media', '47 4 * * *', $$
+  select net.http_post(
+    url     := 'https://<ref>.supabase.co/functions/v1/purge-media',
+    headers := jsonb_build_object('Content-Type','application/json',
+                                  'Authorization','Bearer <anon-key>'),
+    body    := '{}'::jsonb
+  );
+$$);
+
 -- space-feed mirror: @webb / @hubble / @roman / @launches, every 6h
 select cron.schedule('ingest-content', '25 */6 * * *', $$
   select net.http_post(

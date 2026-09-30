@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Hard-delete posts past the 30-day window, then remove their Storage objects.
 
-Soft-deleted posts are left alone. Reads the local service role from
+Soft-deleted posts are left alone. On hosted, the purge-media Edge Function
+(pg_cron, daily) does the object removal; this script is the local-stack
+equivalent. Reads the local service role from
 `supabase status` and does not print it.
 """
 import json
