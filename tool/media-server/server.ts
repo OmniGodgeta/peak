@@ -18,6 +18,7 @@
 
 import { serveFile } from "jsr:@std/http@1/file-server";
 import { join, normalize } from "jsr:@std/path@1";
+import { queueHls } from "./hls.ts";
 
 const MEDIA_ROOT = must("MEDIA_ROOT");
 const PUBLIC_BASE = must("PUBLIC_BASE").replace(/\/+$/, "");
@@ -27,6 +28,8 @@ const PORT = Number(Deno.env.get("PORT") ?? "8787");
 const MAX_IMAGE = Number(Deno.env.get("MAX_IMAGE_MB") ?? "25") * 1024 * 1024;
 const MAX_VIDEO = Number(Deno.env.get("MAX_VIDEO_MB") ?? "500") * 1024 * 1024;
 const MAX_AUDIO = Number(Deno.env.get("MAX_AUDIO_MB") ?? "100") * 1024 * 1024;
+// Adaptive HLS ladder after each video upload. HLS=off to skip (slow CPU).
+const HLS_ON = (Deno.env.get("HLS") ?? "on") !== "off";
 
 const CORS: HeadersInit = {
   "Access-Control-Allow-Origin": "*",
@@ -189,8 +192,13 @@ async function handleUpload(req: Request): Promise<Response> {
       ]).catch(() => {});
       await Deno.remove(tmp).catch(() => {});
       const probe = await probeMedia(out);
+      if (HLS_ON) queueHls(dir, id, probe.height);
       return json({
         path: `${userId}/${id}.mp4`,
+        // Ready a little later; players fall back to `url` until then.
+        hlsUrl: HLS_ON
+          ? `${PUBLIC_BASE}/media/${userId}/${id}/master.m3u8`
+          : null,
         url: `${PUBLIC_BASE}/media/${userId}/${id}.mp4`,
         posterUrl: await exists(poster)
           ? `${PUBLIC_BASE}/media/${userId}/${id}.jpg`
@@ -253,6 +261,11 @@ async function handleUpload(req: Request): Promise<Response> {
     });
   } catch (e) {
     await Deno.remove(tmp).catch(() => {});
+    // Don't leave a half-written output behind (it would 404 on play and
+    // trip the HLS backfill forever).
+    for (const ext of ["mp4", "jpg", "m4a"]) {
+      await Deno.remove(join(dir, `${id}.${ext}`)).catch(() => {});
+    }
     return json(
       { error: `processing failed: ${e instanceof Error ? e.message : e}` },
       500,
@@ -322,19 +335,32 @@ async function handlePoster(req: Request): Promise<Response> {
 
 // ── serve ───────────────────────────────────────────────────────────────
 
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+// <user>/<file>, or an HLS ladder: <user>/<id>/master.m3u8,
+// <user>/<id>/v<n>/index.m3u8, <user>/<id>/v<n>/seg<nnn>.ts
+const SERVABLE = new RegExp(
+  `^${UUID}/(?:[^/]+|${UUID}/(?:master\\.m3u8|v\\d/(?:index\\.m3u8|seg\\d{3,5}\\.ts)))$`,
+);
+
 async function handleServe(req: Request, rel: string): Promise<Response> {
-  // rel = "<userId>/<file>"; reject traversal and anything not two segments
   const clean = normalize(rel).replace(/^(\.\.(\/|\\|$))+/, "");
   const parts = clean.split("/").filter(Boolean);
-  if (parts.length !== 2 || parts.some((p) => p.startsWith("."))) {
+  if (
+    parts.some((p) => p.startsWith(".")) || !SERVABLE.test(parts.join("/"))
+  ) {
     return json({ error: "bad path" }, 400);
   }
-  const abs = join(MEDIA_ROOT, parts[0], parts[1]);
+  const abs = join(MEDIA_ROOT, ...parts);
   try {
     const stat = await Deno.stat(abs);
     if (!stat.isFile) throw new Error("not a file");
     const res = await serveFile(req, abs, { fileInfo: stat });
     for (const [k, v] of Object.entries(CORS)) res.headers.set(k, v);
+    if (abs.endsWith(".m3u8")) {
+      res.headers.set("Content-Type", "application/vnd.apple.mpegurl");
+    } else if (abs.endsWith(".ts")) {
+      res.headers.set("Content-Type", "video/mp2t");
+    }
     res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
     return res;
   } catch {

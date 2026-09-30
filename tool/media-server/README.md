@@ -22,6 +22,13 @@ app ◀──────────  GET /v1/media/... (range)  ─┘
 - **Images**: stored as-is (GIF animation preserved); dimensions probed.
 - **Serve**: `GET /v1/media/<user>/<file>` with HTTP range support + long cache
   + permissive CORS (the web app is a different origin).
+- **Adaptive streaming (HLS)**: after each video upload a 360p/720p/1080p
+  ladder (never upscaled; video-only if the clip has no audio) is built in the
+  background, one at a time, into `<user>/<id>/master.m3u8`. The upload
+  answer carries `hlsUrl`; phones try it first and fall back to the MP4
+  until it's ready (web always uses the MP4 — only Safari plays HLS
+  natively). `HLS=off` disables it on a slow box. Older videos:
+  `MEDIA_ROOT=… deno task backfill-hls` (idempotent).
 - **Poster from a frame**: `POST /v1/poster` `{"path":"<user>/<id>.mp4","tMs":12000}`
   grabs that frame as a new thumbnail. Only the caller's own videos.
 - Per-user upload rate limit (20/min). Size caps: image 25 MB, video 500 MB, audio 100 MB.
@@ -64,8 +71,10 @@ breaks before this is up.
 
 ## Not yet
 
-- Adaptive HLS (progressive MP4 + range is fine for the beta)
-- EXIF strip on images (done client-side: JPEG/PNG are re-encoded before upload)
-- Orphan cleanup on post delete
+- Deleting files of purged posts (the 30-day purge only queues Supabase
+  Storage paths; media-server files stay on disk). Images are EXIF-stripped
+  client-side before upload.
+- A CDN: this box is tailnet-only, so a public CDN can't front it. That's a
+  hosting decision for when Peak has a public home.
 - Auth on the serve path (public, like Supabase public URLs — the path is the
   capability)

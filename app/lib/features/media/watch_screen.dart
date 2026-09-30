@@ -175,6 +175,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
                   )
                 : PostVideo(
                     url: mediaService.resolveUrl(video.storagePath),
+                    hlsUrl: hlsFor(video),
                     posterUrl: video.posterPath == null
                         ? null
                         : mediaService.resolveUrl(video.posterPath!),

@@ -73,6 +73,7 @@ class PostRepository {
         'kind': m.isVideo ? 'video' : (m.isAudio ? 'audio' : 'image'),
         'storage_path': up.path,
         'poster_path': up.posterPath,
+        'hls_path': up.hlsUrl,
         'alt_text': m.altText.trim().isEmpty ? null : m.altText.trim(),
         'width': up.width ?? m.width,
         'height': up.height ?? m.height,

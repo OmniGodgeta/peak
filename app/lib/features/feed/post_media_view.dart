@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as ja;
@@ -33,6 +34,7 @@ class PostMediaView extends ConsumerWidget {
       if (m.kind == 'video') {
         return PostVideo(
           url: repo.mediaUrl(m.storagePath),
+          hlsUrl: hlsFor(m),
           posterUrl: m.posterPath == null ? null : repo.mediaUrl(m.posterPath!),
           aspectRatio: m.aspectRatio,
         );
@@ -149,6 +151,7 @@ class PostVideo extends ConsumerStatefulWidget {
     this.initialPosition,
     this.onPositionChanged,
     this.captions = const [],
+    this.hlsUrl,
     this.onControllerReady,
   });
   final String url;
@@ -164,6 +167,9 @@ class PostVideo extends ConsumerStatefulWidget {
 
   /// Callback when the video playback position changes.
   final ValueChanged<Duration>? onPositionChanged;
+
+  /// Adaptive (HLS) master playlist to prefer over [url], when there is one.
+  final String? hlsUrl;
 
   /// Timed caption lines; a CC toggle appears when there are any.
   final List<VideoCue> captions;
@@ -232,15 +238,49 @@ class _PostVideoState extends ConsumerState<PostVideo> {
     return (widget.aspectRatio ?? 16 / 9).clamp(0.6, 1.9);
   }
 
+  /// Adaptive HLS first where the platform plays it (not the browser — only
+  /// Safari does natively), then the progressive MP4. HLS also fails while
+  /// the server is still building the ladder; the MP4 covers that.
+  Future<VideoPlayerController?> _openController() async {
+    final hls = widget.hlsUrl;
+    final sources = [
+      if (hls != null && !kIsWeb)
+        VideoPlayerController.networkUrl(
+          Uri.parse(hls),
+          formatHint: VideoFormat.hls,
+        ),
+      VideoPlayerController.networkUrl(Uri.parse(widget.url)),
+    ];
+    for (final c in sources) {
+      try {
+        await c.initialize();
+        return c;
+      } on Exception {
+        await c.dispose();
+      } on Error {
+        await c.dispose();
+      }
+    }
+    return null;
+  }
+
   Future<void> _load() async {
     if (_loading || _c != null) return;
     setState(() {
       _loading = true;
       _failed = false;
     });
-    final c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    final c = await _openController();
+    if (c == null) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+      }
+      return;
+    }
     try {
-      await c.initialize();
       await c.setLooping(true);
 
       // Seek to initial position if provided

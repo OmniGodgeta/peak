@@ -16,11 +16,15 @@ class PostMedia {
     required this.height,
     this.durationMs,
     this.posterPath,
+    this.hlsPath,
   });
 
   final String kind;
   final String storagePath;
   final String? posterPath;
+
+  /// Adaptive-streaming master playlist on the media server, if any.
+  final String? hlsPath;
   final String? altText;
   final int? width;
   final int? height;
@@ -36,11 +40,25 @@ class PostMedia {
     kind: (m['kind'] as String?) ?? 'image',
     storagePath: m['storage_path'] as String,
     posterPath: m['poster_path'] as String?,
+    hlsPath: m['hls_path'] as String?,
     altText: m['alt_text'] as String?,
     width: (m['width'] as num?)?.toInt(),
     height: (m['height'] as num?)?.toInt(),
     durationMs: (m['duration_ms'] as num?)?.toInt(),
   );
+}
+
+final _mediaServerMp4 = RegExp(
+  r'^(https?://.+/media/[0-9a-f-]{36})/([0-9a-f-]{36})\.mp4$',
+);
+
+/// The HLS playlist to try for a video: the stored one, or — for media-server
+/// MP4s uploaded before hls_path existed — where the server's backfill puts
+/// it. Null for Supabase-Storage videos. Players fall back to the MP4.
+String? hlsFor(PostMedia m) {
+  if (m.hlsPath != null) return m.hlsPath;
+  final x = _mediaServerMp4.firstMatch(m.storagePath);
+  return x == null ? null : '${x.group(1)}/${x.group(2)}/master.m3u8';
 }
 
 /// A row from the feed / thread RPCs: a post plus its author's public identity,

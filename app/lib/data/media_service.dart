@@ -15,6 +15,7 @@ class UploadedMedia {
   const UploadedMedia({
     required this.path,
     this.posterPath,
+    this.hlsUrl,
     this.width,
     this.height,
     this.durationMs,
@@ -24,6 +25,9 @@ class UploadedMedia {
   /// handled it, or a bare bucket path for the Supabase fallback.
   final String path;
   final String? posterPath;
+
+  /// Where the media server will put the adaptive ladder (built after upload).
+  final String? hlsUrl;
   final int? width;
   final int? height;
   final int? durationMs;
@@ -138,6 +142,7 @@ class MediaService {
     return UploadedMedia(
       path: j['url'] as String,
       posterPath: j['posterUrl'] as String?,
+      hlsUrl: j['hlsUrl'] as String?,
       width: (j['width'] as num?)?.toInt(),
       height: (j['height'] as num?)?.toInt(),
       durationMs: (j['durationMs'] as num?)?.toInt(),
