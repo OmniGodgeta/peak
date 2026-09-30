@@ -83,10 +83,11 @@ class DiscoverRepository {
     ];
   }
 
-  Future<List<SuggestedCommunity>> suggestedCommunities({List<String>? interests}) async {
-    final rows = await _db.rpc('suggested_communities', params: {
-      'p_interests': interests ?? [],
-    }) as List;
+  /// Communities matching the viewer's saved interests. The RPC reads those
+  /// interests itself; it takes no interests parameter (sending one made
+  /// PostgREST reject the call).
+  Future<List<SuggestedCommunity>> suggestedCommunities() async {
+    final rows = await _db.rpc('suggested_communities') as List;
     return [
       for (final r in rows)
         SuggestedCommunity.fromMap(r as Map<String, dynamic>),
@@ -106,14 +107,13 @@ final pymkProvider = FutureProvider<List<PymkPerson>>((ref) async {
   return ref.watch(discoverRepositoryProvider).peopleYouMayKnow();
 });
 
-
 final suggestedCommunitiesProvider = FutureProvider<List<SuggestedCommunity>>((
   ref,
 ) async {
-  final interests = await ref.watch(myInterestsProvider.future);
-  return ref.watch(discoverRepositoryProvider).suggestedCommunities(interests: interests);
+  // Re-run when interests change; the server reads them from the account.
+  await ref.watch(myInterestsProvider.future);
+  return ref.watch(discoverRepositoryProvider).suggestedCommunities();
 });
-
 
 /// The most active public communities — shown on Discover so a brand-new
 /// account (no follows yet) still has somewhere to go. Graph-independent.
