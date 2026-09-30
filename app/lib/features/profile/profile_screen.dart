@@ -18,6 +18,7 @@ import '../moderation/transparency_report_screen.dart';
 import '../moderation/personhood_screen.dart';
 import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
+import '../settings/sign_in_methods_screen.dart';
 import '../settings/legal_screen.dart';
 import '../settings/wellbeing_screen.dart';
 import '../settings/your_data_screen.dart';
@@ -189,6 +190,16 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => UserProfileScreen(handle: p.handle),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.key_outlined),
+                title: const Text('Sign-in methods'),
+                subtitle: const Text('Email, and linked accounts'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SignInMethodsScreen(),
                   ),
                 ),
               ),

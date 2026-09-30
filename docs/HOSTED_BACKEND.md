@@ -100,6 +100,27 @@ Dashboard → **Authentication → URL Configuration**:
 - **Site URL**: `https://retroverse.tail51f9d6.ts.net:8720` (the Tailscale preview)
 - **Redirect URLs**: add the same, plus `http://localhost:*` for local dev.
 
+### 5a. OAuth sign-in (optional)
+
+The app shows "Continue with …" only for providers named in the build's
+`OAUTH_PROVIDERS` (release: repo variable `RELEASE_OAUTH_PROVIDERS`, e.g.
+`github,google`). For each one:
+
+1. Create an OAuth app at the provider. Callback URL:
+   `https://<ref>.supabase.co/auth/v1/callback`.
+2. Dashboard → **Authentication → Providers** → enable it, paste client id +
+   secret.
+3. **Redirect URLs**: add `peak://auth-callback` (the Android deep link) and
+   the web preview origin.
+4. Dashboard → **Authentication → Settings**: turn on **manual linking** so
+   people can attach a provider to an existing email account (Me → Sign-in
+   methods).
+
+New OAuth accounts still go through onboarding (handle + date of birth),
+so the 13+ rule and teen defaults apply exactly as for email sign-ups.
+Sign-in is a browser redirect, not an SDK — no provider code ships in the
+app, so `tool/check_dependencies.sh` is unaffected.
+
 Email: the built-in Supabase sender (rate-limited, "from" is supabase.io) is fine
 for a handful of testers. Real email (Resend + SPF/DKIM/DMARC) comes with the
 domain — [DEPLOY.md](DEPLOY.md) §4. Keep **confirmations on**.

@@ -28,6 +28,12 @@ class Env {
   /// registered domain to issue a real key — see docs/DEPLOY.md.
   static const turnstileSiteKey = String.fromEnvironment('TURNSTILE_SITE_KEY');
 
+  /// OAuth providers switched on for this build, comma-separated, e.g.
+  /// `github,google,discord`. Each must also be enabled (client id + secret)
+  /// in the Supabase dashboard — see docs/HOSTED_BACKEND.md §5a. Empty = no
+  /// OAuth buttons, email only.
+  static const oauthProviders = String.fromEnvironment('OAUTH_PROVIDERS');
+
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }

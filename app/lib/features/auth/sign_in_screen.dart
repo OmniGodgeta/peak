@@ -5,6 +5,7 @@ import '../../app/brand.dart';
 import '../../core/env.dart';
 import '../../data/supabase_providers.dart';
 import 'forgot_password_screen.dart';
+import 'oauth_buttons.dart';
 import 'turnstile/turnstile_challenge.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
@@ -145,6 +146,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         )
                       : Text(_register ? 'Create account' : 'Sign in'),
                 ),
+                OAuthButtons(enabled: !_busy),
+                const SizedBox(height: 8),
                 TextButton(
                   onPressed: _busy
                       ? null
@@ -157,7 +160,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Passkeys and OAuth land in Phase 0. No real name required, ever.',
+                  'No real name required, ever.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),

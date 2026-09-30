@@ -120,7 +120,9 @@ jobs:
           flutter pub get
           flutter build apk --release \
             --dart-define=SUPABASE_URL='${{ steps.backend.outputs.url }}' \
-            --dart-define=SUPABASE_ANON_KEY='${{ steps.backend.outputs.key }}'
+            --dart-define=SUPABASE_ANON_KEY='${{ steps.backend.outputs.key }}' \
+            --dart-define=OAUTH_PROVIDERS='${{ vars.RELEASE_OAUTH_PROVIDERS }}' \
+            --dart-define=PEAK_MEDIA_URL='${{ vars.RELEASE_MEDIA_URL }}'
 
       - name: Stage artifacts
         id: art
