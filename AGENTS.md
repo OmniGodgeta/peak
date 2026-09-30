@@ -36,9 +36,9 @@ systemctl --user restart peak-web
 ```
 
 The temp env file is a copy of `app/env.json` whose `SUPABASE_URL` is
-`https://shadow-1.tail51f9d6.ts.net:8721`. Delete that temp file. Do not
+`https://retroverse.tail51f9d6.ts.net:8721`. Delete that temp file. Do not
 print keys. The page is `http://127.0.0.1:8730` (Tailscale
-`https://shadow-1.tail51f9d6.ts.net:8720`). A 200 response is the old build
+`https://retroverse.tail51f9d6.ts.net:8720`). A 200 response is the old build
 unless `Last-Modified` is newer than the edit. Do not rsync from the
 Tailscale host. Build on this machine.
 

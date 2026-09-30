@@ -13,8 +13,8 @@ follows) are the bell on the feed; push is still not built. Sixteen more
 spaces are in `tool/seed-directory.sql` (movies, music, books, and the rest).
 Public-domain NASA clips are loaded by `python3 tool/seed_videos.py` into
 local Storage — there were zero `post_media` rows of kind `video` before that.
-The private preview is `https://shadow-1.tail51f9d6.ts.net:8720`, built with
-Supabase at `https://shadow-1.tail51f9d6.ts.net:8721` so the page is not
+The private preview is `https://retroverse.tail51f9d6.ts.net:8720`, built with
+Supabase at `https://retroverse.tail51f9d6.ts.net:8721` so the page is not
 mixed-content. No public domain; that stays deferred. Phase 5's remaining
 buildables landed in the same push: follower fan-out on write, For You from
 spaces and interests, a verified check on Latest and For You cards, and a
@@ -227,7 +227,7 @@ app + Supabase (Postgres + RLS + Edge Functions) backend.
 | Thing | State |
 |---|---|
 | **Hosted backend** | **LIVE.** Supabase project `izvcozvfqmggyziaeeoc` (name "Peak Social", `https://izvcozvfqmggyziaeeoc.supabase.co`, us-west-2, PG 17). All 44 migrations applied, `pg_cron` + `pg_net`, 3 retention jobs + `ingest-content` (every 6h), `app-version` / `export` / `publish` / `ingest-content` / `link-preview` edge functions deployed, security-hardened. Seeded via `tool/seed-directory.sql`: house `@peak`; mirror/news accounts `@nasa` `@webb` `@hubble` `@roman` `@launches` `@playstation` `@xbox` `@nintendo` `@pcgaming` `@pchardware` `@scinews`; communities `c/space` `c/rockets` `c/gaming` `c/playstation` `c/xbox` `c/nintendo` `c/pc-gaming` `c/pc-hardware` `c/science` `c/science-news` `c/astrophotos`. |
-| **Preview web** | `https://shadow-1.tail51f9d6.ts.net:8720/` — built against the hosted backend, served from `~/peak-web/` by the `peak-web` user systemd unit. Rebuild: `flutter build web --release --dart-define-from-file=<hosted env json>` then `rsync -a --delete build/web/ ~/peak-web/ && systemctl --user restart peak-web`. |
+| **Preview web** | `https://retroverse.tail51f9d6.ts.net:8720/` — built against the hosted backend, served from `~/peak-web/` by the `peak-web` user systemd unit. Rebuild: `flutter build web --release --dart-define-from-file=<hosted env json>` then `rsync -a --delete build/web/ ~/peak-web/ && systemctl --user restart peak-web`. |
 | **Android APK** | **Published.** [`v1.0.0` release](https://github.com/OmniGodgeta/peak/releases/tag/v1.0.0) — signed `peak-1.0.0-release.apk` (66.7 MiB, sha256 `328efb9af51799bd1ce04587bfaf0bab5f5b50fad4ad6dc180d14650908e3435`), built against the hosted backend by `.github/workflows/release.yml`. `RELEASE_SUPABASE_URL` (var) + `RELEASE_SUPABASE_ANON_KEY` (secret) set. `SUPABASE_SERVICE_ROLE_KEY` not set, so the workflow skipped the manifest PATCH — the `app_release` row was PATCHed by hand via the MCP instead (the `app-version` edge fn now serves it). Next release: bump `app/pubspec.yaml` → `1.0.1+2`, commit, `git tag v1.0.1 && git push origin v1.0.1`. |
 | **Public domain / web host** | Not done. Deferred until a domain is registered — see [DEPLOY.md](DEPLOY.md) §0–2, §5. |
 | **CI** | Green. 3 GitHub Actions jobs: Flutter (analyze `--fatal-infos` + `dart format` + `flutter test` + web build + `tool/check_dependencies.sh`), Supabase (`db reset` + `db lint --level warning` + `supabase test db`), Edge Functions (deno fmt/lint/check). |
@@ -264,12 +264,12 @@ Session after that — **seed content + automated space feeds**:
 
 ### 4a. Blocked on the user (a coding agent cannot do these)
 
-1. **Supabase dashboard → Authentication → URL Configuration** — set **Site URL** to `https://shadow-1.tail51f9d6.ts.net:8720` and add it (plus `http://localhost:*`) to **Redirect URLs**. Until this is set, magic-link / email-confirm redirects go to the wrong place. Quick alternative for testing: Authentication → Providers → Email → turn **off** "Confirm email".
+1. **Supabase dashboard → Authentication → URL Configuration** — set **Site URL** to `https://retroverse.tail51f9d6.ts.net:8720` and add it (plus `http://localhost:*`) to **Redirect URLs**. Until this is set, magic-link / email-confirm redirects go to the wrong place. Quick alternative for testing: Authentication → Providers → Email → turn **off** "Confirm email".
 2. **`SUPABASE_SERVICE_ROLE_KEY`** repo secret (optional) — only the `release.yml` "Update app_release manifest" step needs it; without it the APK still builds and publishes, the in-app updater manifest just isn't auto-PATCHed. Get it from the dashboard (Project Settings → API) and `gh secret set SUPABASE_SERVICE_ROLE_KEY`. A coding agent with the Supabase MCP can PATCH the `app_release` row directly instead (`execute_sql` / `apply_migration`), so this is low priority.
 3. **Register a domain** (`peak.social`) → then a coding agent can do the Cloudflare Pages web host + DNS — [DEPLOY.md](DEPLOY.md) §0–2, §4, §5. **The domain is baked into every handle (`@name@peak.social`); pick it before real users sign up.**
 4. **Legal** — `docs/legal/{TERMS,PRIVACY,COMMUNITY_GUIDELINES,DMCA}.md` are drafts with `〈bracket〉` placeholders. Need a lawyer pass, the brackets filled with real operator details, and a registered DMCA agent. Bundled in-app already (Me → Terms & policies).
 5. **Real transactional email** (Resend + SPF/DKIM/DMARC) — comes with the domain, [DEPLOY.md](DEPLOY.md) §4.
-6. **Media server** (optional but recommended before real video use) — run `tool/media-server/` on the box with the storage drive so post images + video live on local disk instead of Supabase Storage. `tool/media-server/setup.sh` (needs `deno` + `ffmpeg`), then `tailscale serve --bg --https 8790 http://127.0.0.1:8787`, then add `PEAK_MEDIA_URL=https://shadow-1.tail51f9d6.ts.net:8790/v1` to `app/env.json` + the web build and rebuild. Until then media stays on Supabase (fine for images + tiny clips). See `tool/media-server/README.md`.
+6. **Media server** (optional but recommended before real video use) — run `tool/media-server/` on the box with the storage drive so post images + video live on local disk instead of Supabase Storage. `tool/media-server/setup.sh` (needs `deno` + `ffmpeg`), then `tailscale serve --bg --https 8790 http://127.0.0.1:8787`, then add `PEAK_MEDIA_URL=https://retroverse.tail51f9d6.ts.net:8790/v1` to `app/env.json` + the web build and rebuild. Until then media stays on Supabase (fine for images + tiny clips). See `tool/media-server/README.md`.
 
 ### 4b. Buildable now — rest of Phase 5
 

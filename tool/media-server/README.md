@@ -41,7 +41,7 @@ tailscale serve --bg --https 8790 http://127.0.0.1:8787
 And point the app at it — add to `app/env.json` and the web build env:
 
 ```
---dart-define=PEAK_MEDIA_URL=https://shadow-1.tail51f9d6.ts.net:8790/v1
+--dart-define=PEAK_MEDIA_URL=https://retroverse.tail51f9d6.ts.net:8790/v1
 ```
 
 If `PEAK_MEDIA_URL` is unset the app falls back to Supabase Storage, so nothing

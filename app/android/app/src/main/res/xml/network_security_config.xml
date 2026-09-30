@@ -8,7 +8,8 @@
     127.0.0.1 / localhost         on-device port-forward (adb reverse)
     10.0.0.97                     this machine's current LAN IP (Wi-Fi, DHCP - may change)
     100.65.133.127               this machine's Tailscale IP (stable)
-    shadow-1 / *.ts.net           this machine's Tailscale name
+    retroverse / *.ts.net         this machine's Tailscale name (renamed from shadow-1)
+    shadow-1                      old Tailscale name, kept for builds/installs that still use it
 
   Remove this file (and the manifest reference) once the app only talks to
   https://peak.social.
@@ -22,5 +23,7 @@
         <domain includeSubdomains="false">100.65.133.127</domain>
         <domain includeSubdomains="false">shadow-1</domain>
         <domain includeSubdomains="true">shadow-1.tail51f9d6.ts.net</domain>
+        <domain includeSubdomains="false">retroverse</domain>
+        <domain includeSubdomains="true">retroverse.tail51f9d6.ts.net</domain>
     </domain-config>
 </network-security-config>

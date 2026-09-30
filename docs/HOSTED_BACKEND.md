@@ -86,7 +86,7 @@ $$);
 
 Dashboard → **Authentication → URL Configuration**:
 
-- **Site URL**: `https://shadow-1.tail51f9d6.ts.net:8720` (the Tailscale preview)
+- **Site URL**: `https://retroverse.tail51f9d6.ts.net:8720` (the Tailscale preview)
 - **Redirect URLs**: add the same, plus `http://localhost:*` for local dev.
 
 Email: the built-in Supabase sender (rate-limited, "from" is supabase.io) is fine

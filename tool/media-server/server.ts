@@ -11,7 +11,7 @@
 // Run:  deno task start           (see deno.json / peak-media.service)
 // Env:  MEDIA_ROOT   absolute dir for the files (a drive with room)
 //       PUBLIC_BASE  the URL this server is reachable at, incl. /v1
-//                    e.g. https://shadow-1.tail51f9d6.ts.net:8790/v1
+//                    e.g. https://retroverse.tail51f9d6.ts.net:8790/v1
 //       SUPABASE_URL, SUPABASE_ANON_KEY   the hosted project (token check)
 //       PORT         listen port (default 8787, bind 127.0.0.1)
 //       MAX_IMAGE_MB (default 25)  MAX_VIDEO_MB (default 500)
