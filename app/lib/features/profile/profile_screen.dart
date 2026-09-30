@@ -18,6 +18,7 @@ import '../moderation/transparency_report_screen.dart';
 import '../moderation/personhood_screen.dart';
 import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
+import '../federation/federation_screen.dart';
 import '../settings/push_settings_screen.dart';
 import '../settings/sign_in_methods_screen.dart';
 import '../settings/legal_screen.dart';
@@ -193,6 +194,16 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => UserProfileScreen(handle: p.handle),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.public),
+                title: const Text('Federation'),
+                subtitle: const Text('Mastodon and other servers'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const FederationScreen(),
                   ),
                 ),
               ),

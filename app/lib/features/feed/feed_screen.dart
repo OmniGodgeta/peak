@@ -11,6 +11,7 @@ import '../media/watch_screen.dart';
 import '../stories/stories_strip.dart';
 import 'custom_feeds_screen.dart';
 import 'post_card.dart';
+import '../federation/fediverse_feed_screen.dart';
 
 /// Home. Built-in feeds: **Latest** (everyone you follow) and **Friends first**
 /// (people who follow you back). Plus any custom feeds you've made. No infinite
@@ -77,6 +78,14 @@ class FeedScreen extends ConsumerWidget {
                 ? null
                 : (v) {
                     if (v == null) return;
+                    if (v == 'fediverse') {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const FediverseFeedScreen(),
+                        ),
+                      );
+                      return;
+                    }
                     if (v == 'manage') {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -124,6 +133,10 @@ class FeedScreen extends ConsumerWidget {
               ),
               for (final f in customFeeds)
                 DropdownMenuItem(value: 'cf:${f.id}', child: Text(f.name)),
+              const DropdownMenuItem(
+                value: 'fediverse',
+                child: Text('Fediverse'),
+              ),
               const DropdownMenuItem(
                 value: 'manage',
                 child: Text('Manage feeds…'),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/feed_repository.dart';
+import '../../data/federation_repository.dart';
+import '../federation/remote_note_card.dart';
 import '../compose/compose_screen.dart';
 import 'post_card.dart';
 
@@ -46,18 +48,37 @@ class ThreadScreen extends ConsumerWidget {
             return const Center(child: Text('This thread is not available.'));
           }
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(threadProvider(rootId)),
-            child: ListView.separated(
-              itemCount: posts.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final post = posts[i];
-                final indent = (post.depth.clamp(0, 3)) * 16.0;
-                return Padding(
-                  padding: EdgeInsets.only(left: indent),
-                  child: PostCard(post: post, tappable: post.depth > 0),
-                );
-              },
+            onRefresh: () async {
+              ref.invalidate(threadProvider(rootId));
+              ref.invalidate(remoteRepliesProvider(rootId));
+            },
+            child: ListView(
+              children: [
+                for (final post in posts) ...[
+                  Padding(
+                    padding: EdgeInsets.only(
+                      left: (post.depth.clamp(0, 3)) * 16.0,
+                    ),
+                    child: PostCard(post: post, tappable: post.depth > 0),
+                  ),
+                  const Divider(height: 1),
+                ],
+                // Replies from people on other servers (federation).
+                ...ref
+                        .watch(remoteRepliesProvider(rootId))
+                        .asData
+                        ?.value
+                        .expand(
+                          (n) => [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 16),
+                              child: RemoteNoteCard(note: n),
+                            ),
+                            const Divider(height: 1),
+                          ],
+                        ) ??
+                    const <Widget>[],
+              ],
             ),
           );
         },

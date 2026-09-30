@@ -29,6 +29,8 @@ supabase functions deploy export
 supabase functions deploy publish
 supabase functions deploy purge-media
 supabase functions deploy push-dispatch
+supabase functions deploy federation --no-verify-jwt
+supabase functions deploy federation-deliver
 
 echo "==> Rebuilding the web app against the hosted backend"
 ( cd app && flutter build web --release \

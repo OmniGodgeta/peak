@@ -104,6 +104,36 @@ select cron.schedule('ingest-content', '25 */6 * * *', $$
 $$);
 ```
 
+## 4b. Federation (ActivityPub) — off until Peak has a public domain
+
+Code is complete but dormant. To switch it on:
+
+1. Point the domain's root at the `federation` function, e.g. a Cloudflare
+   Worker / reverse proxy mapping `https://<domain>/users/*`, `/posts/*`,
+   `/inbox`, `/.well-known/webfinger`, `/.well-known/nodeinfo`,
+   `/nodeinfo/*` → `https://<ref>.supabase.co/functions/v1/federation/…`
+   (same path after `/federation`). Handles become `@name@<domain>`.
+2. `supabase secrets set FEDERATION_BASE_URL=https://<domain>`
+3. `supabase functions deploy federation --no-verify-jwt` and
+   `supabase functions deploy federation-deliver`
+4. SQL: `update system_config set value = 'true' where key = 'federation_enabled';`
+   and schedule delivery:
+   ```sql
+   select cron.schedule('federation-deliver', '* * * * *', $$
+     select net.http_post(
+       url     := 'https://<ref>.supabase.co/functions/v1/federation-deliver',
+       headers := jsonb_build_object('Content-Type','application/json',
+                                     'Authorization','Bearer <anon-key>'),
+       body    := '{}'::jsonb);
+   $$);
+   ```
+5. People opt in individually (Me → Federation). Teen accounts can't.
+
+Only public, non-Space posts by opted-in people federate. Inbound activity
+must carry a valid HTTP Signature from the actor it claims to be; remote
+HTML is stored as plain text. Staff block servers from Me → Federation;
+the blocklist is public (`federation_blocklist()`).
+
 ## 5. Auth settings
 
 Dashboard → **Authentication → URL Configuration**:

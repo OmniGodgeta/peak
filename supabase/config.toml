@@ -390,6 +390,11 @@ verify_jwt = false
 [functions.ingest-content]
 verify_jwt = false
 
+# ActivityPub: remote servers sign requests (HTTP Signatures), they don't
+# carry Supabase JWTs. /api/* inside the function checks the user JWT itself.
+[functions.federation]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

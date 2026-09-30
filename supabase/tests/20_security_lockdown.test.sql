@@ -14,7 +14,7 @@ set local role anon;
 select throws_ok($$ select * from account_exports $$, '42501', null, 'anon cannot read account_exports');
 select throws_ok($$ select * from system_config $$, '42501', null, 'anon cannot read system_config');
 select throws_ok($$ update system_config set value = 'true' $$, '42501', null, 'anon cannot flip federation on');
-select throws_ok($$ select * from outbox_events $$, '42501', null, 'anon cannot read the federation outbox');
+select throws_ok($$ select * from federation_job $$, '42501', null, 'anon cannot read the federation delivery queue');
 select throws_ok($$ select * from fanout_feed_index $$, '42501', null, 'anon cannot read feed indexes');
 select throws_ok($$ select export_account(gen_random_uuid()) $$, '42501', null, 'anon cannot export accounts');
 reset role;
