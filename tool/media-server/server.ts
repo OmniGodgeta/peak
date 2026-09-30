@@ -26,6 +26,7 @@ const SUPABASE_ANON_KEY = must("SUPABASE_ANON_KEY");
 const PORT = Number(Deno.env.get("PORT") ?? "8787");
 const MAX_IMAGE = Number(Deno.env.get("MAX_IMAGE_MB") ?? "25") * 1024 * 1024;
 const MAX_VIDEO = Number(Deno.env.get("MAX_VIDEO_MB") ?? "500") * 1024 * 1024;
+const MAX_AUDIO = Number(Deno.env.get("MAX_AUDIO_MB") ?? "100") * 1024 * 1024;
 
 const CORS: HeadersInit = {
   "Access-Control-Allow-Origin": "*",
@@ -47,6 +48,16 @@ const VIDEO_EXT: Record<string, string> = {
   "video/quicktime": "mov",
   "video/webm": "webm",
   "video/x-matroska": "mkv",
+};
+
+const AUDIO_EXT: Record<string, string> = {
+  "audio/mp4": "m4a",
+  "audio/aac": "aac",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/webm": "webm",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
 };
 
 await Deno.mkdir(MEDIA_ROOT, { recursive: true }).catch(() => {});
@@ -107,12 +118,13 @@ async function handleUpload(req: Request): Promise<Response> {
     .toLowerCase();
   const isVideo = ct in VIDEO_EXT;
   const isImage = ct in IMAGE_EXT;
-  if (!isVideo && !isImage) {
+  const isAudio = ct in AUDIO_EXT;
+  if (!isVideo && !isImage && !isAudio) {
     return json({ error: `unsupported content-type: ${ct}` }, 415);
   }
 
   const body = new Uint8Array(await req.arrayBuffer());
-  const cap = isVideo ? MAX_VIDEO : MAX_IMAGE;
+  const cap = isVideo ? MAX_VIDEO : isAudio ? MAX_AUDIO : MAX_IMAGE;
   if (body.byteLength === 0) return json({ error: "empty body" }, 400);
   if (body.byteLength > cap) {
     return json({ error: `too large (max ${cap / 1048576} MB)` }, 413);
@@ -121,7 +133,11 @@ async function handleUpload(req: Request): Promise<Response> {
   const id = crypto.randomUUID();
   const dir = join(MEDIA_ROOT, userId);
   await Deno.mkdir(dir, { recursive: true });
-  const srcExt = isVideo ? VIDEO_EXT[ct] : IMAGE_EXT[ct];
+  const srcExt = isVideo
+    ? VIDEO_EXT[ct]
+    : isAudio
+    ? AUDIO_EXT[ct]
+    : IMAGE_EXT[ct];
   const tmp = join(dir, `${id}.src.${srcExt}`);
   await Deno.writeFile(tmp, body);
 
@@ -144,6 +160,10 @@ async function handleUpload(req: Request): Promise<Response> {
         "23",
         "-vf",
         "scale='min(1920,iw)':-2",
+        // High profile is 8-bit 4:2:0 only: 10-bit HDR phone clips and 4:4:4
+        // screen recordings fail to encode without this.
+        "-pix_fmt",
+        "yuv420p",
         "-c:a",
         "aac",
         "-b:a",
@@ -178,6 +198,38 @@ async function handleUpload(req: Request): Promise<Response> {
         kind: "video",
         width: probe.width,
         height: probe.height,
+        durationMs: probe.durationMs,
+      });
+    }
+
+    if (isAudio) {
+      // Everything becomes AAC in .m4a — plays on Android, iOS and browsers.
+      const out = join(dir, `${id}.m4a`);
+      await run([
+        "ffmpeg",
+        "-y",
+        "-i",
+        tmp,
+        "-vn",
+        "-map_metadata",
+        "-1",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-movflags",
+        "+faststart",
+        out,
+      ]);
+      await Deno.remove(tmp).catch(() => {});
+      const probe = await probeMedia(out);
+      return json({
+        path: `${userId}/${id}.m4a`,
+        url: `${PUBLIC_BASE}/media/${userId}/${id}.m4a`,
+        posterUrl: null,
+        kind: "audio",
+        width: null,
+        height: null,
         durationMs: probe.durationMs,
       });
     }
@@ -258,10 +310,11 @@ async function handlePoster(req: Request): Promise<Response> {
       out,
     ]);
   } catch (e) {
-    return json(
-      { error: `frame grab failed: ${e instanceof Error ? e.message : e}` },
-      500,
-    );
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("Nothing was written")) {
+      return json({ error: "past the end" }, 422);
+    }
+    return json({ error: `frame grab failed: ${msg}` }, 500);
   }
   if (!(await exists(out))) return json({ error: "past the end" }, 422);
   return json({ posterUrl: `${PUBLIC_BASE}/media/${userId}/${name}` });

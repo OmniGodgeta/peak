@@ -15,14 +15,16 @@ app ◀──────────  GET /v1/media/... (range)  ─┘
 
 - **Auth**: verifies the caller's Supabase access token against
   `SUPABASE_URL/auth/v1/user` (needs only the public anon key). No secret.
-- **Video**: transcodes to a web-friendly MP4 (H.264 High / AAC, ≤1920px,
+- **Video**: transcodes to a web-friendly MP4 (H.264 High 8-bit 4:2:0 / AAC, ≤1920px,
   `+faststart`) and extracts a poster frame. Probes width/height/duration.
+- **Audio**: any of m4a/aac/mp3/ogg/webm/wav → AAC 128k in `.m4a` (metadata
+  stripped); duration probed. Used by audio-only posts.
 - **Images**: stored as-is (GIF animation preserved); dimensions probed.
 - **Serve**: `GET /v1/media/<user>/<file>` with HTTP range support + long cache
   + permissive CORS (the web app is a different origin).
 - **Poster from a frame**: `POST /v1/poster` `{"path":"<user>/<id>.mp4","tMs":12000}`
   grabs that frame as a new thumbnail. Only the caller's own videos.
-- Per-user upload rate limit (20/min). Size caps: image 25 MB, video 500 MB.
+- Per-user upload rate limit (20/min). Size caps: image 25 MB, video 500 MB, audio 100 MB.
 
 ## Setup (on the machine that keeps the files)
 

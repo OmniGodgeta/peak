@@ -42,14 +42,15 @@ class MediaService {
     required Uint8List bytes,
     required String contentType,
     required bool isVideo,
+    bool isAudio = false,
   }) async {
     Uint8List processedBytes = bytes;
-    if (!isVideo && (contentType == 'image/jpeg' || contentType == 'image/png')) {
+    if (!isVideo && !isAudio && (contentType == 'image/jpeg' || contentType == 'image/png')) {
       processedBytes = _stripMetadata(bytes, contentType);
     }
 
     if (usingServer) return _uploadToServer(processedBytes, contentType);
-    return _uploadToSupabase(processedBytes, contentType, isVideo);
+    return _uploadToSupabase(processedBytes, contentType, isVideo, isAudio);
   }
 
   Uint8List _stripMetadata(Uint8List bytes, String contentType) {
@@ -144,9 +145,11 @@ class MediaService {
     Uint8List bytes,
     String contentType,
     bool isVideo,
+    bool isAudio,
   ) async {
     final uid = _db.auth.currentUser!.id;
-    final path = '$uid/${const Uuid().v4()}.${_ext(contentType, isVideo)}';
+    final ext = isAudio ? _audioExt(contentType) : _ext(contentType, isVideo);
+    final path = '$uid/${const Uuid().v4()}.$ext';
     await _db.storage
         .from('post-media')
         .uploadBinary(
@@ -169,6 +172,14 @@ class MediaService {
     'video/webm' => 'webm',
     'video/mp4' => 'mp4',
     _ => isVideo ? 'mp4' : 'jpg',
+  };
+
+  static String _audioExt(String contentType) => switch (contentType) {
+    'audio/mpeg' => 'mp3',
+    'audio/ogg' => 'ogg',
+    'audio/webm' => 'webm',
+    'audio/wav' || 'audio/x-wav' => 'wav',
+    _ => 'm4a',
   };
 
   static String _briefError(String body) {

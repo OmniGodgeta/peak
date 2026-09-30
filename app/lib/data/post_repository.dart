@@ -14,6 +14,7 @@ class PendingMedia {
     required this.bytes,
     required this.mimeType,
     this.isVideo = false,
+    this.isAudio = false,
     this.altText = '',
     this.width,
     this.height,
@@ -23,12 +24,18 @@ class PendingMedia {
   final Uint8List bytes;
   final String mimeType; // image/jpeg, image/png, image/gif, image/webp
   final bool isVideo;
+
+  /// An audio-only post. Its [altText] is the transcript / description.
+  final bool isAudio;
   String altText;
   int? width;
   int? height;
   int? durationMs;
 
   bool get isGif => mimeType == 'image/gif';
+
+  /// Video and audio take the whole post: no other attachments beside them.
+  bool get isTimed => isVideo || isAudio;
 }
 
 class PostRepository {
@@ -59,10 +66,11 @@ class PostRepository {
         bytes: m.bytes,
         contentType: m.mimeType,
         isVideo: m.isVideo,
+        isAudio: m.isAudio,
       );
       rows.add({
         'post_id': postId,
-        'kind': m.isVideo ? 'video' : 'image',
+        'kind': m.isVideo ? 'video' : (m.isAudio ? 'audio' : 'image'),
         'storage_path': up.path,
         'poster_path': up.posterPath,
         'alt_text': m.altText.trim().isEmpty ? null : m.altText.trim(),

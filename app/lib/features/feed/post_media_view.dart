@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart' as ja;
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -21,6 +22,13 @@ class PostMediaView extends ConsumerWidget {
     final radius = BorderRadius.circular(10);
 
     for (final m in media) {
+      if (m.kind == 'audio') {
+        return PostAudio(
+          url: repo.mediaUrl(m.storagePath),
+          durationMs: m.durationMs,
+          transcript: m.altText,
+        );
+      }
       if (m.kind == 'video') {
         return PostVideo(
           url: repo.mediaUrl(m.storagePath),
@@ -416,6 +424,187 @@ class _PostVideoState extends ConsumerState<PostVideo> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// An audio-only post: play/pause, a seek bar, elapsed / total, and the
+/// transcript (the attachment's alt text) behind a toggle. Loads on first tap
+/// so a feed full of audio posts doesn't open a stream per card.
+class PostAudio extends StatefulWidget {
+  const PostAudio({
+    super.key,
+    required this.url,
+    this.durationMs,
+    this.transcript,
+  });
+
+  final String url;
+  final int? durationMs;
+  final String? transcript;
+
+  @override
+  State<PostAudio> createState() => _PostAudioState();
+}
+
+class _PostAudioState extends State<PostAudio> {
+  ja.AudioPlayer? _player;
+  bool _loading = false;
+  bool _failed = false;
+  bool _showTranscript = false;
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    final p = _player;
+    if (p != null) {
+      p.playing ? await p.pause() : await p.play();
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    final created = ja.AudioPlayer();
+    try {
+      await created.setUrl(widget.url);
+      if (!mounted) {
+        await created.dispose();
+        return;
+      }
+      created.playerStateStream.listen((st) {
+        if (st.processingState == ja.ProcessingState.completed) {
+          created.pause();
+          created.seek(Duration.zero);
+        }
+        if (mounted) setState(() {});
+      });
+      setState(() {
+        _player = created;
+        _loading = false;
+      });
+      await created.play();
+    } catch (_) {
+      await created.dispose();
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+      }
+    }
+  }
+
+  static String _fmt(Duration d) =>
+      '${d.inMinutes}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final p = _player;
+    final known = widget.durationMs == null
+        ? null
+        : Duration(milliseconds: widget.durationMs!);
+    final transcript = widget.transcript?.trim() ?? '';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                tooltip: p?.playing == true ? 'Pause' : 'Play',
+                onPressed: _loading ? null : _toggle,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        _failed
+                            ? Icons.error_outline
+                            : (p?.playing == true
+                                  ? Icons.pause_circle_filled
+                                  : Icons.play_circle_filled),
+                        size: 36,
+                        color: scheme.primary,
+                      ),
+              ),
+              Expanded(
+                child: p == null
+                    ? Row(
+                        children: [
+                          Icon(Icons.graphic_eq, color: scheme.onSurfaceVariant),
+                          const SizedBox(width: 8),
+                          Text(
+                            _failed
+                                ? "Couldn't load audio"
+                                : (known == null ? 'Audio' : _fmt(known)),
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      )
+                    : StreamBuilder<Duration>(
+                        stream: p.positionStream,
+                        builder: (context, snap) {
+                          final pos = snap.data ?? Duration.zero;
+                          final total = p.duration ?? known ?? Duration.zero;
+                          final max = total.inMilliseconds.toDouble();
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: Slider(
+                                  value: pos.inMilliseconds
+                                      .clamp(0, total.inMilliseconds)
+                                      .toDouble(),
+                                  max: max > 0 ? max : 1,
+                                  onChanged: max > 0
+                                      ? (v) => p.seek(
+                                          Duration(milliseconds: v.round()),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              Text(
+                                '${_fmt(pos)} / ${_fmt(total)}',
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+          if (transcript.isNotEmpty) ...[
+            TextButton.icon(
+              onPressed: () =>
+                  setState(() => _showTranscript = !_showTranscript),
+              icon: Icon(
+                _showTranscript ? Icons.expand_less : Icons.subject,
+                size: 18,
+              ),
+              label: Text(_showTranscript ? 'Hide transcript' : 'Transcript'),
+            ),
+            if (_showTranscript)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 0, 8),
+                child: SelectableText(transcript),
+              ),
+          ],
         ],
       ),
     );

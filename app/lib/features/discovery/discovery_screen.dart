@@ -521,9 +521,11 @@ class _FreshPostTile extends StatelessWidget {
       ),
       trailing: post.media.isNotEmpty
           ? Icon(
-              post.media.first.kind == 'video'
-                  ? Icons.videocam_outlined
-                  : Icons.image_outlined,
+              switch (post.media.first.kind) {
+                'video' => Icons.videocam_outlined,
+                'audio' => Icons.graphic_eq,
+                _ => Icons.image_outlined,
+              },
               size: 18,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             )

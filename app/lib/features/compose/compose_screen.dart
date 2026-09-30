@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +9,7 @@ import '../../data/circle_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/persona_repository.dart';
 import '../../data/post_repository.dart';
+import 'audio_post_recorder.dart';
 
 /// New post or reply. Text + up to 4 photos/GIFs + a content warning. For a new
 /// post the circle picker is mandatory; a reply inherits the parent's audience.
@@ -177,6 +180,62 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
   bool get _isReply => widget.replyTo != null;
   bool get _isCommunity => widget.communityId != null && !_isReply;
   bool get _hasVideo => _media.any((m) => m.isVideo);
+  bool get _hasTimed => _media.any((m) => m.isTimed);
+
+  final _audio = AudioPostRecorder();
+  bool _recording = false;
+  Timer? _recordTick;
+
+  Future<void> _toggleRecording() async {
+    if (_recording) {
+      _recordTick?.cancel();
+      setState(() => _recording = false);
+      try {
+        final rec = await _audio.stop();
+        if (rec == null || !mounted) return;
+        setState(() {
+          _error = null;
+          _media
+            ..clear()
+            ..add(
+              PendingMedia(
+                bytes: rec.bytes,
+                mimeType: rec.mimeType,
+                isAudio: true,
+                durationMs: rec.duration.inMilliseconds,
+              ),
+            );
+          _article = false;
+        });
+      } on Exception catch (e) {
+        if (mounted) setState(() => _error = 'Could not save the recording: $e');
+      }
+      return;
+    }
+    try {
+      await _audio.start();
+      if (!mounted) return;
+      setState(() {
+        _recording = true;
+        _error = null;
+      });
+      _recordTick = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        if (_audio.elapsed >= AudioPostRecorder.maxLength) {
+          _toggleRecording();
+        } else {
+          setState(() {});
+        }
+      });
+    } on Exception catch (e) {
+      setState(() => _error = 'Could not start recording: $e');
+    }
+  }
+
+  String get _recordLabel {
+    final e = _audio.elapsed;
+    return '${e.inMinutes}:${e.inSeconds.remainder(60).toString().padLeft(2, '0')}';
+  }
 
   int get _maxVideoBytes =>
       Env.mediaServerConfigured ? 400 * 1024 * 1024 : 50 * 1024 * 1024;
@@ -197,6 +256,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
 
   @override
   void dispose() {
+    _recordTick?.cancel();
+    if (_recording) _audio.cancel();
+    _audio.dispose();
     _body.dispose();
     _cw.dispose();
     _title.dispose();
@@ -287,7 +349,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       return;
     }
     for (final m in _media) {
-      if (!m.isGif && !m.isVideo && m.altText.trim().isEmpty) {
+      if (!m.isGif && !m.isTimed && m.altText.trim().isEmpty) {
         // Deliberate friction, not a hard block — but nudge once.
         final proceed = await _confirmMissingAltText();
         if (!proceed) return;
@@ -302,7 +364,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
       final repo = ref.read(postRepositoryProvider);
       final cw = _showCw && _cw.text.trim().isNotEmpty ? _cw.text.trim() : null;
       final titleText = _title.text.trim();
-      final title = (_article || _hasVideo) && titleText.isNotEmpty
+      final title = (_article || _hasTimed) && titleText.isNotEmpty
           ? titleText
           : null;
       if (_isReply) {
@@ -454,7 +516,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            if (_article || _hasVideo) ...[
+            if (_article || _hasTimed) ...[
               TextField(
                 controller: _title,
                 textCapitalization: TextCapitalization.sentences,
@@ -463,6 +525,8 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                 decoration: InputDecoration(
                   hintText: _hasVideo && !_article
                       ? 'Video title (optional) — shown in Media'
+                      : _hasTimed && !_article
+                      ? 'Title (optional)'
                       : 'Title',
                   counterText: '',
                 ),
@@ -483,6 +547,8 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                     ? 'Write your article. Blank lines start new paragraphs; “# ” and “## ” make headings; “- ” makes a list.'
                     : _hasVideo
                     ? 'Describe your video (optional)'
+                    : _hasTimed
+                    ? 'Describe your recording (optional)'
                     : "What's happening?",
               ),
             ),
@@ -502,21 +568,38 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
               spacing: 4,
               children: [
                 TextButton.icon(
-                  onPressed: (_hasVideo || _media.length >= _maxMedia)
+                  onPressed:
+                      (_hasTimed || _recording || _media.length >= _maxMedia)
                       ? null
                       : _pickImages,
                   icon: const Icon(Icons.image_outlined, size: 18),
                   label: Text(
-                    _media.isEmpty || _hasVideo
+                    _media.isEmpty || _hasTimed
                         ? 'Photo / GIF'
                         : '${_media.length}/$_maxMedia',
                   ),
                 ),
                 if (!_isReply)
                   TextButton.icon(
-                    onPressed: _media.isEmpty ? _pickVideo : null,
+                    onPressed: _media.isEmpty && !_recording ? _pickVideo : null,
                     icon: const Icon(Icons.videocam_outlined, size: 18),
                     label: const Text('Video'),
+                  ),
+                if (!_isReply)
+                  TextButton.icon(
+                    onPressed: _media.isEmpty || _recording
+                        ? _toggleRecording
+                        : null,
+                    icon: Icon(
+                      _recording ? Icons.stop_circle : Icons.mic_none,
+                      size: 18,
+                      color: _recording
+                          ? Theme.of(context).colorScheme.error
+                          : null,
+                    ),
+                    label: Text(
+                      _recording ? 'Stop $_recordLabel' : 'Audio',
+                    ),
                   ),
                 TextButton.icon(
                   onPressed: () => setState(() => _showCw = !_showCw),
@@ -575,14 +658,18 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Describe this image'),
+        title: Text(
+          _media[index].isAudio ? 'Transcript' : 'Describe this image',
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          maxLines: 3,
-          maxLength: 1000,
-          decoration: const InputDecoration(
-            hintText: 'What is in the image, for people who can’t see it',
+          maxLines: _media[index].isAudio ? 8 : 3,
+          maxLength: _media[index].isAudio ? 5000 : 1000,
+          decoration: InputDecoration(
+            hintText: _media[index].isAudio
+                ? 'What is said, for people who can’t hear it'
+                : 'What is in the image, for people who can’t see it',
           ),
         ),
         actions: [
@@ -660,7 +747,23 @@ class _MediaStrip extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: m.isVideo
+                child: m.isAudio
+                    ? Container(
+                        width: 104,
+                        height: 104,
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.graphic_eq, size: 32),
+                            if (m.durationMs != null)
+                              Text(
+                                '${m.durationMs! ~/ 60000}:${((m.durationMs! ~/ 1000) % 60).toString().padLeft(2, '0')}',
+                              ),
+                          ],
+                        ),
+                      )
+                    : m.isVideo
                     ? Container(
                         width: 104,
                         height: 104,
@@ -701,7 +804,11 @@ class _MediaStrip extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        m.altText.trim().isEmpty ? 'ALT' : 'ALT ✓',
+                        m.isAudio
+                            ? (m.altText.trim().isEmpty
+                                  ? 'TRANSCRIPT'
+                                  : 'TRANSCRIPT ✓')
+                            : (m.altText.trim().isEmpty ? 'ALT' : 'ALT ✓'),
                         style: const TextStyle(
                           fontSize: 10,
                           color: Colors.white,
