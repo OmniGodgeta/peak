@@ -1,6 +1,6 @@
 -- Federation rules. Run with: supabase test db
 begin;
-select plan(7);
+select plan(8);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000f1', 'fed-adult@test.peak'),
@@ -14,6 +14,12 @@ set local role authenticated;
 select bootstrap_account('fedteen', 'Fed Teen', (now() - interval '15 years')::date);
 select throws_ok($$ select set_my_federation(true, null) $$, '42501', null,
   'teen accounts cannot turn federation on');
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000f1","role":"authenticated"}', true);
+set local role authenticated;
+select lives_ok($$ select set_my_federation(p_federated => true) $$,
+  'the app can set one field at a time (named parameter, others default)');
 reset role;
 
 update system_config set value = 'true' where key = 'federation_enabled';

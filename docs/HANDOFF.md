@@ -7,6 +7,58 @@ Last updated: **2026-09-10** for everything below §2's table and §3; **see the
 2026-09-22 status-check note right below** for what's landed since then that
 this file never got updated for.
 
+## 2026-09-30 — overnight session (read this first)
+
+Everything below is on `main` and CI is green (Flutter app, Supabase schema
+incl. pgTAP, Edge Functions, native MLS). **The hosted project has NOT been
+updated yet** — no Supabase access token was available — so the hosted
+database is missing tonight's migrations. Do step 1 before tagging a release.
+
+### Operator to-do, in order
+1. `SUPABASE_ACCESS_TOKEN=sbp_… tool/push-hosted.sh` — links, shows the
+   migration dry-run, pushes on confirm, deploys the new functions, prints
+   the two `cron.schedule` calls to paste in the SQL editor, then offers to
+   tag `v1.3.0`. **Urgent part:** `20261014000001_lock_down_open_tables`
+   closes security holes that are live on hosted (below).
+2. Supabase dashboard: set **Site URL** / redirect URLs to
+   `https://retroverse.tail51f9d6.ts.net:8720` (+ `peak://auth-callback`) if
+   they still say `shadow-1…` — the Tailscale node was renamed.
+3. Optional, when wanted: OAuth providers (`docs/HOSTED_BACKEND.md` §5a, repo
+   variable `RELEASE_OAUTH_PROVIDERS`), a TURN server (`TURN_URL/_USERNAME/
+   _CREDENTIAL` defines), the media server (`tool/media-server/`, then
+   `RELEASE_MEDIA_URL`), federation (needs the domain; §4b).
+
+### What landed
+| Commit | What |
+|---|---|
+| `5faf448` | **Security fix.** Six tables had no RLS, so the anon key in every build had full read/write: `account_exports`, `fanout_feed_index`, `post_engagement_cache`, `system_config`, and the federation outbox/log. Anyone could turn federation on and then read every new post (private ones too) from the outbox. `export_account(p_user_id)` let anyone export anyone's account. Fixed + pgTAP guard (`20_security_lockdown`: every public table must have RLS). Hosted check (count-only): federation was off and the outbox empty, so nothing had leaked there. |
+| `9c06973` | **Two live bugs:** profile post lists failed for everyone (`posts_by` parameter renamed by an Oct-08 migration; also pins broken), and Discover's community suggestions failed (client sent a parameter the RPC never had). Found by auditing all 151 app RPC calls against the DB. |
+| `4b5ec93` | CI runnable again (dead Cloudflare step removed, deno fmt/lint/type fixes, tree formatted); new function tests in CI. |
+| `9b33ebf` `fcf00e3` `827f90d` `5a2bbdf` | Video: real editor (thumbnail upload / frame grab, chapters, captions — it used to wipe them), chapters + captions on the watch page, resume that actually resumes; `purge-media` drains the storage delete queue on a schedule; **audio-only posts**; media server fix for HDR/4:4:4 video; **adaptive HLS** (360/720/1080 ladder, MP4 fallback, `deno task backfill-hls`). |
+| `fcceae6` | Quarterly **transparency report** (Me → Transparency report), counts 1–4 suppressed. |
+| `9fcf340` | **OAuth sign-in + linking**, per-build provider list (none by default). |
+| `ab767ef` | **Push notifications over UnifiedPush** (ntfy etc., no Google): encrypted to the device, bundled, calls ring instantly; **quiet hours made real** server-side (they were never applied, and were evaluated in UTC). |
+| `a6874ba` | **Video + screen sharing** in calls and live rooms, TURN config, a lost-announcement race fixed. |
+| `8f2b703` | **Federation (ActivityPub)** rebuilt properly — signed inbox, delivery worker, opt-in, teens excluded, public posts only, public blocklist. Dormant until a domain. |
+| `44a7f43` | **E2EE 2.5-1 + 2.5-2**: native OpenMLS (`native/peak_mls`, `tool/build_mls.sh`), dart:ffi bindings, device key packages behind `PEAK_E2EE=mls`. Conversations (2.5-3) next. |
+
+### Verified vs. not
+Verified tonight: unit/widget/pgTAP/Deno tests; push end to end through
+ntfy.sh with decryption; federation end to end against a simulated remote
+server; HLS/audio/transcode against a stub auth server; MLS round-trip on
+the Android emulator; APK + web builds. **Not verified on real devices:**
+receiving pushes on a phone, calls with video/screen share (needs 2+
+devices), OAuth with a real provider, federation with a real Mastodon
+server (needs the domain).
+
+### Next
+- E2EE 2.5-3: MLS group per new conversation, welcomes via `mls_message`,
+  encrypt/decrypt in `MessagingRepository` behind the flag — needs two real
+  devices to verify before anyone relies on it.
+- `docs/ROADMAP.md` is now current (updated in this session).
+
+---
+
 **2026-09-24:** The bottom nav label is **Space**. Latest now includes any
 public video, and the feed has a Videos shelf. In-app notices (likes, replies,
 follows) are the bell on the feed; push is still not built. Sixteen more

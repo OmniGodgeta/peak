@@ -7,10 +7,12 @@ accessible.
 > **Picking up work?** Start with [HANDOFF.md](HANDOFF.md) — current state, what's
 > blocked on the operator, and the immediate next tasks.
 
-**Status (2026-10):** phases 0–4 done. Phase 5 ~90% (labelers, custom feeds +
-directory, local feed, interests/PYMK, search, wellbeing, reports,
-proof-of-personhood shipped; ranking Edge Function + fan-out index + pgvector
-recs remain). Hosted Supabase backend is live. **Video + a Media destination**
+**Status (2026-09-30):** phases 0–6 done (money parts of 6 deliberately
+deferred). Phase 7 federation is built and dormant until Peak has a domain.
+Phase 8 calls have video + screen sharing (mesh, no SFU). Phase 9 video is
+done except "why this video" ranking. Phase 2.5 E2EE: native MLS + device
+keys done; encrypted conversations next. See HANDOFF.md's 2026-09-30 section.
+Hosted Supabase backend is live. **Video + a Media destination**
 shipped (compose, inline player, browse + search, watch page) with transcode +
 local-disk storage on the self-hosted media server. Bottom nav is now
 Feed · For You · Messages · **Space** · Media · Me. "Find people & spaces"
@@ -28,12 +30,11 @@ lawyer pass on the legal drafts), not on more features.
 
 Not a phase — the concrete work between here and a public launch:
 
-- **Phase 5 buildables are in.** Ranking ignores engagement counts (Deno
-  test), follower fan-out is written on post, For You uses spaces and
-  interests, and the verified check shows on Latest and For You cards.
-  Still open: labeler appeals and a quarterly transparency report.
-- **Video polish**: adaptive HLS, EXIF strip, orphan cleanup on post-delete.
-  (Transcode + poster + local-disk storage + scroll-pause + share links done.)
+- **Phase 5 is done**, including labeler appeals and the quarterly
+  transparency report.
+- **Video polish is done** (HLS, EXIF strip, orphan cleanup, audio posts).
+- **Hosted catch-up**: `tool/push-hosted.sh` (migrations + functions), then tag.
+- **E2EE 2.5-3**: encrypted conversations — needs two real devices to verify.
 - **Operator**: run `tool/media-server/` on the storage box; register the
   domain → Cloudflare Pages web host + real email (Resend); lawyer pass on
   `docs/legal/*`. Then set `TURNSTILE_SITE_KEY` (Cloudflare Turnstile needs a
@@ -72,7 +73,8 @@ Goal: a developer can clone, run the app against a local backend, and sign in.
       communities `c/space` `c/gaming` `c/rockets` `c/science` `c/astrophotos`.
 - [ ] Self-hosting the stack on `shadow` remains an option later — see
       [SELF_HOSTING.md](SELF_HOSTING.md)
-- [ ] Passkey + OAuth sign-in (email works today)
+- [x] OAuth sign-in + account linking (providers per build; none by default).
+      Passkeys deliberately skipped (operator decision).
 
 ## Phase 1 — MVP feed
 
@@ -88,12 +90,14 @@ thing that is recognizably "a social network."
 - [x] Block (real semantics) + mute + mute-words in the visibility helpers
 - [x] Teen-account defaults (private, not discoverable)
 - [x] Delete a post → 30-day recyclable bin (see Phase 3 data controls)
-- [~] Composer: alt-text is a soft prompt; polls, drafts, scheduling, quote-posts to do
-- [ ] Media upload pipeline (EXIF strip, renditions, thumbnails) — needs `shadow`
+- [x] Composer: alt-text soft prompt, polls, drafts, scheduling, quote-posts
+- [x] Media pipeline: EXIF stripped client-side, HLS renditions + thumbnails
+      on the self-hosted media server
 - [x] **Friends-first** feed variant — `feed_friends` (only people who follow
       you back); the home feed toggle now actually swaps the query
-- [~] Notifications — in-app likes, replies, and follows (the bell on the
-      feed). Push, bundling, and quiet hours are still open.
+- [x] Notifications — in-app likes, replies, follows; push over UnifiedPush
+      (no Google), bundled, deferred past quiet hours (evaluated on the
+      user's clock)
 - [x] Report content/account → moderation intake — `report` table +
       `report_reason`/`report_status`; `submit_report` (post / profile /
       community / message; dedup per reporter; CSAM / self-harm / violence
@@ -111,8 +115,8 @@ Goal: talk to people privately.
 - [x] 1:1 and group chat over Realtime; media, reactions via edit/delete
 - [x] Typing indicators (opt-in), read receipts (both-sides opt-in), edit/delete-for-everyone
 - [x] Message requests (non-connections land in a request state)
-- [ ] Voice notes
-- [ ] Disappearing messages + `pg_cron` sweep
+- [x] Voice notes
+- [x] Disappearing messages + `pg_cron` sweep
 
 ### Phase 2.5 — E2E encryption (MLS, multi-device)
 
@@ -121,10 +125,11 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
 - [x] **2.5-0** — design + schema (`device`, `key_package`, `mls_*`,
       `history_blob`, `conversation.e2ee`), `claim_key_packages` RPC,
       `E2eeService` seam with the no-op impl
-- [ ] **2.5-1** — native OpenMLS build (cargo-ndk + xcframework) + `dart:ffi`
-      bindings + local round-trip smoke test *(needs the Rust toolchain)*
-- [~] **2.5-2** — device registration + Devices screen shipped (pure-Dart
-      Ed25519 identity key); real key-package generation waits on 2.5-1
+- [x] **2.5-1** — native OpenMLS (`native/peak_mls`, Android via cargo-ndk)
+      + `dart:ffi` bindings + round-trip tests (Rust, host, Android emulator).
+      iOS xcframework and web WASM not built.
+- [x] **2.5-2** — device registration + Devices screen; real KeyPackages
+      published to the pool (behind `PEAK_E2EE=mls`)
 - [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
       messages; feature flag on for new conversations
 - [ ] **2.5-4** — membership/device changes (Add/Remove/Update + Commit),
@@ -167,8 +172,8 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       live on the **self-hosted media server** (`tool/media-server/`): local
       disk, `ffmpeg` → H.264/AAC MP4 + poster + probe. Falls back to Supabase
       Storage (small clips only) when the server isn't configured.
-- [ ] Video: adaptive HLS renditions, EXIF strip on images, orphan cleanup on
-      post-delete, audio-only posts — the remaining media-pipeline work.
+- [x] Video: adaptive HLS renditions, EXIF strip on images, orphan cleanup on
+      post-delete (`purge-media`), audio-only posts.
 
 Phase 3 is complete. The media server is the local-disk answer to Supabase's
 storage quota during the private beta; a CDN + adaptive streaming come with the
@@ -224,7 +229,7 @@ storage quota during the private beta; a CDN + adaptive streaming come with the
       tags in use. Directory screen has a sort menu, an 18+ toggle, and topic
       filter chips. (Language filter deferred — no per-post language yet.)
 
-## Phase 5 — Ranking, custom feeds, discovery, moderation depth  ·  *done, except labeler appeals*
+## Phase 5 — Ranking, custom feeds, discovery, moderation depth  ·  *done*
 
 - [x] Fan-out-on-write feed index + hybrid path for large accounts — a public
       post is written into `fanout_feed_index` for the author's followers, and
@@ -271,8 +276,8 @@ storage quota during the private beta; a CDN + adaptive streaming come with the
       `subscribe_labeler` / `labelers_browse` / `post_labels_for_me`. Post cards
       render the labels from labelers you own or subscribe to; a `hide` label
       blurs the post behind a tap-to-reveal, always attributed. Me → Labelers to
-      run your own or subscribe. Still to do: appeals SLA + quarterly
-      transparency report.
+      run your own or subscribe. Appeals with a 90-day count, and a
+      quarterly transparency report (Me → Transparency report).
 - [x] Proof-of-personhood badges — `personhood` (method `staff` | `vouch`) +
       `personhood_vouch`; a staff grant, or 3 vouches from already-verified
       people (auto-granted, auto-revoked below the threshold). `vouch_for` /
@@ -319,15 +324,22 @@ payments as a decision to revisit once there's a real community asking for it
 
 ## Phase 7 — Federation
 
-- [ ] ActivityPub server-to-server (`federation` Edge Function)
-- [ ] Follow / post / reply / like across instances
-- [ ] Account migration in & out (Mastodon `Move` + follower carry-over)
-- [ ] Instance allow/block transparency; signed content-addressed posts
+Built 2026-09-30, **dormant until Peak has a public domain**
+(`docs/HOSTED_BACKEND.md` §4b). Per-person opt-in; teens can't; public posts only.
+
+- [x] ActivityPub server-to-server (`federation` + `federation-deliver`), HTTP Signatures
+- [x] Follow / post / reply / like across instances (Fediverse feed, remote
+      replies in threads)
+- [x] Account migration in & out (Mastodon `Move`, `alsoKnownAs`, follower carry-over)
+- [x] Instance block list, public (`federation_blocklist()`)
+- [ ] Signed content-addressed posts (no settled standard Mastodon honours yet)
 
 ## Phase 8 — Calls, events at scale, marketplace
 
-- [ ] 1:1 and group voice/video (WebRTC + SFU), screen share, live captions
-- [ ] Larger events / live audio rooms
+- [x] 1:1 and group voice/video, screen share (WebRTC mesh; TURN configurable)
+- [ ] SFU for groups beyond ~4, live captions (on-device speech would pull in
+      Google services — needs a different approach)
+- [x] Live audio rooms in Spaces (small, mesh)
 - [ ] Creator storefront (digital goods, merch via partners)
 - [ ] Community memberships (paid)
 
@@ -342,14 +354,12 @@ large-player watch page that hands off to the post thread for comments.
 Transcode + poster + storage on `tool/media-server/` (local disk).
 
 **Still to build:**
-- [ ] A first-class `video` entity (vs. a `post` with a video attachment) if the
-      reuse gets strained — tags, chapters, captions, per-video visibility
-- [ ] Adaptive renditions (HLS) + a CDN — the point local disk / Supabase stops
-      being enough
-- [ ] Captions (auto + upload), chapters, thumbnail selection
-- [ ] Channels: a creator's videos on their profile; subscribe; up-next
-- [ ] "Why this video?" ranking — no autoplay-into-the-void, no rabbit holes
-- [ ] Playlists; watch-later; resume-where-you-left-off (local-first)
+- [ ] A first-class `video` entity — not needed so far; `post` + media holds up
+- [x] Adaptive renditions (HLS) on the media server; a CDN waits on public hosting
+- [x] Captions (manual), chapters, thumbnail selection (upload or frame grab)
+- [x] Channels: a creator's videos on their profile; subscribe; up-next
+- [ ] "Why this video?" ranking — needs real usage data first
+- [x] Playlists; watch-later; resume-where-you-left-off (local-first)
 - [ ] Monetization ties into Phase 6 (deferred — see that phase) — never ads
 
 ---

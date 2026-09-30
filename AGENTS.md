@@ -54,6 +54,16 @@ signed APK via the repo's GitHub secrets, and publishes the GitHub Release
 itself - there is no local signing/build/`gh release create` step to do by
 hand. Never overwrite an existing tag/release; always a new version.
 
+## 2026-09-30 overnight session
+
+Read `docs/HANDOFF.md` → "2026-09-30 — overnight session" first: security
+fix (six tables were open to the anon key; `export_account` exported anyone),
+two live RPC bugs, video editor/chapters/captions/HLS/audio posts,
+transparency report, OAuth, UnifiedPush push + real quiet hours, video/screen
+share in calls, federation (dormant), E2EE 2.5-1/2.5-2. **The hosted project
+has not been pushed yet** — `tool/push-hosted.sh` does it; never tag a
+release before that has run.
+
 ## Done on main (updated 2026-09-25 - the list below this had gone stale;
 verified item by item against `git log`, not assumed)
 
@@ -147,9 +157,11 @@ actually left:
   **do not start this without being asked**, per the operator's standing
   instruction above.
 
-With those out, there is no small, well-scoped, no-decision-needed backlog
-item left as of 2026-09-25. Ask the operator what's next rather than
-inventing scope.
+As of 2026-09-30 the open items are: E2EE 2.5-3 onward (encrypted
+conversations — needs two real devices to verify; the native layer is
+ready), an SFU for calls beyond ~4 people, "why this video" ranking,
+signed content-addressed posts, and turning federation on (needs the
+domain). Ask the operator what's next rather than inventing scope.
 
 Skip payments and anything a lawyer has to sign.
 
@@ -183,4 +195,19 @@ Skip payments and anything a lawyer has to sign.
   was created, not new. Fixed in
   `20261011000000_fix_community_member_recursion.sql`.
 - `app/v1.0.1_web_build.tar.gz` is already in git. Do not commit new build
-  output.
+  output (that includes `native/peak_mls/target/` and the jniLibs `.so`
+  files, which `tool/build_mls.sh` produces; both are gitignored).
+- **Every public table needs RLS.** A table created without it is fully
+  readable/writable with the anon key that ships in every build (this
+  happened to six tables; fixed 2026-09-30). `supabase/tests/20_security_lockdown`
+  fails CI if any public table lacks RLS. New SECURITY DEFINER functions:
+  check `auth.uid()` yourself, pin `search_path`, and revoke from
+  `public, anon, authenticated` before granting — Supabase grants anon
+  EXECUTE on new functions directly, so revoking from `public` alone does
+  nothing.
+- **RPC parameter names are the API.** PostgREST matches functions by
+  parameter name; renaming one (or sending one the function lacks) breaks
+  the app at runtime with PGRST202 and nothing in CI notices. Run
+  `python3 tool/check_rpc_params.py` after `supabase migration up`.
+- Release order: `tool/push-hosted.sh` (migrations + functions) **then** the
+  tag. A release APK talks to the hosted DB.

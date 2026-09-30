@@ -266,7 +266,9 @@ language sql stable security definer set search_path = public as $$
   from profile p where p.id = auth.uid();
 $$;
 
-create or replace function set_my_federation(p_federated boolean, p_also_known_as text[])
+create or replace function set_my_federation(
+  p_federated boolean default null, p_also_known_as text[] default null
+)
 returns void
 language plpgsql security definer set search_path = public as $$
 begin
