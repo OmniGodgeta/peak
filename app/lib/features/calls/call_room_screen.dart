@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/call_repository.dart';
 import '../../data/supabase_providers.dart';
+import 'call_media.dart';
 
 enum _CallState { connecting, ringing, connected, ended, failed }
 
@@ -14,8 +15,10 @@ enum _CallState { connecting, ringing, connected, ended, failed }
 /// Realtime broadcast channel (`CallRepository.signalingChannel`) instead of
 /// a dedicated signaling server. Only STUN (Google's public server) is
 /// configured, no TURN - calls between two devices both behind restrictive/
-/// symmetric NAT may fail to connect; there's no relay fallback. Audio only,
-/// no video, matching the operator's "local audio calls" ask.
+/// symmetric NAT may fail to connect unless a TURN relay is configured
+/// (TURN_URL / TURN_USERNAME / TURN_CREDENTIAL build defines). Audio, plus
+/// camera or screen share in the call's one video slot (see [VideoSlot]):
+/// toggling swaps the track, it never renegotiates.
 ///
 /// Role is fixed by who created the room (`call_rooms.owner_id`): the
 /// creator always sends the SDP offer once someone else joins, and the
@@ -48,11 +51,24 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
   final List<RTCIceCandidate> _pendingCandidates = [];
   bool _remoteDescriptionSet = false;
 
+  final _local = LocalVideo();
+  VideoSlot? _videoSlot;
+  final _localRenderer = RTCVideoRenderer();
+  final _remoteRenderer = RTCVideoRenderer();
+  MediaStream? _remoteVideoStream;
+  VideoSource _remoteSource = VideoSource.none;
+
   @override
   void initState() {
     super.initState();
     _myId = ref.read(supabaseProvider).auth.currentUser!.id;
-    _setup();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
+    await _setup();
   }
 
   Future<void> _setup() async {
@@ -68,17 +84,23 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
         'video': false,
       });
 
-      _pc = await createPeerConnection({
-        'iceServers': [
-          {
-            'urls': ['stun:stun.l.google.com:19302'],
-          },
-        ],
-      });
+      _pc = await createPeerConnection(callRtcConfig());
 
       for (final track in _localStream!.getAudioTracks()) {
         await _pc!.addTrack(track, _localStream!);
       }
+      if (_isOfferer) _videoSlot = await VideoSlot.add(_pc!);
+
+      _pc!.onTrack = (event) async {
+        if (event.track.kind != 'video') return;
+        // The slot has no stream id of its own; wrap the track for the view.
+        final s =
+            _remoteVideoStream ?? await createLocalMediaStream('remote-video');
+        await s.addTrack(event.track);
+        _remoteVideoStream = s;
+        _remoteRenderer.srcObject = s;
+        if (mounted) setState(() {});
+      };
 
       _pc!.onIceCandidate = (candidate) {
         if (candidate.candidate == null) return;
@@ -97,6 +119,7 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
         if (!mounted) return;
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           setState(() => _state = _CallState.connected);
+          _announceVideo();
         } else if (state ==
                 RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
             state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
@@ -141,20 +164,36 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
             if (payload['uid'] == _myId) return;
             if (mounted) setState(() => _state = _CallState.ended);
           },
+        )
+        ..onBroadcast(
+          event: 'video',
+          callback: (payload) {
+            if (payload['uid'] == _myId || !mounted) return;
+            setState(
+              () => _remoteSource = VideoSource.values.firstWhere(
+                (v) => v.name == payload['source'],
+                orElse: () => VideoSource.none,
+              ),
+            );
+          },
         );
-      _channel!.subscribe();
+      // Announce readiness only once the channel is actually joined — a
+      // broadcast sent before that can be dropped, leaving both sides
+      // waiting forever.
+      _channel!.subscribe((status, _) {
+        if (status == RealtimeSubscribeStatus.subscribed && !_isOfferer) {
+          _channel!.sendBroadcastMessage(
+            event: 'ready',
+            payload: {'uid': _myId},
+          );
+        }
+      });
 
       if (mounted) {
         setState(
           () =>
               _state = _isOfferer ? _CallState.ringing : _CallState.connecting,
         );
-      }
-
-      if (!_isOfferer) {
-        // Announce readiness so the offerer knows someone actually joined
-        // before it bothers creating an offer.
-        _channel!.sendBroadcastMessage(event: 'ready', payload: {'uid': _myId});
       }
     } catch (e) {
       if (mounted) setState(() => _error = 'Could not start call: $e');
@@ -183,6 +222,7 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
     );
     _remoteDescriptionSet = true;
     await _flushPendingCandidates();
+    _videoSlot = await VideoSlot.claim(pc);
     final answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     _channel?.sendBroadcastMessage(
@@ -241,6 +281,40 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
     await Helper.setSpeakerphoneOn(_speakerOn);
   }
 
+  void _announceVideo() {
+    _channel?.sendBroadcastMessage(
+      event: 'video',
+      payload: {'uid': _myId, 'source': _local.source.name},
+    );
+  }
+
+  Future<void> _setVideo(VideoSource want) async {
+    final slot = _videoSlot;
+    if (slot == null) return;
+    try {
+      if (want == VideoSource.none || want == _local.source) {
+        await slot.send(null);
+        await _local.stop();
+      } else if (want == VideoSource.camera) {
+        await _local.startCamera();
+        await slot.send(_local.track);
+      } else {
+        await _local.startScreen();
+        await slot.send(_local.track);
+      }
+    } catch (e) {
+      await slot.send(null);
+      await _local.stop();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Couldn't start video: $e")));
+      }
+    }
+    _localRenderer.srcObject = _local.stream;
+    _announceVideo();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _hangUp() async {
     _channel?.sendBroadcastMessage(event: 'hangup', payload: {'uid': _myId});
     await _cleanup();
@@ -253,9 +327,13 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
     for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
       await track.stop();
     }
+    await _local.stop();
     await _pc?.close();
     await _pc?.dispose();
     await _localStream?.dispose();
+    await _remoteVideoStream?.dispose();
+    await _localRenderer.dispose();
+    await _remoteRenderer.dispose();
   }
 
   @override
@@ -281,58 +359,135 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final connected = _state == _CallState.connected;
+    final canVideo = connected && _videoSlot != null;
+    final showRemote = _remoteSource != VideoSource.none;
+    final showLocal = _local.source != VideoSource.none;
+
+    final controls = Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 16,
+      runSpacing: 12,
+      children: [
+        _CallButton(
+          icon: _muted ? Icons.mic_off : Icons.mic,
+          active: _muted,
+          label: _muted ? 'Unmute' : 'Mute',
+          onPressed: _toggleMute,
+        ),
+        _CallButton(
+          icon: _local.source == VideoSource.camera
+              ? Icons.videocam
+              : Icons.videocam_off,
+          active: _local.source == VideoSource.camera,
+          label: 'Camera',
+          onPressed: canVideo ? () => _setVideo(VideoSource.camera) : null,
+        ),
+        if (_local.source == VideoSource.camera)
+          _CallButton(
+            icon: Icons.cameraswitch,
+            active: false,
+            label: 'Flip',
+            onPressed: () async {
+              await _local.flipCamera();
+              if (mounted) setState(() {});
+            },
+          ),
+        _CallButton(
+          icon: Icons.screen_share,
+          active: _local.source == VideoSource.screen,
+          label: 'Share',
+          onPressed: canVideo ? () => _setVideo(VideoSource.screen) : null,
+        ),
+        _CallButton(
+          icon: Icons.volume_up,
+          active: _speakerOn,
+          label: 'Speaker',
+          onPressed: _toggleSpeaker,
+        ),
+        _CallButton(
+          icon: Icons.call_end,
+          active: false,
+          color: Colors.red,
+          label: 'End',
+          onPressed: _hangUp,
+        ),
+      ],
+    );
+
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Center(
-        child: _error != null
-            ? Padding(
+      body: _error != null
+          ? Center(
+              child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(_error!, textAlign: TextAlign.center),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _state == _CallState.connected
-                        ? Icons.call
-                        : Icons.call_made,
-                    size: 72,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    _statusText,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 48),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: Stack(
                     children: [
-                      _CallButton(
-                        icon: _muted ? Icons.mic_off : Icons.mic,
-                        active: _muted,
-                        label: _muted ? 'Unmute' : 'Mute',
-                        onPressed: _toggleMute,
-                      ),
-                      const SizedBox(width: 20),
-                      _CallButton(
-                        icon: Icons.volume_up,
-                        active: _speakerOn,
-                        label: 'Speaker',
-                        onPressed: _toggleSpeaker,
-                      ),
-                      const SizedBox(width: 20),
-                      _CallButton(
-                        icon: Icons.call_end,
-                        active: false,
-                        color: Colors.red,
-                        label: 'End',
-                        onPressed: _hangUp,
-                      ),
+                      if (showRemote)
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black,
+                            child: RTCVideoView(
+                              _remoteRenderer,
+                              objectFit: _remoteSource == VideoSource.screen
+                                  ? RTCVideoViewObjectFit
+                                        .RTCVideoViewObjectFitContain
+                                  : RTCVideoViewObjectFit
+                                        .RTCVideoViewObjectFitCover,
+                            ),
+                          ),
+                        )
+                      else
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                connected ? Icons.call : Icons.call_made,
+                                size: 72,
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                _statusText,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (showLocal)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          width: 110,
+                          height: 160,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              color: Colors.black,
+                              child: RTCVideoView(
+                                _localRenderer,
+                                mirror: _local.source == VideoSource.camera,
+                                objectFit: RTCVideoViewObjectFit
+                                    .RTCVideoViewObjectFitCover,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                ],
-              ),
-      ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                  child: controls,
+                ),
+              ],
+            ),
     );
   }
 }
@@ -342,7 +497,7 @@ class _CallButton extends StatelessWidget {
   final bool active;
   final Color? color;
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const _CallButton({
     required this.icon,

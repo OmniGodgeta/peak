@@ -34,6 +34,16 @@ class Env {
   /// OAuth buttons, email only.
   static const oauthProviders = String.fromEnvironment('OAUTH_PROVIDERS');
 
+  /// Calls: STUN server, and an optional TURN relay (url + credentials) for
+  /// peers behind strict NAT. Without TURN some calls can't connect.
+  static const stunUrl = String.fromEnvironment(
+    'STUN_URL',
+    defaultValue: 'stun:stun.l.google.com:19302',
+  );
+  static const turnUrl = String.fromEnvironment('TURN_URL');
+  static const turnUsername = String.fromEnvironment('TURN_USERNAME');
+  static const turnCredential = String.fromEnvironment('TURN_CREDENTIAL');
+
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }
