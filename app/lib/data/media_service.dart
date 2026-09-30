@@ -70,6 +70,42 @@ class MediaService {
     }
   }
 
+  /// Stores a custom thumbnail image; returns the value for `poster_path`.
+  Future<String> uploadPoster(Uint8List bytes, String contentType) async {
+    final up = await uploadPostMedia(
+      bytes: bytes,
+      contentType: contentType,
+      isVideo: false,
+    );
+    return up.path;
+  }
+
+  /// Whether [storagePath] is a video the media server can grab frames from.
+  bool canGrabFrame(String storagePath) =>
+      usingServer && storagePath.startsWith('${Env.mediaBaseUrl}/media/');
+
+  /// Asks the media server for a still of [storagePath] at [at]; returns the
+  /// new `poster_path`. Only works for the caller's own videos.
+  Future<String> posterFromFrame(String storagePath, Duration at) async {
+    final token = _db.auth.currentSession?.accessToken;
+    if (token == null) throw StateError('Not signed in.');
+    final rel = storagePath.substring('${Env.mediaBaseUrl}/media/'.length);
+    final res = await http.post(
+      Uri.parse('${Env.mediaBaseUrl}/poster'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'path': rel, 'tMs': at.inMilliseconds}),
+    );
+    if (res.statusCode != 200) {
+      throw Exception(
+        'Frame grab failed (${res.statusCode}). ${_briefError(res.body)}',
+      );
+    }
+    return (jsonDecode(res.body) as Map<String, dynamic>)['posterUrl'] as String;
+  }
+
   /// A loadable URL for a value previously stored in `post_media.storage_path`
   /// or `poster_path`.
   String resolveUrl(String storagePath) {

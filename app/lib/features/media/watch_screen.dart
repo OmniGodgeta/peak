@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../app/avatar.dart';
 import '../../data/feed_repository.dart';
@@ -11,6 +12,7 @@ import '../profile/user_profile_screen.dart';
 import '../../data/media_service.dart';
 import '../../data/playback_persistence_service.dart';
 import '../../data/creator_repository.dart';
+import '../profile/creator_video_editor_sheet.dart' show formatCueTime;
 import 'channel_screen.dart';
 
 /// The watch page for one video post: a large auto-loading player, then title,
@@ -25,6 +27,10 @@ class WatchScreen extends ConsumerStatefulWidget {
 
 class _WatchScreenState extends ConsumerState<WatchScreen> {
   Duration? _savedPosition;
+  // The player waits for this so it can start where the viewer left off.
+  bool _positionLoaded = false;
+  VideoExtras? _extras;
+  VideoPlayerController? _controller;
   List<FeedPost>? _upNextPosts;
   bool _isLoadingUpNext = false;
 
@@ -32,14 +38,43 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
   void initState() {
     super.initState();
     _loadSavedPosition();
+    _loadExtras();
     _fetchUpNext();
   }
 
+  Future<void> _loadExtras() async {
+    try {
+      final extras = await ref
+          .read(creatorRepositoryProvider)
+          .videoExtras(widget.post.id);
+      if (mounted) setState(() => _extras = extras);
+    } catch (e) {
+      debugPrint('Error loading chapters: $e');
+    }
+  }
+
+  void _seekTo(Duration t) {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    c.seekTo(t);
+    if (!c.value.isPlaying) c.play();
+  }
+
   Future<void> _loadSavedPosition() async {
-    final pos = await ref
-        .read(playbackPersistenceServiceProvider)
-        .getPosition(widget.post.id);
-    if (mounted) setState(() => _savedPosition = pos);
+    Duration? pos;
+    try {
+      pos = await ref
+          .read(playbackPersistenceServiceProvider)
+          .getPosition(widget.post.id);
+    } catch (_) {
+      pos = null;
+    }
+    if (mounted) {
+      setState(() {
+        _savedPosition = pos;
+        _positionLoaded = true;
+      });
+    }
   }
 
   Future<void> _fetchUpNext() async {
@@ -133,6 +168,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
                       child: Icon(Icons.videocam_off, color: Colors.white54),
                     ),
                   )
+                : !_positionLoaded
+                ? const AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
                 : PostVideo(
                     url: mediaService.resolveUrl(video.storagePath),
                     posterUrl: video.posterPath == null
@@ -143,6 +183,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
                     autoLoad: true,
                     initialPosition: _savedPosition,
                     onPositionChanged: _saveCurrentPosition,
+                    captions: _extras?.captions ?? const [],
+                    onControllerReady: (c) => _controller = c,
                   ),
           ),
           Padding(
@@ -176,6 +218,28 @@ class _WatchScreenState extends ConsumerState<WatchScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: PostBody(text: widget.post.body.trim()),
             ),
+          if (_extras != null && _extras!.chapters.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                'Chapters',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            for (final ch in _extras!.chapters)
+              ListTile(
+                dense: true,
+                leading: Text(
+                  formatCueTime(ch.start),
+                  style: TextStyle(
+                    color: scheme.primary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                title: Text(ch.text),
+                onTap: () => _seekTo(ch.start),
+              ),
+          ],
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: FilledButton.tonalIcon(

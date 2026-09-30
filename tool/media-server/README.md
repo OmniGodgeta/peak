@@ -20,6 +20,8 @@ app ◀──────────  GET /v1/media/... (range)  ─┘
 - **Images**: stored as-is (GIF animation preserved); dimensions probed.
 - **Serve**: `GET /v1/media/<user>/<file>` with HTTP range support + long cache
   + permissive CORS (the web app is a different origin).
+- **Poster from a frame**: `POST /v1/poster` `{"path":"<user>/<id>.mp4","tMs":12000}`
+  grabs that frame as a new thumbnail. Only the caller's own videos.
 - Per-user upload rate limit (20/min). Size caps: image 25 MB, video 500 MB.
 
 ## Setup (on the machine that keeps the files)
@@ -61,7 +63,7 @@ breaks before this is up.
 ## Not yet
 
 - Adaptive HLS (progressive MP4 + range is fine for the beta)
-- EXIF strip on images
+- EXIF strip on images (done client-side: JPEG/PNG are re-encoded before upload)
 - Orphan cleanup on post delete
 - Auth on the serve path (public, like Supabase public URLs — the path is the
   capability)

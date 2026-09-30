@@ -33,6 +33,44 @@ class ReachStats {
   );
 }
 
+/// One timed span of a video: a chapter or a caption line.
+class VideoCue {
+  const VideoCue({required this.text, required this.start, required this.end});
+  final String text;
+  final Duration start;
+  final Duration end;
+
+  bool covers(Duration t) => t >= start && t < end;
+}
+
+class VideoExtras {
+  const VideoExtras({
+    required this.mediaId,
+    required this.chapters,
+    required this.captions,
+  });
+
+  final String mediaId;
+  final List<VideoCue> chapters;
+  final List<VideoCue> captions;
+
+  factory VideoExtras.fromMap(Map<String, dynamic> m) {
+    List<VideoCue> cues(Object? list, String key) => [
+      for (final e in (list as List? ?? const []))
+        VideoCue(
+          text: (e as Map)[key] as String? ?? '',
+          start: Duration(milliseconds: (e['start_ms'] as num).toInt()),
+          end: Duration(milliseconds: (e['end_ms'] as num).toInt()),
+        ),
+    ];
+    return VideoExtras(
+      mediaId: m['media_id'] as String,
+      chapters: cues(m['chapters'], 'label'),
+      captions: cues(m['captions'], 'text'),
+    );
+  }
+}
+
 class CreatorRepository {
   CreatorRepository(this._db);
   final SupabaseClient _db;
@@ -110,6 +148,32 @@ class CreatorRepository {
           .toList();
       await _db.from('post_subtitles').insert(data);
     }
+  }
+
+  Future<List<Map<String, dynamic>>> loadChapters(String mediaId) async {
+    final rows = await _db
+        .from('post_chapters')
+        .select('label, start_ms, end_ms')
+        .eq('media_id', mediaId)
+        .order('start_ms');
+    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> loadSubtitles(String mediaId) async {
+    final rows = await _db
+        .from('post_subtitles')
+        .select('language, text, start_ms, end_ms')
+        .eq('media_id', mediaId)
+        .order('start_ms');
+    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// Chapters + captions for a video post, for the watch page. Null when the
+  /// post has no video the viewer can see.
+  Future<VideoExtras?> videoExtras(String postId) async {
+    final res = await _db.rpc('video_extras', params: {'p_post_id': postId});
+    if (res == null) return null;
+    return VideoExtras.fromMap(Map<String, dynamic>.from(res as Map));
   }
 
   /// Updates the poster path in post_media.

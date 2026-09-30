@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../../data/creator_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/settings_repository.dart';
 
@@ -138,6 +139,8 @@ class PostVideo extends ConsumerStatefulWidget {
     this.autoLoad = false,
     this.initialPosition,
     this.onPositionChanged,
+    this.captions = const [],
+    this.onControllerReady,
   });
   final String url;
   final String? posterUrl;
@@ -153,6 +156,12 @@ class PostVideo extends ConsumerStatefulWidget {
   /// Callback when the video playback position changes.
   final ValueChanged<Duration>? onPositionChanged;
 
+  /// Timed caption lines; a CC toggle appears when there are any.
+  final List<VideoCue> captions;
+
+  /// Hands the ready controller to the parent (e.g. to seek to a chapter).
+  final ValueChanged<VideoPlayerController>? onControllerReady;
+
   @override
   ConsumerState<PostVideo> createState() => _PostVideoState();
 }
@@ -163,6 +172,7 @@ class _PostVideoState extends ConsumerState<PostVideo> {
   bool _failed = false;
   // Paused because it scrolled out of view — resume it when it comes back.
   bool _pausedByScroll = false;
+  bool _showCaptions = true;
   final _visKey = UniqueKey();
   Timer? _positionTimer;
 
@@ -219,12 +229,7 @@ class _PostVideoState extends ConsumerState<PostVideo> {
       _loading = true;
       _failed = false;
     });
-    final baseUri = Uri.parse(widget.url);
-    final stunUri = baseUri.replace(queryParameters: {
-      ...baseUri.queryParameters,
-      'stun': 'stun:stun.l.google.com:19302',
-    });
-    final c = VideoPlayerController.networkUrl(stunUri);
+    final c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
     try {
       await c.initialize();
       await c.setLooping(true);
@@ -240,6 +245,7 @@ class _PostVideoState extends ConsumerState<PostVideo> {
         return;
       }
       setState(() => _loading = false);
+      widget.onControllerReady?.call(c);
       await c.play();
       _startPositionTimer();
     } on Exception {
@@ -325,6 +331,44 @@ class _PostVideoState extends ConsumerState<PostVideo> {
                 setState(() => c.value.isPlaying ? c.pause() : c.play()),
             child: VideoPlayer(c),
           ),
+          if (_showCaptions && widget.captions.isNotEmpty)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 44,
+              child: IgnorePointer(
+                child: ValueListenableBuilder<VideoPlayerValue>(
+                  valueListenable: c,
+                  builder: (context, v, _) {
+                    String? line;
+                    for (final cue in widget.captions) {
+                      if (cue.covers(v.position)) {
+                        line = cue.text;
+                        break;
+                      }
+                    }
+                    if (line == null) return const SizedBox.shrink();
+                    return Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        color: Colors.black.withValues(alpha: 0.7),
+                        child: Text(
+                          line,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           if (!c.value.isPlaying)
             const IgnorePointer(
               child: Icon(
@@ -346,6 +390,20 @@ class _PostVideoState extends ConsumerState<PostVideo> {
                   ),
                 ),
               ),
+              if (widget.captions.isNotEmpty)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: _showCaptions ? 'Hide captions' : 'Show captions',
+                  icon: Icon(
+                    _showCaptions
+                        ? Icons.closed_caption
+                        : Icons.closed_caption_off_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _showCaptions = !_showCaptions),
+                ),
               IconButton(
                 visualDensity: VisualDensity.compact,
                 icon: Icon(

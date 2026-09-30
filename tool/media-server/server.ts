@@ -82,6 +82,10 @@ Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
     return await handleUpload(req);
   }
 
+  if (url.pathname === "/v1/poster" && req.method === "POST") {
+    return await handlePoster(req);
+  }
+
   if (url.pathname.startsWith("/v1/media/") && req.method === "GET") {
     return await handleServe(req, url.pathname.slice("/v1/media/".length));
   }
@@ -202,6 +206,65 @@ async function handleUpload(req: Request): Promise<Response> {
       500,
     );
   }
+}
+
+// ── poster from a chosen frame ─────────────────────────────────────────
+//
+// Body: {"path": "<userId>/<id>.mp4", "tMs": 12000}. Only the owner's own
+// videos: the first path segment must be the caller's user id.
+
+async function handlePoster(req: Request): Promise<Response> {
+  const userId = await verifyUser(req.headers.get("authorization") ?? "");
+  if (!userId) return json({ error: "unauthorized" }, 401);
+  if (rateLimited(userId)) return json({ error: "slow down" }, 429);
+
+  let body: { path?: unknown; tMs?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "bad json" }, 400);
+  }
+  const rel = typeof body.path === "string" ? body.path : "";
+  const tMs = typeof body.tMs === "number" && Number.isFinite(body.tMs)
+    ? Math.max(0, Math.floor(body.tMs))
+    : 0;
+  const parts = rel.split("/");
+  if (
+    parts.length !== 2 || parts[0] !== userId ||
+    !/^[0-9a-f-]{36}\.mp4$/.test(parts[1])
+  ) {
+    return json({ error: "bad path" }, 400);
+  }
+  const src = join(MEDIA_ROOT, parts[0], parts[1]);
+  if (!(await exists(src))) return json({ error: "not found" }, 404);
+
+  const id = parts[1].slice(0, -".mp4".length);
+  const name = `${id}.p${tMs}.jpg`;
+  const out = join(MEDIA_ROOT, userId, name);
+  try {
+    await run([
+      "ffmpeg",
+      "-y",
+      "-ss",
+      (tMs / 1000).toFixed(3),
+      "-i",
+      src,
+      "-frames:v",
+      "1",
+      "-vf",
+      "scale='min(1280,iw)':-2",
+      "-q:v",
+      "4",
+      out,
+    ]);
+  } catch (e) {
+    return json(
+      { error: `frame grab failed: ${e instanceof Error ? e.message : e}` },
+      500,
+    );
+  }
+  if (!(await exists(out))) return json({ error: "past the end" }, 422);
+  return json({ posterUrl: `${PUBLIC_BASE}/media/${userId}/${name}` });
 }
 
 // ── serve ───────────────────────────────────────────────────────────────

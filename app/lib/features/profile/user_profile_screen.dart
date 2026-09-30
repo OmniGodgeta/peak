@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/avatar.dart';
 import '../../data/creator_repository.dart';
+import '../../data/media_service.dart';
 import '../../data/feed_repository.dart';
 import '../../data/messaging_repository.dart';
 import '../../data/people_repository.dart';
@@ -227,7 +228,9 @@ class _VideosTab extends ConsumerWidget {
                         isScrollControlled: true,
                         builder: (ctx) => CreatorVideoEditorSheet(
                           mediaId: mediaId,
-                          posterPath: posterPath ?? '',
+                          storagePath: v['storage_path'] as String? ?? '',
+                          posterPath: posterPath,
+                          durationMs: (v['duration_ms'] as num?)?.toInt(),
                           onSave: () {
                             ref.invalidate(userVideosProvider(authorId));
                           },
@@ -241,7 +244,9 @@ class _VideosTab extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(4),
                   image: posterPath != null
                       ? DecorationImage(
-                          image: NetworkImage(posterPath),
+                          image: NetworkImage(
+                            ref.read(mediaServiceProvider).resolveUrl(posterPath),
+                          ),
                           fit: BoxFit.cover,
                         )
                       : null,
