@@ -14,6 +14,7 @@ import '../discovery/discovery_screen.dart';
 import '../moderation/ingest_admin_screen.dart';
 import '../moderation/labelers_screen.dart';
 import '../moderation/my_reports_screen.dart';
+import '../moderation/transparency_report_screen.dart';
 import '../moderation/personhood_screen.dart';
 import '../moderation/review_queue_screen.dart';
 import '../settings/devices_screen.dart';
@@ -208,6 +209,16 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const MyModmailScreen(),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.bar_chart_outlined),
+                title: const Text('Transparency report'),
+                subtitle: const Text('Moderation numbers, every quarter'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TransparencyReportScreen(),
                   ),
                 ),
               ),

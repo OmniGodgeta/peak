@@ -41,7 +41,7 @@ as $$
   limit 1;
 $$;
 
-revoke all on function video_extras(uuid) from public;
+revoke all on function video_extras(uuid) from public, anon, authenticated;
 grant execute on function video_extras(uuid) to authenticated;
 
 create or replace function queue_replaced_poster()
@@ -68,7 +68,7 @@ begin
 end;
 $$;
 
-revoke all on function queue_replaced_poster() from public;
+revoke all on function queue_replaced_poster() from public, anon, authenticated;
 
 drop trigger if exists post_media_poster_replaced on post_media;
 create trigger post_media_poster_replaced
