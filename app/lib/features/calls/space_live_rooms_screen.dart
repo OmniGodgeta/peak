@@ -26,12 +26,16 @@ class _SpaceLiveRoomsScreenState extends ConsumerState<SpaceLiveRoomsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ref.read(callRepositoryProvider).activeRoomsForSpace(widget.spaceId);
+    _future = ref
+        .read(callRepositoryProvider)
+        .activeRoomsForSpace(widget.spaceId);
   }
 
   void _refresh() {
     setState(() {
-      _future = ref.read(callRepositoryProvider).activeRoomsForSpace(widget.spaceId);
+      _future = ref
+          .read(callRepositoryProvider)
+          .activeRoomsForSpace(widget.spaceId);
     });
   }
 
@@ -52,7 +56,8 @@ class _SpaceLiveRoomsScreenState extends ConsumerState<SpaceLiveRoomsScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
             child: const Text('Start'),
           ),
         ],
@@ -61,7 +66,9 @@ class _SpaceLiveRoomsScreenState extends ConsumerState<SpaceLiveRoomsScreen> {
     if (title == null) return;
     if (!mounted) return;
 
-    final roomId = await ref.read(callRepositoryProvider).createSpaceRoom(
+    final roomId = await ref
+        .read(callRepositoryProvider)
+        .createSpaceRoom(
           spaceId: widget.spaceId,
           title: title.isEmpty ? null : title,
         );
@@ -82,7 +89,9 @@ class _SpaceLiveRoomsScreenState extends ConsumerState<SpaceLiveRoomsScreen> {
       MaterialPageRoute<void>(
         builder: (_) => LiveRoomScreen(
           roomId: room.id,
-          title: room.title?.isNotEmpty == true ? room.title! : widget.spaceName,
+          title: room.title?.isNotEmpty == true
+              ? room.title!
+              : widget.spaceName,
         ),
       ),
     );
@@ -114,7 +123,9 @@ class _SpaceLiveRoomsScreenState extends ConsumerState<SpaceLiveRoomsScreen> {
               final room = rooms[index];
               return ListTile(
                 leading: const Icon(Icons.groups),
-                title: Text(room.title?.isNotEmpty == true ? room.title! : 'Live room'),
+                title: Text(
+                  room.title?.isNotEmpty == true ? room.title! : 'Live room',
+                ),
                 subtitle: Text('${room.participantCount} in the room'),
                 trailing: FilledButton(
                   onPressed: () => _joinRoom(room),

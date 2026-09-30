@@ -15,20 +15,14 @@ class SeeLessStore {
         .from('feed_see_less')
         .select('reason')
         .eq('user_id', me);
-    return {
-      for (final row in rows as List)
-        (row as Map)['reason'] as String,
-    };
+    return {for (final row in rows as List) (row as Map)['reason'] as String};
   }
 
   Future<void> remember(String reason) async {
     final me = _db.auth.currentUser?.id;
     final trimmed = reason.trim();
     if (me == null || trimmed.isEmpty) return;
-    await _db.from('feed_see_less').upsert({
-      'user_id': me,
-      'reason': trimmed,
-    });
+    await _db.from('feed_see_less').upsert({'user_id': me, 'reason': trimmed});
   }
 }
 

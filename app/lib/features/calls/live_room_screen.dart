@@ -65,8 +65,10 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
       final repo = ref.read(callRepositoryProvider);
       await repo.joinRoom(widget.roomId);
 
-      _localStream =
-          await navigator.mediaDevices.getUserMedia({'audio': true, 'video': false});
+      _localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': true,
+        'video': false,
+      });
 
       _channel = repo.signalingChannel(widget.roomId)
         ..onBroadcast(
@@ -115,7 +117,10 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
       _channel!.subscribe();
 
       if (mounted) setState(() => _joined = true);
-      _channel!.sendBroadcastMessage(event: 'peer-join', payload: {'uid': _myId});
+      _channel!.sendBroadcastMessage(
+        event: 'peer-join',
+        payload: {'uid': _myId},
+      );
     } catch (e) {
       if (mounted) setState(() => _error = 'Could not join room: $e');
     }
@@ -125,8 +130,8 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
     final pc = await createPeerConnection({
       'iceServers': [
         {
-          'urls': ['stun:stun.l.google.com:19302']
-        }
+          'urls': ['stun:stun.l.google.com:19302'],
+        },
       ],
     });
     for (final track in _localStream!.getAudioTracks()) {
@@ -134,13 +139,16 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
     }
     pc.onIceCandidate = (candidate) {
       if (candidate.candidate == null) return;
-      _channel?.sendBroadcastMessage(event: 'peer-ice', payload: {
-        'from': _myId,
-        'target': peerId,
-        'candidate': candidate.candidate,
-        'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMLineIndex,
-      });
+      _channel?.sendBroadcastMessage(
+        event: 'peer-ice',
+        payload: {
+          'from': _myId,
+          'target': peerId,
+          'candidate': candidate.candidate,
+          'sdpMid': candidate.sdpMid,
+          'sdpMLineIndex': candidate.sdpMLineIndex,
+        },
+      );
     };
     return pc;
   }
@@ -154,12 +162,15 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
 
     final offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    _channel?.sendBroadcastMessage(event: 'peer-offer', payload: {
-      'from': _myId,
-      'target': peerId,
-      'sdp': offer.sdp,
-      'type': offer.type,
-    });
+    _channel?.sendBroadcastMessage(
+      event: 'peer-offer',
+      payload: {
+        'from': _myId,
+        'target': peerId,
+        'sdp': offer.sdp,
+        'type': offer.type,
+      },
+    );
   }
 
   Future<void> _onOffer(String from, Map<String, dynamic> payload) async {
@@ -170,19 +181,25 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
     if (mounted) setState(() {});
 
     await pc.setRemoteDescription(
-      RTCSessionDescription(payload['sdp'] as String, payload['type'] as String),
+      RTCSessionDescription(
+        payload['sdp'] as String,
+        payload['type'] as String,
+      ),
     );
     state.remoteDescriptionSet = true;
     await _flushPendingCandidates(state);
 
     final answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    _channel?.sendBroadcastMessage(event: 'peer-answer', payload: {
-      'from': _myId,
-      'target': from,
-      'sdp': answer.sdp,
-      'type': answer.type,
-    });
+    _channel?.sendBroadcastMessage(
+      event: 'peer-answer',
+      payload: {
+        'from': _myId,
+        'target': from,
+        'sdp': answer.sdp,
+        'type': answer.type,
+      },
+    );
   }
 
   Future<void> _onAnswer(String from, Map<String, dynamic> payload) async {
@@ -190,13 +207,19 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
     final pc = state?.pc;
     if (state == null || pc == null) return;
     await pc.setRemoteDescription(
-      RTCSessionDescription(payload['sdp'] as String, payload['type'] as String),
+      RTCSessionDescription(
+        payload['sdp'] as String,
+        payload['type'] as String,
+      ),
     );
     state.remoteDescriptionSet = true;
     await _flushPendingCandidates(state);
   }
 
-  Future<void> _onRemoteCandidate(String from, Map<String, dynamic> payload) async {
+  Future<void> _onRemoteCandidate(
+    String from,
+    Map<String, dynamic> payload,
+  ) async {
     final state = _peers[from];
     if (state == null) return;
     final candidate = RTCIceCandidate(
@@ -241,7 +264,10 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
   }
 
   Future<void> _leaveRoom() async {
-    _channel?.sendBroadcastMessage(event: 'peer-leave', payload: {'uid': _myId});
+    _channel?.sendBroadcastMessage(
+      event: 'peer-leave',
+      payload: {'uid': _myId},
+    );
     await _cleanup();
     if (mounted) Navigator.of(context).pop();
   }
@@ -275,47 +301,47 @@ class _LiveRoomScreenState extends ConsumerState<LiveRoomScreen> {
                 child: Text(_error!, textAlign: TextAlign.center),
               )
             : !_joined
-                ? const CircularProgressIndicator()
-                : Column(
+            ? const CircularProgressIndicator()
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.groups, size: 64),
+                  const SizedBox(height: 16),
+                  Text(
+                    _peers.isEmpty
+                        ? 'Waiting for others to join…'
+                        : '${_peers.length + 1} in the room',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 48),
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.groups, size: 64),
-                      const SizedBox(height: 16),
-                      Text(
-                        _peers.isEmpty
-                            ? 'Waiting for others to join…'
-                            : '${_peers.length + 1} in the room',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      _RoomButton(
+                        icon: _muted ? Icons.mic_off : Icons.mic,
+                        active: _muted,
+                        label: _muted ? 'Unmute' : 'Mute',
+                        onPressed: _toggleMute,
                       ),
-                      const SizedBox(height: 48),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _RoomButton(
-                            icon: _muted ? Icons.mic_off : Icons.mic,
-                            active: _muted,
-                            label: _muted ? 'Unmute' : 'Mute',
-                            onPressed: _toggleMute,
-                          ),
-                          const SizedBox(width: 20),
-                          _RoomButton(
-                            icon: Icons.volume_up,
-                            active: _speakerOn,
-                            label: 'Speaker',
-                            onPressed: _toggleSpeaker,
-                          ),
-                          const SizedBox(width: 20),
-                          _RoomButton(
-                            icon: Icons.call_end,
-                            active: false,
-                            color: Colors.red,
-                            label: 'Leave',
-                            onPressed: _leaveRoom,
-                          ),
-                        ],
+                      const SizedBox(width: 20),
+                      _RoomButton(
+                        icon: Icons.volume_up,
+                        active: _speakerOn,
+                        label: 'Speaker',
+                        onPressed: _toggleSpeaker,
+                      ),
+                      const SizedBox(width: 20),
+                      _RoomButton(
+                        icon: Icons.call_end,
+                        active: false,
+                        color: Colors.red,
+                        label: 'Leave',
+                        onPressed: _leaveRoom,
                       ),
                     ],
                   ),
+                ],
+              ),
       ),
     );
   }

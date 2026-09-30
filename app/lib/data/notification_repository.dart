@@ -25,9 +25,10 @@ class AppNotice {
   final int reactionCount;
 
   String get line => switch (kind) {
-    'like' => reactionCount > 1
-        ? '$actorName and ${reactionCount - 1} others liked your post'
-        : '$actorName liked your post',
+    'like' =>
+      reactionCount > 1
+          ? '$actorName and ${reactionCount - 1} others liked your post'
+          : '$actorName liked your post',
     'reply' => '$actorName replied to you',
     'follow' => '$actorName followed you',
     _ => '$actorName · $kind',
@@ -60,7 +61,9 @@ class NotificationRepository {
         .select(
           'id, kind, created_at, read_at, post_id, reaction_count, scheduled_at, actor:profile!user_notification_actor_id_fkey(handle, display_name)',
         )
-        .or('scheduled_at.is.null,scheduled_at.lte.${DateTime.now().toUtc().toIso8601String()}')
+        .or(
+          'scheduled_at.is.null,scheduled_at.lte.${DateTime.now().toUtc().toIso8601String()}',
+        )
         .order('created_at', ascending: false)
         .limit(40);
     return [

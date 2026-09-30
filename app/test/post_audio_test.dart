@@ -3,8 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:peak/features/feed/post_media_view.dart';
 
 void main() {
-  testWidgets('audio post shows its length and a transcript toggle',
-      (tester) async {
+  testWidgets('audio post shows its length and a transcript toggle', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -27,9 +28,7 @@ void main() {
   testWidgets('no transcript, no toggle', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: PostAudio(url: 'https://example.invalid/a.m4a'),
-        ),
+        home: Scaffold(body: PostAudio(url: 'https://example.invalid/a.m4a')),
       ),
     );
     expect(find.text('Audio'), findsOneWidget);

@@ -63,7 +63,8 @@ class FeedScreen extends ConsumerWidget {
               ),
             ),
             icon: Badge(
-              isLabelVisible: (ref.watch(unreadNoticesProvider).asData?.value ?? 0) > 0,
+              isLabelVisible:
+                  (ref.watch(unreadNoticesProvider).asData?.value ?? 0) > 0,
               label: const SizedBox.shrink(),
               child: const Icon(Icons.notifications_outlined),
             ),

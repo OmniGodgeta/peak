@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as ja;
@@ -241,12 +242,12 @@ class _PostVideoState extends ConsumerState<PostVideo> {
     try {
       await c.initialize();
       await c.setLooping(true);
-      
+
       // Seek to initial position if provided
       if (widget.initialPosition != null) {
         await c.seekTo(widget.initialPosition!);
       }
-      
+
       _c = c;
       if (!mounted) {
         c.dispose();
@@ -547,7 +548,10 @@ class _PostAudioState extends State<PostAudio> {
                 child: p == null
                     ? Row(
                         children: [
-                          Icon(Icons.graphic_eq, color: scheme.onSurfaceVariant),
+                          Icon(
+                            Icons.graphic_eq,
+                            color: scheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             _failed

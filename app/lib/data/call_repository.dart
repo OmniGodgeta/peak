@@ -52,14 +52,11 @@ class CallRepository {
   }
 
   Future<void> joinRoom(String roomId) async {
-    await _db.from('call_participants').upsert(
-      {
-        'room_id': roomId,
-        'user_id': _myId,
-        'left_at': null,
-      },
-      onConflict: 'room_id,user_id',
-    );
+    await _db.from('call_participants').upsert({
+      'room_id': roomId,
+      'user_id': _myId,
+      'left_at': null,
+    }, onConflict: 'room_id,user_id');
   }
 
   Future<void> leaveRoom(String roomId) async {
@@ -142,9 +139,9 @@ class SpaceLiveRoom {
   });
 
   factory SpaceLiveRoom.fromMap(Map<String, dynamic> m) => SpaceLiveRoom(
-        id: m['id'] as String,
-        title: m['title'] as String?,
-        ownerId: m['owner_id'] as String,
-        participantCount: (m['participant_count'] as num).toInt(),
-      );
+    id: m['id'] as String,
+    title: m['title'] as String?,
+    ownerId: m['owner_id'] as String,
+    participantCount: (m['participant_count'] as num).toInt(),
+  );
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/wellbeing_provider.dart';
 
 class WellbeingBreakSheet extends ConsumerWidget {
@@ -24,8 +25,8 @@ class WellbeingBreakSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            status == WellbeingStatus.breakRequired 
-                ? Icons.spa_outlined 
+            status == WellbeingStatus.breakRequired
+                ? Icons.spa_outlined
                 : Icons.timer_outlined,
             size: 64,
             color: Theme.of(context).colorScheme.primary,
@@ -35,9 +36,8 @@ class WellbeingBreakSheet extends ConsumerWidget {
             status == WellbeingStatus.breakRequired
                 ? 'Time for a breather?'
                 : 'Just a quick heads up',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),

@@ -45,7 +45,8 @@ class ProfileScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
-            onPressed: () => PushService.instance.signOut(ref.read(supabaseProvider)),
+            onPressed: () =>
+                PushService.instance.signOut(ref.read(supabaseProvider)),
           ),
         ],
       ),

@@ -356,13 +356,14 @@ class LabelTransparency {
   final int appealsRejected;
   final int appealsOpen;
 
-  factory LabelTransparency.fromMap(Map<String, dynamic> m) => LabelTransparency(
-    labelsApplied: (m['labels_applied'] as num?)?.toInt() ?? 0,
-    appealsOpened: (m['appeals_opened'] as num?)?.toInt() ?? 0,
-    appealsUpheld: (m['appeals_upheld'] as num?)?.toInt() ?? 0,
-    appealsRejected: (m['appeals_rejected'] as num?)?.toInt() ?? 0,
-    appealsOpen: (m['appeals_open'] as num?)?.toInt() ?? 0,
-  );
+  factory LabelTransparency.fromMap(Map<String, dynamic> m) =>
+      LabelTransparency(
+        labelsApplied: (m['labels_applied'] as num?)?.toInt() ?? 0,
+        appealsOpened: (m['appeals_opened'] as num?)?.toInt() ?? 0,
+        appealsUpheld: (m['appeals_upheld'] as num?)?.toInt() ?? 0,
+        appealsRejected: (m['appeals_rejected'] as num?)?.toInt() ?? 0,
+        appealsOpen: (m['appeals_open'] as num?)?.toInt() ?? 0,
+      );
 }
 
 final myContentLabelsProvider = FutureProvider<List<ContentLabelOnMine>>((
@@ -379,7 +380,9 @@ final labelerAppealQueueProvider = FutureProvider<List<LabelAppeal>>((
   return ref.watch(labelerRepositoryProvider).appealQueue();
 });
 
-final labelTransparencyProvider = FutureProvider<LabelTransparency>((ref) async {
+final labelTransparencyProvider = FutureProvider<LabelTransparency>((
+  ref,
+) async {
   ref.watch(labelerRevisionProvider);
   return ref.watch(labelerRepositoryProvider).transparency();
 });

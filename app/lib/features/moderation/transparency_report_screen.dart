@@ -22,10 +22,12 @@ String formatReportCount(Object? n) {
 
 final transparencyReportProvider =
     FutureProvider.family<Map<String, dynamic>, Quarter>((ref, q) async {
-      final res = await ref.watch(supabaseProvider).rpc(
-        'transparency_report',
-        params: {'p_year': q.year, 'p_quarter': q.quarter},
-      );
+      final res = await ref
+          .watch(supabaseProvider)
+          .rpc(
+            'transparency_report',
+            params: {'p_year': q.year, 'p_quarter': q.quarter},
+          );
       return Map<String, dynamic>.from(res as Map);
     });
 
@@ -208,7 +210,9 @@ class _ReportBody extends StatelessWidget {
             ('Still open', formatReportCount(appeals['still_open'])),
             (
               'Typical time to a decision',
-              appealMedian == null ? 'not enough to say' : '$appealMedian hours',
+              appealMedian == null
+                  ? 'not enough to say'
+                  : '$appealMedian hours',
             ),
           ],
         ),

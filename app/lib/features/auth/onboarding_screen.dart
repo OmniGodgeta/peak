@@ -99,7 +99,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         title: const Text('Set up your account'),
         actions: [
           TextButton(
-            onPressed: () => PushService.instance.signOut(ref.read(supabaseProvider)),
+            onPressed: () =>
+                PushService.instance.signOut(ref.read(supabaseProvider)),
             child: const Text('Sign out'),
           ),
         ],

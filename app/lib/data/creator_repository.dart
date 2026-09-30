@@ -156,7 +156,9 @@ class CreatorRepository {
         .select('label, start_ms, end_ms')
         .eq('media_id', mediaId)
         .order('start_ms');
-    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> loadSubtitles(String mediaId) async {
@@ -165,7 +167,9 @@ class CreatorRepository {
         .select('language, text, start_ms, end_ms')
         .eq('media_id', mediaId)
         .order('start_ms');
-    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
   }
 
   /// Chapters + captions for a video post, for the watch page. Null when the

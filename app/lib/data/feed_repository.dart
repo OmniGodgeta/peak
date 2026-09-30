@@ -33,14 +33,14 @@ class PostMedia {
       : null;
 
   factory PostMedia.fromMap(Map<String, dynamic> m) => PostMedia(
-        kind: (m['kind'] as String?) ?? 'image',
-        storagePath: m['storage_path'] as String,
-        posterPath: m['poster_path'] as String?,
-        altText: m['alt_text'] as String?,
-        width: (m['width'] as num?)?.toInt(),
-        height: (m['height'] as num?)?.toInt(),
-        durationMs: (m['duration_ms'] as num?)?.toInt(),
-      );
+    kind: (m['kind'] as String?) ?? 'image',
+    storagePath: m['storage_path'] as String,
+    posterPath: m['poster_path'] as String?,
+    altText: m['alt_text'] as String?,
+    width: (m['width'] as num?)?.toInt(),
+    height: (m['height'] as num?)?.toInt(),
+    durationMs: (m['duration_ms'] as num?)?.toInt(),
+  );
 }
 
 /// A row from the feed / thread RPCs: a post plus its author's public identity,
@@ -137,44 +137,44 @@ class FeedPost {
   String get authorFqHandle => '@$authorHandle@$authorDomain';
 
   factory FeedPost.fromMap(Map<String, dynamic> m) => FeedPost(
-        id: m['id'] as String,
-        body: (m['body'] as String?) ?? '',
-        contentWarning: m['content_warning'] as String?,
-        isSensitive: (m['is_sensitive'] as bool?) ?? false,
-        visibility: (m['visibility'] as String?) ?? 'circles',
-        createdAt: DateTime.parse(m['created_at'] as String),
-        editedAt: m['edited_at'] == null
-            ? null
-            : DateTime.parse(m['edited_at'] as String),
-        authorId: m['author_id'] as String,
-        authorHandle: m['author_handle'] as String,
-        authorDomain: (m['author_domain'] as String?) ?? 'peak.social',
-        authorDisplayName: (m['author_display_name'] as String?) ?? '',
-        authorIsTeen: (m['author_is_teen'] as bool?) ?? false,
-        authorIsVerified: (m['author_is_verified'] as bool?) ?? false,
-        authorAvatarPath: m['author_avatar_path'] as String?,
-        reactionCount: (m['reaction_count'] as num?)?.toInt() ?? 0,
-        replyCount: (m['reply_count'] as num?)?.toInt() ?? 0,
-        repostCount: (m['repost_count'] as num?)?.toInt() ?? 0,
-        viewerReacted: (m['viewer_reacted'] as bool?) ?? false,
-        viewerReposted: (m['viewer_reposted'] as bool?) ?? false,
-        media: [
-          for (final e in (m['media'] as List? ?? const []))
-            PostMedia.fromMap(e as Map<String, dynamic>),
-        ],
-        title: m['title'] as String?,
-        longForm: (m['long_form'] as bool?) ?? false,
-        isPinned: (m['is_pinned'] as bool?) ?? false,
-        communityLabel: m['label'] as String?,
-        communityLabelNote: m['label_note'] as String?,
-        authorFlair: m['author_flair'] as String?,
-        channelId: m['channel_id'] as String?,
-        channelName: m['channel_name'] as String?,
-        reason: m['reason'] as String?,
-        replyTo: m['reply_to'] as String?,
-        depth: (m['depth'] as num?)?.toInt() ?? 0,
-        rankScore: (m['rank_score'] as num?)?.toDouble() ?? 0.0,
-      );
+    id: m['id'] as String,
+    body: (m['body'] as String?) ?? '',
+    contentWarning: m['content_warning'] as String?,
+    isSensitive: (m['is_sensitive'] as bool?) ?? false,
+    visibility: (m['visibility'] as String?) ?? 'circles',
+    createdAt: DateTime.parse(m['created_at'] as String),
+    editedAt: m['edited_at'] == null
+        ? null
+        : DateTime.parse(m['edited_at'] as String),
+    authorId: m['author_id'] as String,
+    authorHandle: m['author_handle'] as String,
+    authorDomain: (m['author_domain'] as String?) ?? 'peak.social',
+    authorDisplayName: (m['author_display_name'] as String?) ?? '',
+    authorIsTeen: (m['author_is_teen'] as bool?) ?? false,
+    authorIsVerified: (m['author_is_verified'] as bool?) ?? false,
+    authorAvatarPath: m['author_avatar_path'] as String?,
+    reactionCount: (m['reaction_count'] as num?)?.toInt() ?? 0,
+    replyCount: (m['reply_count'] as num?)?.toInt() ?? 0,
+    repostCount: (m['repost_count'] as num?)?.toInt() ?? 0,
+    viewerReacted: (m['viewer_reacted'] as bool?) ?? false,
+    viewerReposted: (m['viewer_reposted'] as bool?) ?? false,
+    media: [
+      for (final e in (m['media'] as List? ?? const []))
+        PostMedia.fromMap(e as Map<String, dynamic>),
+    ],
+    title: m['title'] as String?,
+    longForm: (m['long_form'] as bool?) ?? false,
+    isPinned: (m['is_pinned'] as bool?) ?? false,
+    communityLabel: m['label'] as String?,
+    communityLabelNote: m['label_note'] as String?,
+    authorFlair: m['author_flair'] as String?,
+    channelId: m['channel_id'] as String?,
+    channelName: m['channel_name'] as String?,
+    reason: m['reason'] as String?,
+    replyTo: m['reply_to'] as String?,
+    depth: (m['depth'] as num?)?.toInt() ?? 0,
+    rankScore: (m['rank_score'] as num?)?.toDouble() ?? 0.0,
+  );
 }
 
 class FeedRepository {
@@ -224,7 +224,10 @@ class FeedRepository {
   Future<List<FeedPost>> recommendations({int limit = 30}) async {
     final user = _db.auth.currentUser;
     if (user == null) return [];
-    final rows = await _db.rpc('recommend_posts_for_user', params: {'p_limit': limit});
+    final rows = await _db.rpc(
+      'recommend_posts_for_user',
+      params: {'p_limit': limit},
+    );
     return _dropSeenLess(
       (rows as List)
           .map((e) => FeedPost.fromMap(e as Map<String, dynamic>))
@@ -261,10 +264,9 @@ class FeedRepository {
       await _db.rpc('toggle_reaction', params: {'p_post_id': postId});
     }
     return await _db.rpc(
-          'toggle_reaction',
-          params: {'p_post_id': postId, 'p_kind': kind.name},
-        )
-        as bool;
+      'toggle_reaction',
+      params: {'p_post_id': postId, 'p_kind': kind.name},
+    ) as bool;
   }
 
   Future<bool> toggleRepost(String postId) async {
@@ -326,7 +328,10 @@ String? postIdFromShare(String raw) {
 }
 
 /// Resolve one post by id — for the `/v/:id` deep-link route.
-final postByIdProvider = FutureProvider.family<FeedPost?, String>((ref, id) async {
+final postByIdProvider = FutureProvider.family<FeedPost?, String>((
+  ref,
+  id,
+) async {
   return ref.watch(feedRepositoryProvider).byId(id);
 });
 
@@ -380,7 +385,10 @@ final feedProvider = FutureProvider<List<FeedPost>>((ref) async {
 });
 
 /// The Media tab.
-final videosProvider = FutureProvider.family<List<FeedPost>, String>((ref, query) async {
+final videosProvider = FutureProvider.family<List<FeedPost>, String>((
+  ref,
+  query,
+) async {
   ref.watch(feedRevisionProvider);
   return ref.watch(feedRepositoryProvider).videos(query: query.trim());
 });

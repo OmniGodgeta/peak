@@ -23,7 +23,7 @@ function generateDevEmbedding(text: string): number[] {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
     hash = ((hash << 5) - hash) + text.charCodeAt(i);
-    hash |= 0; 
+    hash |= 0;
   }
 
   const vector = new Array(1536);
@@ -32,10 +32,10 @@ function generateDevEmbedding(text: string): number[] {
     const val = Math.sin(hash + i) * Math.PI;
     vector[i] = val;
   }
-  
+
   // Normalize the vector (important for cosine similarity)
   const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-  return vector.map(v => v / magnitude);
+  return vector.map((v) => v / magnitude);
 }
 
 /**
@@ -63,7 +63,10 @@ async function getRealEmbedding(text: string): Promise<number[]> {
     const data = await response.json();
     return data.data[0].embedding;
   } catch (error) {
-    console.error("Failed to fetch real embedding, falling back to dev-mode:", error);
+    console.error(
+      "Failed to fetch real embedding, falling back to dev-mode:",
+      error,
+    );
     return generateDevEmbedding(text);
   }
 }
@@ -73,7 +76,10 @@ serve(async (req) => {
     const { type, id, text } = (await req.json()) as EmbedRequest;
 
     if (!type || !id || !text) {
-      return new Response(JSON.stringify({ error: "Missing required fields: type, id, or text" }), { status: 400 });
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: type, id, or text" }),
+        { status: 400 },
+      );
     }
 
     console.log(`Processing embedding for ${type} [ID: ${id}]`);
@@ -96,15 +102,30 @@ serve(async (req) => {
         .eq("id", id);
       error = updateErr;
     } else {
-      return new Response(JSON.stringify({ error: "Invalid type. Use 'post' or 'profile'." }), { status: 400 });
+      return new Response(
+        JSON.stringify({ error: "Invalid type. Use 'post' or 'profile'." }),
+        { status: 400 },
+      );
     }
 
     if (error) throw error;
 
-    return new Response(JSON.stringify({ message: "Embedding updated successfully", type, id }), { status: 200 });
-
+    return new Response(
+      JSON.stringify({ message: "Embedding updated successfully", type, id }),
+      { status: 200 },
+    );
   } catch (err) {
-    console.error("Error processing embedding:", err.message);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error(
+      "Error processing embedding:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return new Response(
+      JSON.stringify({
+        error: err instanceof Error ? err.message : String(err),
+      }),
+      {
+        status: 500,
+      },
+    );
   }
 });

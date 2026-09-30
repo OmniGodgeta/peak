@@ -103,7 +103,8 @@ class Wellbeing extends Notifier<WellbeingSettings> {
   }
 
   Future<void> update(WellbeingSettings next) async {
-    final quietChanged = next.quietStartMin != state.quietStartMin ||
+    final quietChanged =
+        next.quietStartMin != state.quietStartMin ||
         next.quietEndMin != state.quietEndMin;
     state = next;
     try {

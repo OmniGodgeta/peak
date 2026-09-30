@@ -771,7 +771,9 @@ async function ingestYoutube(ctx: Ctx, source: string): Promise<SourceResult> {
       continue;
     }
     out.seen += items.length;
-    items.sort((x, y) => (y.publishedIso ?? "").localeCompare(x.publishedIso ?? ""));
+    items.sort((x, y) =>
+      (y.publishedIso ?? "").localeCompare(x.publishedIso ?? "")
+    );
 
     let addedForChannel = 0;
     for (const item of items) {

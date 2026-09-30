@@ -63,14 +63,16 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
 
       await repo.joinRoom(widget.roomId);
 
-      _localStream = await navigator.mediaDevices
-          .getUserMedia({'audio': true, 'video': false});
+      _localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': true,
+        'video': false,
+      });
 
       _pc = await createPeerConnection({
         'iceServers': [
           {
-            'urls': ['stun:stun.l.google.com:19302']
-          }
+            'urls': ['stun:stun.l.google.com:19302'],
+          },
         ],
       });
 
@@ -80,12 +82,15 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
 
       _pc!.onIceCandidate = (candidate) {
         if (candidate.candidate == null) return;
-        _channel?.sendBroadcastMessage(event: 'ice-candidate', payload: {
-          'uid': _myId,
-          'candidate': candidate.candidate,
-          'sdpMid': candidate.sdpMid,
-          'sdpMLineIndex': candidate.sdpMLineIndex,
-        });
+        _channel?.sendBroadcastMessage(
+          event: 'ice-candidate',
+          payload: {
+            'uid': _myId,
+            'candidate': candidate.candidate,
+            'sdpMid': candidate.sdpMid,
+            'sdpMLineIndex': candidate.sdpMLineIndex,
+          },
+        );
       };
 
       _pc!.onConnectionState = (state) {
@@ -140,8 +145,10 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
       _channel!.subscribe();
 
       if (mounted) {
-        setState(() => _state =
-            _isOfferer ? _CallState.ringing : _CallState.connecting);
+        setState(
+          () =>
+              _state = _isOfferer ? _CallState.ringing : _CallState.connecting,
+        );
       }
 
       if (!_isOfferer) {
@@ -159,35 +166,39 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
     if (pc == null) return;
     final offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    _channel?.sendBroadcastMessage(event: 'offer', payload: {
-      'uid': _myId,
-      'sdp': offer.sdp,
-      'type': offer.type,
-    });
+    _channel?.sendBroadcastMessage(
+      event: 'offer',
+      payload: {'uid': _myId, 'sdp': offer.sdp, 'type': offer.type},
+    );
   }
 
   Future<void> _onOffer(Map<String, dynamic> payload) async {
     final pc = _pc;
     if (pc == null) return;
     await pc.setRemoteDescription(
-      RTCSessionDescription(payload['sdp'] as String, payload['type'] as String),
+      RTCSessionDescription(
+        payload['sdp'] as String,
+        payload['type'] as String,
+      ),
     );
     _remoteDescriptionSet = true;
     await _flushPendingCandidates();
     final answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    _channel?.sendBroadcastMessage(event: 'answer', payload: {
-      'uid': _myId,
-      'sdp': answer.sdp,
-      'type': answer.type,
-    });
+    _channel?.sendBroadcastMessage(
+      event: 'answer',
+      payload: {'uid': _myId, 'sdp': answer.sdp, 'type': answer.type},
+    );
   }
 
   Future<void> _onAnswer(Map<String, dynamic> payload) async {
     final pc = _pc;
     if (pc == null) return;
     await pc.setRemoteDescription(
-      RTCSessionDescription(payload['sdp'] as String, payload['type'] as String),
+      RTCSessionDescription(
+        payload['sdp'] as String,
+        payload['type'] as String,
+      ),
     );
     _remoteDescriptionSet = true;
     await _flushPendingCandidates();
@@ -288,7 +299,10 @@ class _CallRoomScreenState extends ConsumerState<CallRoomScreen> {
                     size: 72,
                   ),
                   const SizedBox(height: 24),
-                  Text(_statusText, style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    _statusText,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 48),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -346,7 +360,8 @@ class _CallButton extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 28,
-          backgroundColor: color ?? (active ? scheme.primary : scheme.surfaceContainerHigh),
+          backgroundColor:
+              color ?? (active ? scheme.primary : scheme.surfaceContainerHigh),
           child: IconButton(
             icon: Icon(icon, color: Colors.white),
             onPressed: onPressed,

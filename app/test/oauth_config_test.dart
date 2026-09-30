@@ -5,8 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() {
   test('parses the OAUTH_PROVIDERS list, ignoring junk and duplicates', () {
     expect(configuredOAuthProviders(''), isEmpty);
-    expect(configuredOAuthProviders(' GitHub , google,nope,github'),
-        [OAuthProvider.github, OAuthProvider.google]);
+    expect(configuredOAuthProviders(' GitHub , google,nope,github'), [
+      OAuthProvider.github,
+      OAuthProvider.google,
+    ]);
   });
 
   test('labels', () {

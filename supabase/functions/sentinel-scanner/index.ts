@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // A list of prohibited patterns/regexes (placeholder for semantic AI)
 const PROHIBITED_PATTERNS = [
@@ -12,7 +12,7 @@ const PROHIBITED_REASON = "Automatic toxicity detection";
 serve(async (req) => {
   try {
     const payload = await req.json();
-    
+
     // Supabase Webhook payloads typically wrap the new record in a 'record' field
     const newPost = payload.record;
 
@@ -40,15 +40,17 @@ serve(async (req) => {
 
     // 2. If toxic, take action
     if (isToxic) {
-      console.log(`[Sentinel] !!! TOXICITY DETECTED in post ${postId} (Pattern: ${matchedPattern})`);
-      
+      console.log(
+        `[Sentinel] !!! TOXICITY DETECTED in post ${postId} (Pattern: ${matchedPattern})`,
+      );
+
       // Execute Supabase RPC or direct update to hide the post and log it
-      // Note: In a real environment, this would use a Supabase Service Role key 
+      // Note: In a real environment, this would use a Supabase Service Role key
       // to bypass RLS.
-      
+
       // For this implementation, we assume we've set up a service-role client.
       // We'll simulate the database call logic here.
-      
+
       /*
       const { error } = await supabase
         .from('post')
@@ -65,17 +67,26 @@ serve(async (req) => {
       });
       */
 
-      return new Response(JSON.stringify({
-        action: 'hidden',
-        reason: PROHIBITED_REASON,
-        postId
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          action: "hidden",
+          reason: PROHIBITED_REASON,
+          postId,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }
 
-    return new Response(JSON.stringify({ action: 'passed', postId }), { status: 200, headers: { "Content-Type": "application/json" } });
-
+    return new Response(JSON.stringify({ action: "passed", postId }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (err) {
-    console.error(`[Sentinel] Error: ${err.message}`);
-    return new Response(err.message, { status: 500 });
+    console.error(
+      `[Sentinel] Error: ${(err instanceof Error ? err.message : String(err))}`,
+    );
+    return new Response(err instanceof Error ? err.message : String(err), {
+      status: 500,
+    });
   }
 });

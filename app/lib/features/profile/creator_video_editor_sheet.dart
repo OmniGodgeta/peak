@@ -89,8 +89,9 @@ class _CreatorVideoEditorSheetState
   bool _busy = false;
   String? _error;
 
-  Duration? get _duration =>
-      widget.durationMs == null ? null : Duration(milliseconds: widget.durationMs!);
+  Duration? get _duration => widget.durationMs == null
+      ? null
+      : Duration(milliseconds: widget.durationMs!);
 
   @override
   void initState() {
@@ -161,8 +162,12 @@ class _CreatorVideoEditorSheetState
       final bytes = await file.readAsBytes();
       final type = (file.mimeType ?? '').isNotEmpty
           ? file.mimeType!
-          : (file.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
-      final path = await ref.read(mediaServiceProvider).uploadPoster(bytes, type);
+          : (file.name.toLowerCase().endsWith('.png')
+                ? 'image/png'
+                : 'image/jpeg');
+      final path = await ref
+          .read(mediaServiceProvider)
+          .uploadPoster(bytes, type);
       if (mounted) {
         setState(() {
           _poster = path;
@@ -226,7 +231,9 @@ class _CreatorVideoEditorSheetState
       }
       final end = i + 1 < parsed.length
           ? parsed[i + 1].$2
-          : (dur != null && dur > start ? dur : start + const Duration(hours: 12));
+          : (dur != null && dur > start
+                ? dur
+                : start + const Duration(hours: 12));
       out.add({
         'label': parsed[i].$1,
         'start_ms': start.inMilliseconds,
@@ -295,7 +302,9 @@ class _CreatorVideoEditorSheetState
       final t = parseCueTime(c.start.text);
       if (t != null && t > latest) latest = t;
     }
-    return _chapters.isEmpty ? Duration.zero : latest + const Duration(seconds: 30);
+    return _chapters.isEmpty
+        ? Duration.zero
+        : latest + const Duration(seconds: 30);
   }
 
   @override
@@ -304,7 +313,8 @@ class _CreatorVideoEditorSheetState
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     final dur = _duration;
-    final canGrab = media.canGrabFrame(widget.storagePath) &&
+    final canGrab =
+        media.canGrabFrame(widget.storagePath) &&
         dur != null &&
         dur.inMilliseconds > 0;
 
@@ -344,7 +354,10 @@ class _CreatorVideoEditorSheetState
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(_error!, style: TextStyle(color: scheme.error)),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(color: scheme.error),
+                      ),
                     ),
                   Text('Thumbnail', style: text.titleMedium),
                   const SizedBox(height: 8),
@@ -356,15 +369,19 @@ class _CreatorVideoEditorSheetState
                         color: Colors.black87,
                         child: _poster == null
                             ? const Center(
-                                child: Icon(Icons.image_not_supported_outlined,
-                                    color: Colors.white54),
+                                child: Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: Colors.white54,
+                                ),
                               )
                             : Image.network(
                                 media.resolveUrl(_poster!),
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) => const Center(
-                                  child: Icon(Icons.broken_image_outlined,
-                                      color: Colors.white54),
+                                  child: Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Colors.white54,
+                                  ),
                                 ),
                               ),
                       ),
@@ -374,8 +391,13 @@ class _CreatorVideoEditorSheetState
                   if (canGrab) ...[
                     Row(
                       children: [
-                        Text(formatCueTime(
-                            Duration(milliseconds: (_frameSeconds * 1000).round()))),
+                        Text(
+                          formatCueTime(
+                            Duration(
+                              milliseconds: (_frameSeconds * 1000).round(),
+                            ),
+                          ),
+                        ),
                         Expanded(
                           child: Slider(
                             value: _frameSeconds,
@@ -437,9 +459,8 @@ class _CreatorVideoEditorSheetState
                           IconButton(
                             icon: const Icon(Icons.delete_outline),
                             tooltip: 'Remove chapter',
-                            onPressed: () => setState(
-                              () => _chapters.removeAt(i).dispose(),
-                            ),
+                            onPressed: () =>
+                                setState(() => _chapters.removeAt(i).dispose()),
                           ),
                         ],
                       ),
@@ -457,7 +478,9 @@ class _CreatorVideoEditorSheetState
                   const Divider(height: 32),
                   Row(
                     children: [
-                      Expanded(child: Text('Captions', style: text.titleMedium)),
+                      Expanded(
+                        child: Text('Captions', style: text.titleMedium),
+                      ),
                       SizedBox(
                         width: 90,
                         child: TextField(
@@ -527,9 +550,14 @@ class _CreatorVideoEditorSheetState
                       onPressed: () => setState(() {
                         final last = _captions.isEmpty
                             ? Duration.zero
-                            : (parseCueTime(_captions.last.end.text) ?? Duration.zero);
+                            : (parseCueTime(_captions.last.end.text) ??
+                                  Duration.zero);
                         _captions.add(
-                          _CaptionRow('', last, last + const Duration(seconds: 3)),
+                          _CaptionRow(
+                            '',
+                            last,
+                            last + const Duration(seconds: 3),
+                          ),
                         );
                       }),
                       icon: const Icon(Icons.add),

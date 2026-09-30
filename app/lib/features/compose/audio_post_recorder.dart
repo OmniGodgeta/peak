@@ -44,8 +44,9 @@ class AudioPostRecorder {
     _startedAt = DateTime.now();
   }
 
-  Duration get elapsed =>
-      _startedAt == null ? Duration.zero : DateTime.now().difference(_startedAt!);
+  Duration get elapsed => _startedAt == null
+      ? Duration.zero
+      : DateTime.now().difference(_startedAt!);
 
   /// Stops and returns the recording, or null if nothing was captured.
   Future<RecordedAudio?> stop() async {

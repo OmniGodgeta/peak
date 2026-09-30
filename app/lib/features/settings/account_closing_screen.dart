@@ -87,7 +87,9 @@ class _AccountClosingScreenState extends ConsumerState<AccountClosingScreen> {
                   TextButton(
                     onPressed: _busy
                         ? null
-                        : () => PushService.instance.signOut(ref.read(supabaseProvider)),
+                        : () => PushService.instance.signOut(
+                            ref.read(supabaseProvider),
+                          ),
                     child: const Text('Sign out'),
                   ),
                 ],

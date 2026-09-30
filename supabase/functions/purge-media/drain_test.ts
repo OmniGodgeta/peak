@@ -16,7 +16,10 @@ function fakeQueue(rows: QueueRow[], failBucket?: string) {
       },
       forget(bucket: string, names: string[]) {
         for (let i = queue.length - 1; i >= 0; i--) {
-          if (queue[i].bucket_id === bucket && names.includes(queue[i].object_name)) {
+          if (
+            queue[i].bucket_id === bucket &&
+            names.includes(queue[i].object_name)
+          ) {
             queue.splice(i, 1);
           }
         }

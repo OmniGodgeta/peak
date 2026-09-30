@@ -14,7 +14,12 @@
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { encryptWebPush } from "../_shared/webpush.ts";
 import { assertPublicHost } from "../_shared/public_host.ts";
-import { type Bundle, composeBundle, composeRing, type PushPayload } from "./compose.ts";
+import {
+  type Bundle,
+  composeBundle,
+  composeRing,
+  type PushPayload,
+} from "./compose.ts";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
 const service = createClient(URL_, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
@@ -48,7 +53,9 @@ Deno.serve(async (req) => {
 });
 
 async function drain() {
-  const { data, error } = await service.rpc("claim_push_batch", { p_limit: 500 });
+  const { data, error } = await service.rpc("claim_push_batch", {
+    p_limit: 500,
+  });
   if (error) throw error;
   const bundles = (data ?? []) as (Bundle & { recipient_id: string })[];
   if (bundles.length === 0) return { people: 0, sent: 0 };
@@ -57,7 +64,14 @@ async function drain() {
   await Promise.all(bundles.map(async (b) => {
     const payload = composeBundle(b);
     for (const s of subs.get(b.recipient_id) ?? []) {
-      if (await send(s, payload, b.last_kind === "message" ? "high" : "normal", 86400)) sent++;
+      if (
+        await send(
+          s,
+          payload,
+          b.last_kind === "message" ? "high" : "normal",
+          86400,
+        )
+      ) sent++;
     }
   }));
   return { people: bundles.length, sent };
@@ -66,7 +80,10 @@ async function drain() {
 async function ring(req: Request, r: { room?: string; conversation?: string }) {
   const auth = req.headers.get("authorization") ?? "";
   if (!r.room || !r.conversation || !/^Bearer\s+\S+/i.test(auth)) {
-    return json({ error: "room, conversation and a signed-in caller required" }, 400);
+    return json(
+      { error: "room, conversation and a signed-in caller required" },
+      400,
+    );
   }
   // As the caller, so call_ring_targets can check they own the room.
   const asCaller = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -78,7 +95,10 @@ async function ring(req: Request, r: { room?: string; conversation?: string }) {
     p_conversation: r.conversation,
   });
   if (error) return json({ error: error.message }, 403);
-  const targets = (data ?? []) as { recipient_id: string; caller_name: string }[];
+  const targets = (data ?? []) as {
+    recipient_id: string;
+    caller_name: string;
+  }[];
   if (targets.length === 0) return json({ rung: 0 });
   const subs = await subsFor(targets.map((t) => t.recipient_id));
   const payload = composeRing(targets[0].caller_name, r.room, r.conversation);
@@ -151,9 +171,16 @@ async function send(
     if (failures >= 20) {
       await service.from("push_subscription").delete().eq("id", s.id);
     } else {
-      await service.from("push_subscription").update({ failures }).eq("id", s.id);
+      await service.from("push_subscription").update({ failures }).eq(
+        "id",
+        s.id,
+      );
     }
-    console.warn(`push to subscription ${s.id} failed: ${e instanceof Error ? e.message : e}`);
+    console.warn(
+      `push to subscription ${s.id} failed: ${
+        e instanceof Error ? e.message : e
+      }`,
+    );
     return false;
   }
 }

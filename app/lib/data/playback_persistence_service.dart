@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// A simple service to persist small key-value pairs (like playback position) 
+/// A simple service to persist small key-value pairs (like playback position)
 /// locally on the device across app restarts.
 class PlaybackPersistenceService {
   const PlaybackPersistenceService(this._storage);
@@ -10,7 +10,10 @@ class PlaybackPersistenceService {
   static const _prefix = 'playback_pos_';
 
   Future<void> savePosition(String postId, Duration position) async {
-    await _storage.write(key: '$_prefix$postId', value: '${position.inMilliseconds}');
+    await _storage.write(
+      key: '$_prefix$postId',
+      value: '${position.inMilliseconds}',
+    );
   }
 
   Future<Duration?> getPosition(String postId) async {
@@ -24,6 +27,8 @@ class PlaybackPersistenceService {
   }
 }
 
-final playbackPersistenceServiceProvider = Provider<PlaybackPersistenceService>((ref) {
-  return PlaybackPersistenceService(const FlutterSecureStorage());
-});
+final playbackPersistenceServiceProvider = Provider<PlaybackPersistenceService>(
+  (ref) {
+    return PlaybackPersistenceService(const FlutterSecureStorage());
+  },
+);

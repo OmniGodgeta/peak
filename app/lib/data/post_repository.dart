@@ -101,7 +101,8 @@ class PostRepository {
     bool isDraft = false,
     DateTime? scheduledAt,
     String? quoteId,
-    Map<String, dynamic>? pollData, // {'question': string, 'options': List<string>},
+    Map<String, dynamic>?
+    pollData, // {'question': string, 'options': List<string>},
   }) async {
     final uid = _db.auth.currentUser!.id;
     final personaId = await _defaultPersonaId(uid);
@@ -122,7 +123,11 @@ class PostRepository {
       'scheduled_at': ?scheduledAt?.toIso8601String(),
       'quote_of': ?quoteId,
     };
-    final post = await _db.from('post').insert(postInsert).select('id').single();
+    final post = await _db
+        .from('post')
+        .insert(postInsert)
+        .select('id')
+        .single();
     final postId = post['id'] as String;
 
     // Handle Poll creation if present
@@ -140,9 +145,13 @@ class PostRepository {
   }
 
   Future<String> _createPoll(Map<String, dynamic> data) async {
-    final pollId = (await _db.from('poll').insert({
-      'question': data['question'],
-    }).select('id').single())['id'] as String;
+    final pollId =
+        (await _db
+                .from('poll')
+                .insert({'question': data['question']})
+                .select('id')
+                .single())['id']
+            as String;
 
     for (var optionText in (data['options'] as List<dynamic>)) {
       await _db.from('poll_option').insert({
@@ -192,7 +201,11 @@ class PostRepository {
       if (scheduledAt != null) 'scheduled_at': scheduledAt.toIso8601String(),
     };
 
-    final reply = await _db.from('post').insert(replyInsert).select('id').single();
+    final reply = await _db
+        .from('post')
+        .insert(replyInsert)
+        .select('id')
+        .single();
     final replyId = reply['id'] as String;
 
     // Handle Poll creation if present in reply
@@ -215,16 +228,33 @@ class PostRepository {
     DateTime? scheduledAt,
     String? languageTag,
   }) async {
-    final current = await _db.from('post').select('body, title, content_warning, is_sensitive, is_draft, scheduled_at, language_tag').eq('id', postId).single();
+    final current = await _db
+        .from('post')
+        .select(
+          'body, title, content_warning, is_sensitive, is_draft, scheduled_at, language_tag',
+        )
+        .eq('id', postId)
+        .single();
 
     final updates = <String, dynamic>{};
     if (body != null && body != current['body']) updates['body'] = body;
     if (title != null && title != current['title']) updates['title'] = title;
-    if (contentWarning != null && contentWarning != current['content_warning']) updates['content_warning'] = contentWarning;
-    if (isSensitive != null && isSensitive != current['is_sensitive']) updates['is_sensitive'] = isSensitive;
-    if (isDraft != null && isDraft != current['is_draft']) updates['is_draft'] = isDraft;
-    if (scheduledAt != null && scheduledAt != current['scheduled_at']) updates['scheduled_at'] = scheduledAt.toIso8601String();
-    if (languageTag != null && languageTag != current['language_tag']) updates['language_tag'] = languageTag;
+    if (contentWarning != null &&
+        contentWarning != current['content_warning']) {
+      updates['content_warning'] = contentWarning;
+    }
+    if (isSensitive != null && isSensitive != current['is_sensitive']) {
+      updates['is_sensitive'] = isSensitive;
+    }
+    if (isDraft != null && isDraft != current['is_draft']) {
+      updates['is_draft'] = isDraft;
+    }
+    if (scheduledAt != null && scheduledAt != current['scheduled_at']) {
+      updates['scheduled_at'] = scheduledAt.toIso8601String();
+    }
+    if (languageTag != null && languageTag != current['language_tag']) {
+      updates['language_tag'] = languageTag;
+    }
 
     if (updates.isEmpty) return;
 

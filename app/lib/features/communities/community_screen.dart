@@ -81,10 +81,8 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
               icon: const Icon(Icons.groups_outlined),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => SpaceLiveRoomsScreen(
-                    spaceId: c.id,
-                    spaceName: c.name,
-                  ),
+                  builder: (_) =>
+                      SpaceLiveRoomsScreen(spaceId: c.id, spaceName: c.name),
                 ),
               ),
             ),
@@ -120,9 +118,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         error: (e, _) => Center(child: Text('$e')),
         data: (c) {
           if (c == null) {
-            return const Center(
-              child: Text('This space is not available.'),
-            );
+            return const Center(child: Text('This space is not available.'));
           }
           return RefreshIndicator(
             onRefresh: () async {

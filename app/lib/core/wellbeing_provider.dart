@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Represents the current wellbeing state of the user.
@@ -26,7 +27,8 @@ class WellbeingNotifier extends Notifier<WellbeingStatus> {
 
   void recordScroll() {
     _scrollCount++;
-    if (_scrollCount > 50) { // High velocity threshold
+    if (_scrollCount > 50) {
+      // High velocity threshold
       _checkWellbeing();
     }
   }
@@ -41,7 +43,7 @@ class WellbeingNotifier extends Notifier<WellbeingStatus> {
     if (_activityStartTime == null) return;
 
     final duration = DateTime.now().difference(_activityStartTime!);
-    
+
     if (duration.inMinutes >= 30 && _scrollCount > 100) {
       state = WellbeingStatus.breakRequired;
     } else if (duration.inMinutes >= 15) {
@@ -57,7 +59,6 @@ class WellbeingNotifier extends Notifier<WellbeingStatus> {
     _timer?.cancel();
     state = WellbeingStatus.normal;
   }
-
 }
 
 final wellbeingProvider = NotifierProvider<WellbeingNotifier, WellbeingStatus>(
@@ -65,4 +66,3 @@ final wellbeingProvider = NotifierProvider<WellbeingNotifier, WellbeingStatus>(
 );
 
 final wellbeingSettingsProvider = Provider<bool>((ref) => true);
-

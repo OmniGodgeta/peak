@@ -84,7 +84,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                   Expanded(
                     child: TextField(
                       controller: controller,
-                      decoration: InputDecoration(labelText: 'Option ${idx + 1}'),
+                      decoration: InputDecoration(
+                        labelText: 'Option ${idx + 1}',
+                      ),
                     ),
                   ),
                   IconButton(
@@ -117,12 +119,14 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           title: const Text('Schedule Post'),
           value: _scheduleTime.text.isNotEmpty,
           onChanged: (val) => setState(() {
-             if (val == true) {
-               // Simple way for now - maybe a date/time picker later
-               _scheduleTime.text = DateTime.now().add(const Duration(days: 1)).toIso8601String();
-             } else {
-               _scheduleTime.clear();
-             }
+            if (val == true) {
+              // Simple way for now - maybe a date/time picker later
+              _scheduleTime.text = DateTime.now()
+                  .add(const Duration(days: 1))
+                  .toIso8601String();
+            } else {
+              _scheduleTime.clear();
+            }
           }),
         ),
         if (_scheduleTime.text.isNotEmpty)
@@ -130,7 +134,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
               controller: _scheduleTime,
-              decoration: const InputDecoration(labelText: 'Scheduled At (ISO8601)'),
+              decoration: const InputDecoration(
+                labelText: 'Scheduled At (ISO8601)',
+              ),
             ),
           ),
         CheckboxListTile(
@@ -149,7 +155,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
               controller: _langTag,
-              decoration: const InputDecoration(labelText: 'Language Tag (e.g. en)'),
+              decoration: const InputDecoration(
+                labelText: 'Language Tag (e.g. en)',
+              ),
             ),
           ),
         TextField(
@@ -208,7 +216,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           _article = false;
         });
       } on Exception catch (e) {
-        if (mounted) setState(() => _error = 'Could not save the recording: $e');
+        if (mounted) {
+          setState(() => _error = 'Could not save the recording: $e');
+        }
       }
       return;
     }
@@ -373,11 +383,18 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           body: _body.text.trim(),
           media: _media,
           contentWarning: cw,
-          languageTag: _langTag.text.trim().isEmpty ? null : _langTag.text.trim(),
+          languageTag: _langTag.text.trim().isEmpty
+              ? null
+              : _langTag.text.trim(),
           isDraft: _isDraft,
-          scheduledAt: _scheduleTime.text.isEmpty ? null : DateTime.tryParse(_scheduleTime.text),
+          scheduledAt: _scheduleTime.text.isEmpty
+              ? null
+              : DateTime.tryParse(_scheduleTime.text),
           pollData: _isPoll
-              ? {'question': _pollQuestion.text.trim(), 'options': _pollOptions.map((c) => c.text.trim()).toList()}
+              ? {
+                  'question': _pollQuestion.text.trim(),
+                  'options': _pollOptions.map((c) => c.text.trim()).toList(),
+                }
               : null,
         );
       } else if (_isCommunity) {
@@ -391,32 +408,51 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
           title: title,
           communityId: widget.communityId,
           channelId: widget.channelId,
-          languageTag: _langTag.text.trim().isEmpty ? null : _langTag.text.trim(),
+          languageTag: _langTag.text.trim().isEmpty
+              ? null
+              : _langTag.text.trim(),
           isDraft: _isDraft,
-          scheduledAt: _scheduleTime.text.isEmpty ? null : DateTime.tryParse(_scheduleTime.text),
+          scheduledAt: _scheduleTime.text.isEmpty
+              ? null
+              : DateTime.tryParse(_scheduleTime.text),
           quoteId: _quoteId.text.trim().isEmpty ? null : _quoteId.text.trim(),
           pollData: _isPoll
-              ? {'question': _pollQuestion.text.trim(), 'options': _pollOptions.map((c) => c.text.trim()).toList()}
+              ? {
+                  'question': _pollQuestion.text.trim(),
+                  'options': _pollOptions.map((c) => c.text.trim()).toList(),
+                }
               : null,
         );
       } else {
-        final publicIds = circles.where((c) => c.isPublic).map((c) => c.id).toSet();
+        final publicIds = circles
+            .where((c) => c.isPublic)
+            .map((c) => c.id)
+            .toSet();
         final onlyPublic =
             _selected.length == 1 && publicIds.contains(_selected.first);
         await repo.createPost(
           body: _body.text.trim(),
-          visibility: onlyPublic ? PostVisibility.public : PostVisibility.circles,
+          visibility: onlyPublic
+              ? PostVisibility.public
+              : PostVisibility.circles,
           circleIds: _selected.toList(),
           media: _media,
           contentWarning: cw,
           longForm: _article,
           title: title,
-          languageTag: _langTag.text.trim().isEmpty ? null : _langTag.text.trim(),
+          languageTag: _langTag.text.trim().isEmpty
+              ? null
+              : _langTag.text.trim(),
           isDraft: _isDraft,
-          scheduledAt: _scheduleTime.text.isEmpty ? null : DateTime.tryParse(_scheduleTime.text),
+          scheduledAt: _scheduleTime.text.isEmpty
+              ? null
+              : DateTime.tryParse(_scheduleTime.text),
           quoteId: _quoteId.text.trim().isEmpty ? null : _quoteId.text.trim(),
           pollData: _isPoll
-              ? {'question': _pollQuestion.text.trim(), 'options': _pollOptions.map((c) => c.text.trim()).toList()}
+              ? {
+                  'question': _pollQuestion.text.trim(),
+                  'options': _pollOptions.map((c) => c.text.trim()).toList(),
+                }
               : null,
         );
       }
@@ -581,7 +617,9 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                 ),
                 if (!_isReply)
                   TextButton.icon(
-                    onPressed: _media.isEmpty && !_recording ? _pickVideo : null,
+                    onPressed: _media.isEmpty && !_recording
+                        ? _pickVideo
+                        : null,
                     icon: const Icon(Icons.videocam_outlined, size: 18),
                     label: const Text('Video'),
                   ),
@@ -597,9 +635,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                           ? Theme.of(context).colorScheme.error
                           : null,
                     ),
-                    label: Text(
-                      _recording ? 'Stop $_recordLabel' : 'Audio',
-                    ),
+                    label: Text(_recording ? 'Stop $_recordLabel' : 'Audio'),
                   ),
                 TextButton.icon(
                   onPressed: () => setState(() => _showCw = !_showCw),

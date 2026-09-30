@@ -84,13 +84,13 @@ class ChatMedia {
   final String? mimeType;
 
   factory ChatMedia.fromMap(Map<String, dynamic> m) => ChatMedia(
-        kind: (m['kind'] as String?) ?? 'image',
-        storagePath: m['storage_path'] as String,
-        altText: m['alt_text'] as String?,
-        width: (m['width'] as num?)?.toInt(),
-        height: (m['height'] as num?)?.toInt(),
-        mimeType: m['mime_type'] as String?,
-      );
+    kind: (m['kind'] as String?) ?? 'image',
+    storagePath: m['storage_path'] as String,
+    altText: m['alt_text'] as String?,
+    width: (m['width'] as num?)?.toInt(),
+    height: (m['height'] as num?)?.toInt(),
+    mimeType: m['mime_type'] as String?,
+  );
 }
 
 class ChatMessage {
@@ -311,10 +311,10 @@ class MessagingRepository {
   }
 
   Future<void> setDisappearingMessages(String conversationId, bool enabled) =>
-      _db.rpc('set_disappearing_messages', params: {
-        'p_conversation': conversationId,
-        'p_enabled': enabled,
-      });
+      _db.rpc(
+        'set_disappearing_messages',
+        params: {'p_conversation': conversationId, 'p_enabled': enabled},
+      );
 
   Future<bool> isDisappearingEnabled(String conversationId) async {
     final row = await _db

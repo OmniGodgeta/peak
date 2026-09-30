@@ -8,8 +8,12 @@ import '../../data/supabase_providers.dart';
 
 /// Providers this build offers, in the order given in `OAUTH_PROVIDERS`.
 /// Unknown names are ignored rather than crashing the sign-in screen.
-List<OAuthProvider> configuredOAuthProviders([String raw = Env.oauthProviders]) {
-  final byName = {for (final p in OAuthProvider.values) p.name.toLowerCase(): p};
+List<OAuthProvider> configuredOAuthProviders([
+  String raw = Env.oauthProviders,
+]) {
+  final byName = {
+    for (final p in OAuthProvider.values) p.name.toLowerCase(): p,
+  };
   final out = <OAuthProvider>[];
   for (final part in raw.split(',')) {
     final p = byName[part.trim().toLowerCase()];
@@ -58,13 +62,16 @@ class _OAuthButtonsState extends ConsumerState<OAuthButtons> {
       _error = null;
     });
     try {
-      await ref.read(supabaseProvider).auth.signInWithOAuth(
-        p,
-        redirectTo: oauthRedirect(),
-        authScreenLaunchMode: kIsWeb
-            ? LaunchMode.platformDefault
-            : LaunchMode.externalApplication,
-      );
+      await ref
+          .read(supabaseProvider)
+          .auth
+          .signInWithOAuth(
+            p,
+            redirectTo: oauthRedirect(),
+            authScreenLaunchMode: kIsWeb
+                ? LaunchMode.platformDefault
+                : LaunchMode.externalApplication,
+          );
     } on Exception catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -95,7 +102,9 @@ class _OAuthButtonsState extends ConsumerState<OAuthButtons> {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: OutlinedButton(
-              onPressed: widget.enabled && _pending == null ? () => _go(p) : null,
+              onPressed: widget.enabled && _pending == null
+                  ? () => _go(p)
+                  : null,
               child: _pending == p
                   ? const SizedBox(
                       height: 18,

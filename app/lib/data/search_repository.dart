@@ -23,17 +23,17 @@ class SearchHit {
   final String? avatarPath;
 
   factory SearchHit.fromMap(Map<String, dynamic> m) => SearchHit(
-        kind: switch (m['kind'] as String?) {
-          'person' => SearchKind.person,
-          'community' => SearchKind.community,
-          _ => SearchKind.post,
-        },
-        id: m['id'] as String,
-        title: (m['title'] as String?) ?? '',
-        subtitle: (m['subtitle'] as String?) ?? '',
-        handle: m['handle'] as String?,
-        avatarPath: m['avatar_path'] as String?,
-      );
+    kind: switch (m['kind'] as String?) {
+      'person' => SearchKind.person,
+      'community' => SearchKind.community,
+      _ => SearchKind.post,
+    },
+    id: m['id'] as String,
+    title: (m['title'] as String?) ?? '',
+    subtitle: (m['subtitle'] as String?) ?? '',
+    handle: m['handle'] as String?,
+    avatarPath: m['avatar_path'] as String?,
+  );
 }
 
 class SearchRepository {
@@ -48,10 +48,10 @@ class SearchRepository {
   }
 
   Future<void> saveSearch(String query, SearchKind kind) async {
-    await _db.rpc('save_search', params: {
-      'p_query': query,
-      'p_kind': kind.name,
-    });
+    await _db.rpc(
+      'save_search',
+      params: {'p_query': query, 'p_kind': kind.name},
+    );
   }
 
   Future<List<Map<String, dynamic>>> getSavedSearches() async {
@@ -67,10 +67,12 @@ final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   return SearchRepository(ref.watch(supabaseProvider));
 });
 
-final searchResultsProvider = FutureProvider.family<List<SearchHit>, ({String query, String? lang})>(
-  (ref, arg) async {
-    final q = arg.query.trim();
-    if (q.length < 2) return const [];
-    return ref.watch(searchRepositoryProvider).all(q, lang: arg.lang);
-  },
-);
+final searchResultsProvider =
+    FutureProvider.family<List<SearchHit>, ({String query, String? lang})>((
+      ref,
+      arg,
+    ) async {
+      final q = arg.query.trim();
+      if (q.length < 2) return const [];
+      return ref.watch(searchRepositoryProvider).all(q, lang: arg.lang);
+    });

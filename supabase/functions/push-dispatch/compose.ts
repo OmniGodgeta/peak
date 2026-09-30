@@ -23,7 +23,12 @@ export function composeBundle(b: Bundle): PushPayload {
   const t = b.last_kind === "message" ? "message" : "notice";
   if (b.n > 1) {
     return onlyMessages
-      ? { t, title: `${b.n} new messages`, body: `Latest from ${who}`, ref: b.last_ref }
+      ? {
+        t,
+        title: `${b.n} new messages`,
+        body: `Latest from ${who}`,
+        ref: b.last_ref,
+      }
       : { t, title: "Peak", body: `${b.n} new notifications`, ref: b.last_ref };
   }
   const body = {
@@ -35,7 +40,11 @@ export function composeBundle(b: Bundle): PushPayload {
   return { t, title: "Peak", body, ref: b.last_ref };
 }
 
-export function composeRing(caller: string | null, room: string, conversation: string): PushPayload {
+export function composeRing(
+  caller: string | null,
+  room: string,
+  conversation: string,
+): PushPayload {
   return {
     t: "call",
     title: "Incoming call",

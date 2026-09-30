@@ -148,7 +148,10 @@ class _PostCardState extends ConsumerState<PostCard> {
                               : null,
                         ),
                         const SizedBox(height: 4),
-                        Text(k.label, style: Theme.of(context).textTheme.labelSmall),
+                        Text(
+                          k.label,
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
                       ],
                     ),
                   ),

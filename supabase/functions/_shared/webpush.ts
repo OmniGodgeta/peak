@@ -100,8 +100,18 @@ export async function encryptWebPush(
 
   // RFC 8188 §2.2 / §2.3: content-encryption key and nonce.
   const salt = opts.salt ?? crypto.getRandomValues(new Uint8Array(16));
-  const cek = await hkdf(salt, ikm, enc.encode("Content-Encoding: aes128gcm\0"), 16);
-  const nonce = await hkdf(salt, ikm, enc.encode("Content-Encoding: nonce\0"), 12);
+  const cek = await hkdf(
+    salt,
+    ikm,
+    enc.encode("Content-Encoding: aes128gcm\0"),
+    16,
+  );
+  const nonce = await hkdf(
+    salt,
+    ikm,
+    enc.encode("Content-Encoding: nonce\0"),
+    12,
+  );
 
   // One record: plaintext, then the 0x02 "last record" delimiter.
   const record = concat(plaintext, new Uint8Array([2]));

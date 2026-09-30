@@ -245,7 +245,9 @@ class _VideosTab extends ConsumerWidget {
                   image: posterPath != null
                       ? DecorationImage(
                           image: NetworkImage(
-                            ref.read(mediaServiceProvider).resolveUrl(posterPath),
+                            ref
+                                .read(mediaServiceProvider)
+                                .resolveUrl(posterPath),
                           ),
                           fit: BoxFit.cover,
                         )

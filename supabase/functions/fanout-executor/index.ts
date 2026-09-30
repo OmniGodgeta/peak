@@ -50,8 +50,7 @@ Deno.serve(async (req) => {
         .limit(5000); // Capped for this implementation
 
       if (userErr) throw userErr;
-      if (activeUsers) userIds = activeUsers.map(u => u.id);
-
+      if (activeUsers) userIds = activeUsers.map((u) => u.id);
     } else if (mode === "community" && targetId) {
       // Target members of a specific community.
       const { data: members, error: memberErr } = await db
@@ -60,14 +59,19 @@ Deno.serve(async (req) => {
         .eq("community_id", targetId);
 
       if (memberErr) throw memberErr;
-      if (members) userIds = members.map(m => m.user_id);
-
+      if (members) userIds = members.map((m) => m.user_id);
     } else {
-        return new Response(JSON.stringify({ error: "Invalid mode or missing targetId" }), { status: 400 });
+      return new Response(
+        JSON.stringify({ error: "Invalid mode or missing targetId" }),
+        { status: 400 },
+      );
     }
 
     if (userIds.length === 0) {
-      return new Response(JSON.stringify({ message: "No target users found" }), { status: 200 });
+      return new Response(
+        JSON.stringify({ message: "No target users found" }),
+        { status: 200 },
+      );
     }
 
     // Batch insert into fanout_feed_index
@@ -76,28 +80,37 @@ Deno.serve(async (req) => {
     let processedCount = 0;
 
     for (let i = 0; i < userIds.length; i += chunkSize) {
-      const chunk = userIds.slice(i, i + chunkSize).map(uid => ({
+      const chunk = userIds.slice(i, i + chunkSize).map((uid) => ({
         user_id: uid,
         post_id: postId,
-        priority: mode === "global" ? 1 : 10 // Community posts are higher priority
+        priority: mode === "global" ? 1 : 10, // Community posts are higher priority
       }));
 
       const { error: insertErr } = await db
         .from("fanout_feed_index")
-        .upsert(chunk, { onConflict: 'user_id,post_id' });
+        .upsert(chunk, { onConflict: "user_id,post_id" });
 
       if (insertErr) throw insertErr;
       processedCount += chunk.length;
     }
 
     console.log(`Fanout complete. Processed ${processedCount} users.`);
-    return new Response(JSON.stringify({ 
-      message: "Fanout successful", 
-      processed: processedCount 
-    }), { status: 200 });
-
+    return new Response(
+      JSON.stringify({
+        message: "Fanout successful",
+        processed: processedCount,
+      }),
+      { status: 200 },
+    );
   } catch (err) {
     console.error("Fanout error:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(
+      JSON.stringify({
+        error: err instanceof Error ? err.message : String(err),
+      }),
+      {
+        status: 500,
+      },
+    );
   }
 });

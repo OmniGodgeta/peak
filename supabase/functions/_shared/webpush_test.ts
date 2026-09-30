@@ -11,7 +11,11 @@ Deno.test("http_ece decrypts what encryptWebPush produces", async () => {
   const ua = createECDH("prime256v1");
   ua.generateKeys();
   const auth = randomBytes(16);
-  const msg = JSON.stringify({ t: "call", title: "Peak", body: "Incoming call" });
+  const msg = JSON.stringify({
+    t: "call",
+    title: "Peak",
+    body: "Incoming call",
+  });
 
   const body = await encryptWebPush(
     new TextEncoder().encode(msg),
@@ -43,8 +47,19 @@ Deno.test("rejects malformed subscription keys", async () => {
 });
 
 Deno.test("private ranges are blocked", () => {
-  for (const ip of ["127.0.0.1", "10.1.2.3", "192.168.0.9", "172.20.0.1",
-    "100.65.133.127", "169.254.169.254", "::1", "fd7a:115c::1", "::ffff:10.0.0.1"]) {
+  for (
+    const ip of [
+      "127.0.0.1",
+      "10.1.2.3",
+      "192.168.0.9",
+      "172.20.0.1",
+      "100.65.133.127",
+      "169.254.169.254",
+      "::1",
+      "fd7a:115c::1",
+      "::ffff:10.0.0.1",
+    ]
+  ) {
     assertEquals(isPrivateIp(ip), true, ip);
   }
   for (const ip of ["1.1.1.1", "159.203.1.2", "2606:4700::1111"]) {

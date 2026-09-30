@@ -38,7 +38,10 @@ class LabelAppealsScreen extends ConsumerWidget {
             ),
           ),
           const ListTile(
-            title: Text('Labels on your posts', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              'Labels on your posts',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           mine.when(
             loading: () => const LinearProgressIndicator(),
@@ -56,10 +59,15 @@ class LabelAppealsScreen extends ConsumerWidget {
                         '${row.labelerName}'
                         '${row.appealStatus == null ? '' : ' · appeal ${row.appealStatus}'}',
                       ),
-                      trailing: row.appealStatus == null || row.appealStatus == 'open'
+                      trailing:
+                          row.appealStatus == null || row.appealStatus == 'open'
                           ? TextButton(
                               onPressed: () => _file(context, ref, repo, row),
-                              child: Text(row.appealStatus == 'open' ? 'Update' : 'Appeal'),
+                              child: Text(
+                                row.appealStatus == 'open'
+                                    ? 'Update'
+                                    : 'Appeal',
+                              ),
                             )
                           : null,
                     ),
@@ -68,7 +76,10 @@ class LabelAppealsScreen extends ConsumerWidget {
             },
           ),
           const ListTile(
-            title: Text('Queue for your labelers', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              'Queue for your labelers',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           queue.when(
             loading: () => const LinearProgressIndicator(),
@@ -87,11 +98,13 @@ class LabelAppealsScreen extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           TextButton(
-                            onPressed: () => _resolve(ref, repo, row.id, 'upheld'),
+                            onPressed: () =>
+                                _resolve(ref, repo, row.id, 'upheld'),
                             child: const Text('Uphold'),
                           ),
                           TextButton(
-                            onPressed: () => _resolve(ref, repo, row.id, 'rejected'),
+                            onPressed: () =>
+                                _resolve(ref, repo, row.id, 'rejected'),
                             child: const Text('Reject'),
                           ),
                         ],
@@ -120,11 +133,19 @@ class LabelAppealsScreen extends ConsumerWidget {
         content: TextField(
           controller: reason,
           maxLength: 500,
-          decoration: const InputDecoration(hintText: 'Why should this label come off?'),
+          decoration: const InputDecoration(
+            hintText: 'Why should this label come off?',
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Send')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send'),
+          ),
         ],
       ),
     );

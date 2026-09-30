@@ -98,9 +98,10 @@ class PushService {
         if (r.payload != null) _tap(r.payload!);
       },
     );
-    final android = _notes.resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin
-    >();
+    final android = _notes
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     for (final c in const [
       AndroidNotificationChannel(
         'calls',
@@ -249,7 +250,12 @@ class PushService {
     final channel = switch (kind) {
       'call' => ('calls', 'Calls', Importance.max, Priority.max),
       'message' => ('messages', 'Messages', Importance.high, Priority.high),
-      _ => ('activity', 'Activity', Importance.defaultImportance, Priority.defaultPriority),
+      _ => (
+        'activity',
+        'Activity',
+        Importance.defaultImportance,
+        Priority.defaultPriority,
+      ),
     };
     // One notification per call / per chat / for all activity, replaced
     // rather than stacked.

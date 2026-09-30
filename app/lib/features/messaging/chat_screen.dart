@@ -179,7 +179,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _startCall() async {
-    final roomId = await ref.read(callRepositoryProvider).createRoom(title: widget.title);
+    final roomId = await ref
+        .read(callRepositoryProvider)
+        .createRoom(title: widget.title);
     _channel?.sendBroadcastMessage(
       event: 'incoming_call',
       payload: {'uid': _myId, 'roomId': roomId},
@@ -213,7 +215,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Navigator.pop(dialogContext);
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => CallRoomScreen(roomId: roomId, title: widget.title),
+                  builder: (_) =>
+                      CallRoomScreen(roomId: roomId, title: widget.title),
                 ),
               );
             },

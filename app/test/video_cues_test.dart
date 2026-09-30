@@ -6,8 +6,10 @@ void main() {
   test('parseCueTime reads s, m:ss and h:mm:ss', () {
     expect(parseCueTime('45'), const Duration(seconds: 45));
     expect(parseCueTime('1:05'), const Duration(minutes: 1, seconds: 5));
-    expect(parseCueTime(' 1:02:03 '),
-        const Duration(hours: 1, minutes: 2, seconds: 3));
+    expect(
+      parseCueTime(' 1:02:03 '),
+      const Duration(hours: 1, minutes: 2, seconds: 3),
+    );
     expect(parseCueTime(''), isNull);
     expect(parseCueTime('a:10'), isNull);
     expect(parseCueTime('-1'), isNull);
@@ -40,8 +42,14 @@ void main() {
     });
     expect(x.mediaId, 'm1');
     expect(x.chapters.map((c) => c.text), ['Intro', 'Launch']);
-    expect(x.captions.single.covers(const Duration(milliseconds: 1000)), isTrue);
-    expect(x.captions.single.covers(const Duration(milliseconds: 2500)), isFalse);
+    expect(
+      x.captions.single.covers(const Duration(milliseconds: 1000)),
+      isTrue,
+    );
+    expect(
+      x.captions.single.covers(const Duration(milliseconds: 2500)),
+      isFalse,
+    );
   });
 
   test('VideoExtras tolerates missing lists', () {

@@ -45,7 +45,9 @@ class MediaService {
     bool isAudio = false,
   }) async {
     Uint8List processedBytes = bytes;
-    if (!isVideo && !isAudio && (contentType == 'image/jpeg' || contentType == 'image/png')) {
+    if (!isVideo &&
+        !isAudio &&
+        (contentType == 'image/jpeg' || contentType == 'image/png')) {
       processedBytes = _stripMetadata(bytes, contentType);
     }
 
@@ -60,10 +62,10 @@ class MediaService {
 
       // Re-encoding with 'image' package strips metadata by default
       // as we are creating a new image object from pixels.
-      final encoded = contentType == 'image/jpeg' 
-          ? img.encodeJpg(image) 
+      final encoded = contentType == 'image/jpeg'
+          ? img.encodeJpg(image)
           : img.encodePng(image);
-      
+
       return Uint8List.fromList(encoded);
     } catch (e) {
       // If decoding fails, fall back to original bytes for safety
@@ -104,7 +106,8 @@ class MediaService {
         'Frame grab failed (${res.statusCode}). ${_briefError(res.body)}',
       );
     }
-    return (jsonDecode(res.body) as Map<String, dynamic>)['posterUrl'] as String;
+    return (jsonDecode(res.body) as Map<String, dynamic>)['posterUrl']
+        as String;
   }
 
   /// A loadable URL for a value previously stored in `post_media.storage_path`

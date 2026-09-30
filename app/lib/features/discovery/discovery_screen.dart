@@ -290,9 +290,7 @@ class _DiscoverLanding extends ConsumerWidget {
             loading: () => const _Loading(),
             error: (e, _) => _Err('$e'),
             data: (list) => list.isEmpty
-                ? const _Empty(
-                    'Add interests above to see matching spaces.',
-                  )
+                ? const _Empty('Add interests above to see matching spaces.')
                 : Column(
                     children: [
                       for (final c in list)
