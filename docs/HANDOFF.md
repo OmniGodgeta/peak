@@ -23,6 +23,12 @@ database is missing tonight's migrations. Do step 1 before tagging a release.
   federation-deliver. Cron added: `purge-media` (47 4 * * *) and
   `push-dispatch` (every minute; first runs succeeded, HTTP 200).
 - `v1.3.0` tagged → release workflow builds the APK against hosted.
+- **In-app update manifest is stale** (`app_release` still says 1.0.5;
+  1.1/1.2/1.3 were never announced, since the release workflow skips that
+  step without the `SUPABASE_SERVICE_ROLE_KEY` repo secret). v1.3.0's APK
+  has the same signing cert as 1.0.5 (`9637cf14…`), so it installs over it.
+  The agent's write was blocked; the operator runs the UPDATE in the SQL
+  editor, or sets that secret so future tags do it automatically.
 - **Still on the operator: step 2 below** (Auth Site URL still
   `shadow-1…:8720`; a management-API change from the agent was blocked).
 
