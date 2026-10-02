@@ -14,8 +14,20 @@ incl. pgTAP, Edge Functions, native MLS). **The hosted project has NOT been
 updated yet** — no Supabase access token was available — so the hosted
 database is missing tonight's migrations. Do step 1 before tagging a release.
 
+### 2026-10-02: hosted is caught up (done by Claude Code, CLI login)
+- All 10 pending migrations applied to hosted (`20261012000000`..`20261015000001`),
+  including `lock_down_open_tables`. **Verified live as anon**: the 6 tables
+  refuse access (42501/hidden), anon INSERT into `system_config` refused, and
+  `export_account(<real user id>)` → "permission denied".
+- Functions deployed: purge-media, push-dispatch, federation (no-verify-jwt),
+  federation-deliver. Cron added: `purge-media` (47 4 * * *) and
+  `push-dispatch` (every minute; first runs succeeded, HTTP 200).
+- `v1.3.0` tagged → release workflow builds the APK against hosted.
+- **Still on the operator: step 2 below** (Auth Site URL still
+  `shadow-1…:8720`; a management-API change from the agent was blocked).
+
 ### Operator to-do, in order
-1. `SUPABASE_ACCESS_TOKEN=sbp_… tool/push-hosted.sh` — links, shows the
+1. ~~`SUPABASE_ACCESS_TOKEN=sbp_… tool/push-hosted.sh`~~ **done 2026-10-02 (above).** — links, shows the
    migration dry-run, pushes on confirm, deploys the new functions, prints
    the two `cron.schedule` calls to paste in the SQL editor, then offers to
    tag `v1.3.0`. **Urgent part:** `20261014000001_lock_down_open_tables`
