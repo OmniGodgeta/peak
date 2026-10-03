@@ -37,6 +37,68 @@ class _TestDevice implements DeviceRegistrar {
   ) as String;
 }
 
+/// Throwaway accounts and devices for the membership test (2.5-4).
+class _Harness {
+  _Harness(this.url, this.anon, String service, this.lib)
+    : admin = SupabaseClient(url, service);
+  final String url, anon, lib;
+  final SupabaseClient admin;
+  final tag = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+  final created = <String>[];
+
+  Future<String> account(String name) async {
+    final u = await admin.auth.admin.createUser(
+      AdminUserAttributes(
+        email: 'e2e-$name-$tag@test.peak',
+        password: 'pw-$tag',
+        emailConfirm: true,
+      ),
+    );
+    created.add(u.user!.id);
+    final db = await _signIn(name);
+    await db.rpc(
+      'bootstrap_account',
+      params: {
+        'p_handle': 'e2e$name$tag',
+        'p_display_name': name,
+        'p_birthdate': '1990-01-01',
+      },
+    );
+    return u.user!.id;
+  }
+
+  Future<SupabaseClient> _signIn(String name) async {
+    final db = SupabaseClient(url, anon);
+    await db.auth.signInWithPassword(
+      email: 'e2e-$name-$tag@test.peak',
+      password: 'pw-$tag',
+    );
+    return db;
+  }
+
+  /// A new device (its own session, MLS state and KeyPackages) for [name].
+  Future<({MessagingRepository repo, SupabaseClient db, _TestDevice dev})>
+  device(String name) async {
+    final db = await _signIn(name);
+    final dev = _TestDevice(db);
+    final e2ee = OpenMlsE2ee(
+      db,
+      dev,
+      storage: (_) => MemoryMlsStateStorage(),
+      libraryPath: lib,
+    );
+    await e2ee.ensureDeviceRegistered();
+    return (repo: MessagingRepository(db, e2ee), db: db, dev: dev);
+  }
+
+  Future<void> cleanUp() async {
+    for (final id in created) {
+      await admin.from('conversation').delete().eq('created_by', id);
+      await admin.auth.admin.deleteUser(id);
+    }
+  }
+}
+
 void main() {
   final env = Platform.environment;
   final lib =
@@ -173,5 +235,130 @@ void main() {
     },
     skip: skip,
     timeout: const Timeout(Duration(minutes: 2)),
+  );
+
+  test(
+    'membership changes: new device, added member, leaver, revoked device',
+    () async {
+      final h = _Harness(
+        url,
+        env['SUPABASE_ANON']!,
+        env['SUPABASE_SERVICE']!,
+        lib,
+      );
+      Future<List<String>> bodies(MessagingRepository r, String c) async => [
+        for (final m in await r.messages(c)) m.unreadable ? '?' : m.body,
+      ];
+      try {
+        await h.account('alice');
+        final bob = await h.account('bob');
+        final dave = await h.account('dave');
+        final alicePhoneD = await h.device('alice');
+        final alicePhone = alicePhoneD.repo;
+        final bobPhoneD = await h.device('bob');
+        final bobPhone = bobPhoneD.repo;
+
+        final group = await alicePhone.createGroup('club', [bob]);
+        expect(await alicePhone.isEncrypted(group), isTrue);
+        await bobPhone.acceptRequest(group);
+        await alicePhone.send(group, 'one');
+        expect(await bodies(bobPhone, group), ['one']);
+
+        // Alice signs in on a tablet after the group exists. The next send
+        // from any member adds the tablet; it reads from then on, and can't
+        // read what came before.
+        final aliceTabletD = await h.device('alice');
+        final aliceTablet = aliceTabletD.repo;
+        await bobPhone.send(group, 'two');
+        expect(await bodies(aliceTablet, group), [
+          '?',
+          'two',
+        ], reason: 'new device joins; earlier messages stay unreadable');
+        expect(await bodies(alicePhone, group), ['one', 'two']);
+
+        // Adding a person to an encrypted group: all their devices join and
+        // they become a member in one step.
+        final davePhoneD = await h.device('dave');
+        final davePhone = davePhoneD.repo;
+        await alicePhone.addGroupMember(group, dave);
+        await davePhone.acceptRequest(group);
+        await alicePhone.send(group, 'three');
+        expect(await bodies(davePhone, group), [
+          '?',
+          '?',
+          'three',
+        ], reason: 'a new member reads from joining on (history is 2.5-5)');
+        expect(await bodies(bobPhone, group), [
+          'one',
+          'two',
+          'three',
+        ], reason: 'existing members follow the commit');
+        await davePhone.send(group, 'four');
+        expect((await bodies(aliceTablet, group)).last, 'four');
+
+        // Bob leaves: the next sender removes his device from the MLS group.
+        await bobPhone.leaveConversation(group);
+        await alicePhone.send(group, 'five');
+        final roster = await h.admin
+            .from('mls_message')
+            .select('content_type')
+            .eq('conversation_id', group)
+            .eq('content_type', 'commit');
+        expect(
+          roster.length,
+          greaterThanOrEqualTo(3),
+          reason: 'tablet add, dave add, bob removal',
+        );
+        expect((await bodies(davePhone, group)).last, 'five');
+
+        // Alice revokes her tablet: removed on the next send, and the
+        // remaining devices keep talking.
+        await h.admin
+            .from('device')
+            .update({'revoked_at': DateTime.now().toIso8601String()})
+            .eq('id', aliceTabletD.dev.thisDeviceId!);
+        await davePhone.send(group, 'six');
+        expect((await bodies(alicePhone, group)).last, 'six');
+
+        final commits = await h.admin
+            .from('mls_message')
+            .select('id')
+            .eq('conversation_id', group)
+            .eq('content_type', 'commit');
+        expect(
+          commits.length,
+          4,
+          reason: 'tablet added, dave added, bob removed, tablet removed',
+        );
+        // Bob's device is out of the MLS group: his old state can't read
+        // anything sent after the removal.
+        expect(
+          (await bobPhone.messages(group)),
+          isEmpty,
+          reason: 'he left: RLS hides the conversation from him entirely',
+        );
+
+        // Concurrent changes can't fork the group: a stale commit is refused.
+        final state = await h.admin
+            .from('mls_group_state')
+            .select('epoch')
+            .eq('conversation_id', group)
+            .single();
+        final stale = await alicePhoneD.db.rpc(
+          'publish_mls_commit',
+          params: {
+            'p_conversation': group,
+            'p_device': alicePhoneD.dev.thisDeviceId,
+            'p_epoch': (state['epoch'] as num).toInt() - 1,
+            'p_commit': '\\x00',
+          },
+        );
+        expect(stale, isFalse);
+      } finally {
+        await h.cleanUp();
+      }
+    },
+    skip: skip,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 }

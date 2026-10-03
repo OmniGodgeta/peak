@@ -40,12 +40,23 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
     );
     if (picked == null || picked.isEmpty) return;
     final repo = ref.read(messagingRepositoryProvider);
+    final notAdded = <String>[];
     for (final p in picked) {
       try {
         await repo.addGroupMember(widget.conversationId, p.id);
+      } on StateError catch (e) {
+        // Encrypted group: e.g. they have no device that supports it yet.
+        notAdded.add(
+          '${p.displayName.isNotEmpty ? p.displayName : p.handle}: ${e.message}',
+        );
       } on Exception {
         /* skip blocked / already-in */
       }
+    }
+    if (notAdded.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Not added. ${notAdded.join(' ')}')),
+      );
     }
     ref.read(conversationsRevisionProvider.notifier).bump();
   }

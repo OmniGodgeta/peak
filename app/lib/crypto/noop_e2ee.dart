@@ -21,6 +21,15 @@ class NoopE2ee implements E2eeService {
   ) async => false;
 
   @override
+  Future<void> syncConversation(String conversationId) async {}
+
+  @override
+  Future<void> addMember(String conversationId, String userId) async =>
+      throw UnsupportedError(
+        'Encrypted conversations need the MLS build (PEAK_E2EE=mls).',
+      );
+
+  @override
   Future<({Uint8List ciphertext, int epoch})> encryptMessage(
     String conversationId,
     String text,

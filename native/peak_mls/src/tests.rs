@@ -127,3 +127,19 @@ fn a_key_package_is_single_use() {
     // The private key behind that package was consumed by the first join.
     assert!(bob.join(&w2).is_err());
 }
+
+#[test]
+fn message_from_before_a_commit_still_decrypts_after_it() {
+    // Bob sends at epoch 1; Alice adds a third device (epoch 2) and Bob's
+    // client processes that commit before it gets around to Alice's message
+    // order — the usual case when a device catches up on group changes first.
+    let (alice, bob) = pair();
+    let early = alice.encrypt(GID, b"sent at epoch 1").unwrap();
+    let carol = Client::new(b"carol:phone").unwrap();
+    let (commit, _welcome) = alice.add_members(GID, &[carol.key_package().unwrap()]).unwrap();
+    assert!(matches!(bob.process(GID, &commit).unwrap(), Processed::Commit(_)));
+    assert_eq!(
+        bob.process(GID, &early).unwrap(),
+        Processed::Application(b"sent at epoch 1".to_vec())
+    );
+}

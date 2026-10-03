@@ -32,6 +32,17 @@ abstract class E2eeService {
     List<String> otherMemberIds,
   );
 
+  /// Bring this device's view of an encrypted conversation up to date:
+  /// join from its Welcome if needed, apply other devices' commits, then add
+  /// devices that should be in the group (new devices of members) and remove
+  /// ones that shouldn't (people who left, revoked devices). 2.5-4.
+  Future<void> syncConversation(String conversationId);
+
+  /// Add a person to an encrypted group: all their devices join the MLS
+  /// group and they become a member, in one step. Throws if they have no
+  /// device that supports encrypted chats.
+  Future<void> addMember(String conversationId, String userId);
+
   /// Encrypt an outgoing text message for an encrypted conversation. Once
   /// the message row exists, call [rememberSent]: the sender can never
   /// decrypt its own MLS messages.

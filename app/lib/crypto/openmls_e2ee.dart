@@ -209,11 +209,178 @@ class OpenMlsE2ee implements E2eeService {
     }
   }
 
+  /// Apply other devices' commits in epoch order (2.5-4). Our own commits
+  /// were merged when we made them, so they're below our epoch already.
+  Future<void> _catchUp(MlsClient client, String conversationId) async {
+    final gid = _utf8(conversationId);
+    final rows = await _db
+        .from('mls_message')
+        .select('epoch, ciphertext')
+        .eq('conversation_id', conversationId)
+        .eq('content_type', 'commit')
+        .gte('epoch', client.epoch(gid))
+        .order('epoch');
+    var changed = false;
+    for (final r in rows) {
+      if ((r['epoch'] as num).toInt() != client.epoch(gid)) continue;
+      try {
+        client.process(gid, _unhex(r['ciphertext'] as String));
+      } on MlsException {
+        break; // e.g. the commit removed this device; nothing further applies
+      }
+      changed = true;
+    }
+    if (changed) await _persist();
+  }
+
+  /// Publish a commit made at [epoch]; on a lost race, throw away the local
+  /// merge (reload the last saved state) so the caller can catch up and retry.
+  Future<bool> _publish(
+    String conversationId,
+    int epoch,
+    Uint8List commit, {
+    List<({String device, Uint8List welcome})> welcomes = const [],
+    String? addMember,
+  }) async {
+    final ok = await _db.rpc(
+      'publish_mls_commit',
+      params: {
+        'p_conversation': conversationId,
+        'p_device': _devices.thisDeviceId!,
+        'p_epoch': epoch,
+        'p_commit': _bytea(commit),
+        'p_welcomes': [
+          for (final w in welcomes)
+            {'device': w.device, 'welcome': _hex(w.welcome)},
+        ],
+        'p_add_member': ?addMember,
+      },
+    ) as bool;
+    if (ok) {
+      await _persist();
+    } else {
+      _discardUnsaved();
+    }
+    return ok;
+  }
+
+  /// One sync pass under the lock; false means a commit race was lost and
+  /// the pass should be retried from fresh state.
+  Future<bool> _syncOnce(String conversationId) async {
+    final client = await _open();
+    if (!await _ensureJoined(client, conversationId)) return true;
+    await _catchUp(client, conversationId);
+    final gid = _utf8(conversationId);
+    final me = _devices.thisDeviceId!;
+
+    final wanted = <String>{
+      for (final r in (await _db.rpc(
+        'conversation_devices',
+        params: {'p_conversation': conversationId},
+      ) as List).cast<Map<String, dynamic>>())
+        r['device_id'] as String,
+    };
+    if (!wanted.contains(me)) return true; // we've left / been revoked
+    final inGroup = <String, Uint8List>{
+      for (final id in client.members(gid)) utf8.decode(id).split(':').last: id,
+    };
+
+    final remove = [
+      for (final e in inGroup.entries)
+        if (e.key != me && !wanted.contains(e.key)) e.value,
+    ];
+    if (remove.isNotEmpty) {
+      final epoch = client.epoch(gid);
+      final commit = client.removeMembers(gid, remove);
+      if (!await _publish(conversationId, epoch, commit)) return false;
+    }
+
+    final add = wanted.where((d) => !inGroup.containsKey(d)).toList();
+    if (add.isNotEmpty) {
+      final rows = (await _db.rpc(
+        'claim_device_key_packages',
+        params: {'p_devices': add},
+      ) as List).cast<Map<String, dynamic>>();
+      if (rows.isNotEmpty) {
+        final c = await _open();
+        final epoch = c.epoch(gid);
+        final (commit, welcome) = c.addMembers(gid, [
+          for (final r in rows) _unhex(r['out_key_package'] as String),
+        ]);
+        if (!await _publish(
+          conversationId,
+          epoch,
+          commit,
+          welcomes: [
+            for (final r in rows)
+              (device: r['out_device_id'] as String, welcome: welcome),
+          ],
+        )) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  @override
+  Future<void> syncConversation(String conversationId) => _locked(() async {
+    for (var attempt = 0; attempt < 3; attempt++) {
+      if (await _syncOnce(conversationId)) return;
+    }
+  });
+
+  @override
+  Future<void> addMember(String conversationId, String userId) =>
+      _locked(() async {
+        for (var attempt = 0; attempt < 3; attempt++) {
+          final client = await _open();
+          if (!await _ensureJoined(client, conversationId)) {
+            throw StateError('This device isn\'t part of this encrypted chat.');
+          }
+          await _catchUp(client, conversationId);
+          final rows = (await _db.rpc(
+            'claim_key_packages',
+            params: {
+              'p_accounts': [userId],
+            },
+          ) as List).cast<Map<String, dynamic>>();
+          if (rows.isEmpty) {
+            throw StateError(
+              'They have no device that supports encrypted chats yet.',
+            );
+          }
+          final gid = _utf8(conversationId);
+          final epoch = client.epoch(gid);
+          final (commit, welcome) = client.addMembers(gid, [
+            for (final r in rows) _unhex(r['out_key_package'] as String),
+          ]);
+          if (await _publish(
+            conversationId,
+            epoch,
+            commit,
+            welcomes: [
+              for (final r in rows)
+                (device: r['out_device_id'] as String, welcome: welcome),
+            ],
+            addMember: userId,
+          )) {
+            return;
+          }
+        }
+        throw StateError('The group kept changing; try again.');
+      });
+
   @override
   Future<({Uint8List ciphertext, int epoch})> encryptMessage(
     String conversationId,
     String text,
   ) => _locked(() async {
+    // Add/remove devices first, so a new device can read this message and
+    // a removed one can't.
+    for (var attempt = 0; attempt < 3; attempt++) {
+      if (await _syncOnce(conversationId)) break;
+    }
     final client = await _open();
     if (!await _ensureJoined(client, conversationId)) {
       throw StateError('This device isn\'t part of this encrypted chat.');

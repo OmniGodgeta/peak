@@ -5,7 +5,7 @@ stores **ciphertext only** and never holds a key that can read message content.
 Multi-device is in scope from the start — phone + tablet + web at once, with
 history available on new devices.
 
-Status: **2.5-1, 2.5-2 and 2.5-3 done.** With the `PEAK_E2EE=mls` build flag,
+Status: **2.5-1 to 2.5-4 done.** With the `PEAK_E2EE=mls` build flag,
 new DMs and groups are end-to-end encrypted when every member has an MLS
 device; otherwise they stay transport-only. Release builds don't set the flag
 yet, so nobody gets encrypted chats until it's flipped (after a real
@@ -194,8 +194,26 @@ in the enclave.
       group, plaintext fallback for a member without an MLS device.
       **Not yet verified on two real phones.** Encrypted attachments are a
       follow-up; message reports from encrypted chats carry no content.
-- [ ] **2.5-4** — membership/device changes (Add/Remove/Update + Commit),
-      epoch handling, key rotation schedule.
+- [x] **2.5-4** — membership and device changes (`20261017000000_e2ee_membership`).
+      Before sending and when reading, a device syncs the group: applies
+      other devices' commits in epoch order, then adds devices that should be
+      in it (a member's newly registered device) and removes ones that
+      shouldn't (someone who left, a revoked device), comparing the MLS
+      roster with `conversation_devices()`. Adding a person to an encrypted
+      group adds all their devices and the membership in one step.
+      Commits only go through `publish_mls_commit`, which accepts a commit
+      only if the group is still at the epoch it was made from; the loser
+      reloads its last saved state, catches up and retries, so concurrent
+      changes can't fork the group. Direct writes to `mls_group_state` and
+      commit rows are refused. Devices keep 5 past epochs' keys
+      (`MAX_PAST_EPOCHS`) so a message sent just before a change still
+      decrypts after it. A new device or member reads from when it joined;
+      earlier messages show as unreadable until 2.5-5's history archive.
+      Verified: Rust `message_from_before_a_commit_still_decrypts_after_it`,
+      pgTAP `41_e2ee_membership` (9), and the local two-device test's
+      membership scenario (new device, added member, leaver, revoked device:
+      exactly 4 commits; a stale commit is refused). Key rotation on a
+      schedule (Update commits) is not done.
 - [ ] **2.5-5** — encrypted history archive + new-device restore + recovery
       phrase UI.
 - [ ] **2.5-6** — key-verification / safety-number screen; device-list

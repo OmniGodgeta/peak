@@ -15,6 +15,11 @@ use openmls_memory_storage::MemoryStorage;
 use openmls_rust_crypto::RustCrypto;
 use openmls_traits::OpenMlsProvider;
 
+/// Epochs whose keys a device keeps after moving on, so a message sent just
+/// before a membership change still decrypts after the device has processed
+/// that change (OpenMLS keeps none by default).
+pub const MAX_PAST_EPOCHS: usize = 5;
+
 pub const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 
 const STATE_MAGIC: &[u8; 6] = b"PMLS1\n";
@@ -154,6 +159,7 @@ impl Client {
         let config = MlsGroupCreateConfig::builder()
             .ciphersuite(CIPHERSUITE)
             .use_ratchet_tree_extension(true)
+            .max_past_epochs(MAX_PAST_EPOCHS)
             .build();
         MlsGroup::new_with_group_id(
             &self.provider,
@@ -235,6 +241,7 @@ impl Client {
         };
         let join_config = MlsGroupJoinConfig::builder()
             .use_ratchet_tree_extension(true)
+            .max_past_epochs(MAX_PAST_EPOCHS)
             .build();
         let group = StagedWelcome::new_from_welcome(&self.provider, &join_config, welcome, None)
             .map_err(err("stage welcome"))?

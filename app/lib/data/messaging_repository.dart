@@ -277,6 +277,14 @@ class MessagingRepository {
         .toList()
         .reversed
         .toList();
+    // Encrypted chat: apply membership/device changes first (2.5-4).
+    if (list.any((m) => m.ciphertext != null)) {
+      try {
+        await _e2ee.syncConversation(conversationId);
+      } catch (_) {
+        // Still show what's already cached / decryptable.
+      }
+    }
     // Oldest first: MLS decrypts in order, and each message only once (the
     // E2EE layer caches the result).
     for (var i = 0; i < list.length; i++) {
@@ -402,10 +410,18 @@ class MessagingRepository {
     return id;
   }
 
-  Future<void> addGroupMember(String conversationId, String userId) => _db.rpc(
-    'add_group_member',
-    params: {'p_conversation': conversationId, 'p_user': userId},
-  );
+  Future<void> addGroupMember(String conversationId, String userId) async {
+    if (await isEncrypted(conversationId)) {
+      // All their devices join the MLS group and they become a member in one
+      // step (2.5-4).
+      await _e2ee.addMember(conversationId, userId);
+      return;
+    }
+    await _db.rpc(
+      'add_group_member',
+      params: {'p_conversation': conversationId, 'p_user': userId},
+    );
+  }
 
   Future<void> leaveConversation(String conversationId) =>
       _db.rpc('leave_conversation', params: {'p_conversation': conversationId});
