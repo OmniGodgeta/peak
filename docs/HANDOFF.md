@@ -15,6 +15,12 @@ E2EE 2.5-3, 2.5-4 and 2.5-6 are merged (PR #3) and live in
 signed the APK, and published it. Hosted migrations `20261016000000` and
 `20261017000000` were pushed. Do not redo those steps.
 
+Done 2026-10-03: the hosted `app_release` row now advertises 1.4.0
+(version code 23, the v1.4.0 APK and its published sha256). Confirmed with
+a live GET of `/functions/v1/app-version`. `SUPABASE_SERVICE_ROLE_KEY` is
+now a repo secret, so the next tag's "Update app_release manifest" step
+will run. The local Docker row was set to the same values.
+
 Still on the operator:
 
 1. **Two-phone test.** Install the v1.4.0 APK on two phones, sign in to two
@@ -24,26 +30,7 @@ Still on the operator:
    lock on both phones: the 12 groups of digits must be identical. Then sign
    in on a third device (or reinstall one): after the next message the number
    changes on all of them, and matches again.
-2. **In-app updater manifest is still 1.0.5** (version code 6). The v1.4.0
-   workflow skipped "Update app_release manifest" because
-   `SUPABASE_SERVICE_ROLE_KEY` is not a repo secret. Until this row moves,
-   installed apps will not offer 1.4.0. In the hosted SQL editor:
-
-   ```sql
-   update app_release set
-     version_name = '1.4.0',
-     version_code = 23,
-     apk_url = 'https://github.com/OmniGodgeta/peak/releases/download/v1.4.0/peak-1.4.0-release.apk',
-     sha256 = 'cf977dc44ccf57c4c3530c49a6a867fa67af53e531d1e5bc98d56bb36971d575',
-     notes = 'End-to-end encrypted chats.',
-     published_at = now()
-   where platform = 'android';
-   ```
-
-   Optional, so the next tag does this itself:
-   `gh secret set SUPABASE_SERVICE_ROLE_KEY -R OmniGodgeta/peak`
-   (dashboard → Project Settings → API → service_role).
-3. Auth → URL Configuration: Site URL / redirects should be
+2. Auth → URL Configuration: Site URL / redirects should be
    `https://retroverse.tail51f9d6.ts.net:8720` and `peak://auth-callback`
    if they still say `shadow-1…`.
 
@@ -63,12 +50,11 @@ database is missing tonight's migrations. Do step 1 before tagging a release.
   federation-deliver. Cron added: `purge-media` (47 4 * * *) and
   `push-dispatch` (every minute; first runs succeeded, HTTP 200).
 - `v1.3.0` tagged → release workflow builds the APK against hosted.
-- **In-app update manifest is stale** (`app_release` still says 1.0.5;
-  1.1/1.2/1.3 were never announced, since the release workflow skips that
-  step without the `SUPABASE_SERVICE_ROLE_KEY` repo secret). v1.3.0's APK
-  has the same signing cert as 1.0.5 (`9637cf14…`), so it installs over it.
-  The agent's write was blocked; the operator runs the UPDATE in the SQL
-  editor, or sets that secret so future tags do it automatically.
+- **In-app update manifest was stale** (`app_release` said 1.0.5 through
+  1.3.0, because the release workflow skipped that step without
+  `SUPABASE_SERVICE_ROLE_KEY`). Updated 2026-10-03 to 1.4.0; the secret is
+  set now. Do not run the old 1.0.5 UPDATE. v1.3.0's APK has the same
+  signing cert as 1.0.5 (`9637cf14…`), so it installs over it.
 - **Still on the operator: step 2 below** (Auth Site URL still
   `shadow-1…:8720`; a management-API change from the agent was blocked).
 
