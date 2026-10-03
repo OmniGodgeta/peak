@@ -29,6 +29,7 @@ class ConversationSummary {
 
   final String id;
   final bool isGroup;
+
   /// End-to-end encrypted (MLS): the server only has ciphertext.
   final bool e2ee;
   final String? title;

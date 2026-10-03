@@ -32,6 +32,7 @@ class OpenMlsE2ee implements E2eeService {
   final SupabaseClient _db;
   final DeviceRegistrar _devices;
   final MlsStateStorage Function(String accountId) _storageFor;
+
   /// Native library override (host tests); null = the packaged one.
   final String? libraryPath;
 
@@ -224,12 +225,11 @@ class OpenMlsE2ee implements E2eeService {
   });
 
   @override
-  Future<void> rememberSent(String messageId, String text) =>
-      _locked(() async {
-        await _open();
-        _plain[messageId] = text;
-        await _persist();
-      });
+  Future<void> rememberSent(String messageId, String text) => _locked(() async {
+    await _open();
+    _plain[messageId] = text;
+    await _persist();
+  });
 
   @override
   Future<String?> readMessage(
@@ -288,7 +288,8 @@ class OpenMlsE2ee implements E2eeService {
   }
 
   static (Uint8List, Map<String, String>) _unpack(Uint8List blob) {
-    final isV2 = blob.length >= 8 &&
+    final isV2 =
+        blob.length >= 8 &&
         List.generate(4, (i) => blob[i]).join(',') == _magic.join(',');
     if (!isV2) return (blob, {}); // 2.5-2 files: the bare MLS state
     final n = ByteData.sublistView(blob, 4, 8).getUint32(0);

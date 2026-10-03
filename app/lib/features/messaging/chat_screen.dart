@@ -244,11 +244,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Flexible(child: Text(widget.title, overflow: TextOverflow.ellipsis)),
+            Flexible(
+              child: Text(widget.title, overflow: TextOverflow.ellipsis),
+            ),
             if (_e2ee) ...[
               const SizedBox(width: 6),
               const Tooltip(
-                message: 'End-to-end encrypted: only the people in this '
+                message:
+                    'End-to-end encrypted: only the people in this '
                     'chat can read it, not Peak.',
                 child: Icon(Icons.lock_outline, size: 18),
               ),
@@ -458,6 +461,7 @@ class _Composer extends StatelessWidget {
   final TextEditingController controller;
   final int pendingCount;
   final bool sending;
+
   /// Null hides the button (encrypted chats).
   final VoidCallback? onPickImages;
   final VoidCallback onSend;
