@@ -15,22 +15,26 @@ class NoopE2ee implements E2eeService {
   Future<void> ensureDeviceRegistered() async {}
 
   @override
-  Future<void> createGroup(
+  Future<bool> setUpConversation(
     String conversationId,
-    List<String> memberAccountIds,
-  ) async {
-    throw UnsupportedError(
-      'Encrypted conversations require the MLS build (Phase 2.5).',
-    );
-  }
+    List<String> otherMemberIds,
+  ) async => false;
 
   @override
-  Future<Uint8List> encrypt(String conversationId, Uint8List plaintext) async =>
-      plaintext;
+  Future<({Uint8List ciphertext, int epoch})> encryptMessage(
+    String conversationId,
+    String text,
+  ) async => throw UnsupportedError(
+    'Encrypted conversations need the MLS build (PEAK_E2EE=mls).',
+  );
 
   @override
-  Future<Uint8List> decrypt(
+  Future<void> rememberSent(String messageId, String text) async {}
+
+  @override
+  Future<String?> readMessage(
     String conversationId,
+    String messageId,
     Uint8List ciphertext,
-  ) async => ciphertext;
+  ) async => null;
 }

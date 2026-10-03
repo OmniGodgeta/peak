@@ -5,10 +5,11 @@ stores **ciphertext only** and never holds a key that can read message content.
 Multi-device is in scope from the start — phone + tablet + web at once, with
 history available on new devices.
 
-Status: **native MLS layer done and verified (2.5-1), device key packages
-done (2.5-2); encrypted conversations (2.5-3) are next.** Messaging still runs
-in the transport-only Phase 2 mode; the MLS layer is behind the `PEAK_E2EE=mls`
-build flag and nothing in the UI claims end-to-end encryption.
+Status: **2.5-1, 2.5-2 and 2.5-3 done.** With the `PEAK_E2EE=mls` build flag,
+new DMs and groups are end-to-end encrypted when every member has an MLS
+device; otherwise they stay transport-only. Release builds don't set the flag
+yet, so nobody gets encrypted chats until it's flipped (after a real
+two-phone check, and 2.5-4 so members can be added).
 
 ---
 
@@ -173,9 +174,26 @@ in the enclave.
       identity (`<account>:<device>`), keeps its state AES-256-GCM encrypted
       on disk (key in the platform keystore), and tops the server pool up to
       20 real KeyPackages whenever it drops below 10.
-- [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
-      messages; server relays `mls_message` blobs; feature flag on for new
-      conversations.
+- [x] **2.5-3** — encrypted conversations (`20261016000000_e2ee_conversations`).
+      A new DM/group whose members all have an MLS device gets an MLS group
+      (id = conversation id): the creating device claims it
+      (`begin_conversation_e2ee`), adds every device of every member, leaves a
+      Welcome per device in `mls_message`, then `enable_conversation_e2ee`.
+      Messages keep their `message` row (order, replies, reactions, read
+      state, tombstones) with `body` empty and the MLS ciphertext in
+      `message.ciphertext` (+ `mls_epoch`). Other devices join from their
+      Welcome on first read/send. MLS decrypts a message once and a sender
+      can't decrypt its own, so plaintexts are cached on-device inside the
+      same AES-GCM-encrypted file as the MLS state (one atomic write).
+      Server guards: no plaintext into an encrypted conversation, no
+      ciphertext into a plaintext one, no attachments, edits, or new members
+      in encrypted ones yet (the UI hides those). Verified: pgTAP
+      `40_e2ee_conversations` (13), and `app/test/e2ee_conversation_local_test.dart`
+      — two devices with real OpenMLS against the local stack: encrypted DM
+      both ways (server holds no plaintext), re-fetch from cache, encrypted
+      group, plaintext fallback for a member without an MLS device.
+      **Not yet verified on two real phones.** Encrypted attachments are a
+      follow-up; message reports from encrypted chats carry no content.
 - [ ] **2.5-4** — membership/device changes (Add/Remove/Update + Commit),
       epoch handling, key rotation schedule.
 - [ ] **2.5-5** — encrypted history archive + new-device restore + recovery

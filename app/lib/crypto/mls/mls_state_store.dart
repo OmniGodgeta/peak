@@ -6,11 +6,26 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// Where an [OpenMlsE2ee] keeps its state blob between launches.
+abstract interface class MlsStateStorage {
+  Future<Uint8List?> read();
+  Future<void> write(Uint8List state);
+}
+
+/// In-memory storage, for tests.
+class MemoryMlsStateStorage implements MlsStateStorage {
+  Uint8List? _state;
+  @override
+  Future<Uint8List?> read() async => _state;
+  @override
+  Future<void> write(Uint8List state) async => _state = state;
+}
+
 /// Where a device's MLS state lives between launches: a file in app support
 /// storage, AES-256-GCM encrypted with a key kept in the platform keystore
 /// (flutter_secure_storage). The state holds every group secret, so it
 /// never touches disk in the clear. One file per signed-in account.
-class MlsStateStore {
+class MlsStateStore implements MlsStateStorage {
   MlsStateStore(this.accountId);
   final String accountId;
 
@@ -35,6 +50,7 @@ class MlsStateStore {
     return k;
   }
 
+  @override
   Future<Uint8List?> read() async {
     final f = await _file();
     if (!await f.exists()) return null;
@@ -46,6 +62,7 @@ class MlsStateStore {
     return Uint8List.fromList(await _aes.decrypt(box, secretKey: await _key()));
   }
 
+  @override
   Future<void> write(Uint8List state) async {
     final box = await _aes.encrypt(state, secretKey: await _key());
     final f = await _file();

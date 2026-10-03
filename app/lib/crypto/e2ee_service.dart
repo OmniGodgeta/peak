@@ -22,20 +22,35 @@ abstract class E2eeService {
   /// No-op until the native crypto lib is wired.
   Future<void> ensureDeviceRegistered();
 
-  /// Establish an MLS group for a new conversation with the given members'
-  /// devices. Returns the initial group state to persist server-side.
-  /// Throws [UnsupportedError] in the no-op impl.
-  Future<void> createGroup(
+  /// Try to make a brand-new conversation end-to-end encrypted: build its
+  /// MLS group with every device of every other member and send the
+  /// Welcomes. Returns true if the conversation is now encrypted; false
+  /// (and the conversation stays plaintext) if encryption isn't available,
+  /// a member has no encryption-capable device, or messages already exist.
+  Future<bool> setUpConversation(
     String conversationId,
-    List<String> memberAccountIds,
+    List<String> otherMemberIds,
   );
 
-  /// Encrypt an outgoing message for a conversation.
-  /// The no-op impl returns the plaintext bytes unchanged.
-  Future<Uint8List> encrypt(String conversationId, Uint8List plaintext);
+  /// Encrypt an outgoing text message for an encrypted conversation. Once
+  /// the message row exists, call [rememberSent]: the sender can never
+  /// decrypt its own MLS messages.
+  Future<({Uint8List ciphertext, int epoch})> encryptMessage(
+    String conversationId,
+    String text,
+  );
 
-  /// Decrypt an incoming ciphertext blob.
-  Future<Uint8List> decrypt(String conversationId, Uint8List ciphertext);
+  /// Keep the plaintext of a message this device sent.
+  Future<void> rememberSent(String messageId, String text);
+
+  /// The plaintext of an encrypted message, or null if this device can't read
+  /// it (it joined later, or the message predates its membership). Each MLS
+  /// message can be decrypted only once, so results are cached on-device.
+  Future<String?> readMessage(
+    String conversationId,
+    String messageId,
+    Uint8List ciphertext,
+  );
 }
 
 /// MLS only when the build opts in (PEAK_E2EE=mls) and the native library
