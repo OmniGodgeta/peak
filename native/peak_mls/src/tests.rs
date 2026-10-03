@@ -136,8 +136,13 @@ fn message_from_before_a_commit_still_decrypts_after_it() {
     let (alice, bob) = pair();
     let early = alice.encrypt(GID, b"sent at epoch 1").unwrap();
     let carol = Client::new(b"carol:phone").unwrap();
-    let (commit, _welcome) = alice.add_members(GID, &[carol.key_package().unwrap()]).unwrap();
-    assert!(matches!(bob.process(GID, &commit).unwrap(), Processed::Commit(_)));
+    let (commit, _welcome) = alice
+        .add_members(GID, &[carol.key_package().unwrap()])
+        .unwrap();
+    assert!(matches!(
+        bob.process(GID, &commit).unwrap(),
+        Processed::Commit(_)
+    ));
     assert_eq!(
         bob.process(GID, &early).unwrap(),
         Processed::Application(b"sent at epoch 1".to_vec())
