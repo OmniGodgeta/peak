@@ -294,6 +294,16 @@ impl Client {
         Ok(self.group(group_id)?.epoch().as_u64())
     }
 
+    /// (credential identity, signature public key) of every member: what a
+    /// safety number commits to, so a swapped key changes the number.
+    pub fn member_keys(&self, group_id: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        Ok(self
+            .group(group_id)?
+            .members()
+            .map(|m| (m.credential.serialized_content().to_vec(), m.signature_key))
+            .collect())
+    }
+
     /// Credential identities of everyone in the group (for safety numbers
     /// and the device list check).
     pub fn members(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>> {

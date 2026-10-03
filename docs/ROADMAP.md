@@ -138,8 +138,8 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
 - [x] **2.5-4** — membership/device changes (Add/Remove + Commit), epoch
       handling (compare-and-swap, no forks). Scheduled key rotation not done.
 - [ ] **2.5-5** — encrypted history archive + new-device restore + recovery phrase
-- [ ] **2.5-6** — key-verification / safety-number screen + device-list
-      transparency check
+- [x] **2.5-6** — safety-number screen + device-list transparency check
+      (tap the lock in an encrypted chat)
 - [ ] **2.5-7** — migrate or label the remaining transport-only DMs; flip default
 
 ## Phase 3 — Rich media, stories, articles, data controls  ·  *in progress*

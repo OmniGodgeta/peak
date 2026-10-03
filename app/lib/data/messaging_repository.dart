@@ -423,6 +423,18 @@ class MessagingRepository {
     );
   }
 
+  /// Device labels by id (for the encryption screen's device list).
+  Future<Map<String, String>> deviceLabels(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    final rows = await _db
+        .from('device')
+        .select('id, label')
+        .inFilter('id', ids);
+    return {
+      for (final r in rows) r['id'] as String: (r['label'] as String?) ?? '',
+    };
+  }
+
   Future<void> leaveConversation(String conversationId) =>
       _db.rpc('leave_conversation', params: {'p_conversation': conversationId});
 

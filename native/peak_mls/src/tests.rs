@@ -148,3 +148,15 @@ fn message_from_before_a_commit_still_decrypts_after_it() {
         Processed::Application(b"sent at epoch 1".to_vec())
     );
 }
+
+#[test]
+fn every_member_sees_the_same_keys() {
+    let (alice, bob) = pair();
+    let mut a = alice.member_keys(GID).unwrap();
+    let mut b = bob.member_keys(GID).unwrap();
+    a.sort();
+    b.sort();
+    assert_eq!(a, b);
+    assert_eq!(a.len(), 2);
+    assert!(a.iter().all(|(_, key)| key.len() == 32)); // Ed25519
+}

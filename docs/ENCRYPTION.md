@@ -5,7 +5,7 @@ stores **ciphertext only** and never holds a key that can read message content.
 Multi-device is in scope from the start — phone + tablet + web at once, with
 history available on new devices.
 
-Status: **2.5-1 to 2.5-4 done.** With the `PEAK_E2EE=mls` build flag,
+Status: **2.5-1 to 2.5-4 and 2.5-6 done** (2.5-5, history, is next). With the `PEAK_E2EE=mls` build flag,
 new DMs and groups are end-to-end encrypted when every member has an MLS
 device; otherwise they stay transport-only. Release builds don't set the flag
 yet, so nobody gets encrypted chats until it's flipped (after a real
@@ -216,8 +216,20 @@ in the enclave.
       schedule (Update commits) is not done.
 - [ ] **2.5-5** — encrypted history archive + new-device restore + recovery
       phrase UI.
-- [ ] **2.5-6** — key-verification / safety-number screen; device-list
-      transparency check.
+- [x] **2.5-6** — safety number + device list. Tap the lock in an encrypted
+      chat: a 60-digit number (SHA-512 over the conversation id and every
+      member device's identity and MLS signature key, in identity order) that
+      every device in the chat computes identically, so comparing it in
+      person or on a call proves nobody is in the middle; it changes when a
+      device joins or leaves. Below it, every device that can read the chat,
+      by person, with this device marked. Transparency check: devices in the
+      MLS group that the server doesn't list as a member's current device
+      get a red warning (a rogue or not-yet-removed device), and listed
+      devices not yet in the group are counted. Verified: unit tests
+      (`safety_number_test.dart`), Rust `every_member_sees_the_same_keys`,
+      and the local two-device test (numbers match; change when a device
+      joins; all three devices agree again). Not done: marking a contact as
+      verified, or alerting when a verified number changes.
 - [ ] **2.5-7** — migrate remaining transport-only DMs (or leave them, clearly
       labelled) and flip the default.
 

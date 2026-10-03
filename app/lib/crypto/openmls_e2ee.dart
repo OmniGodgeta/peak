@@ -8,6 +8,7 @@ import 'device_repository.dart';
 import 'e2ee_service.dart';
 import 'mls/mls.dart';
 import 'mls/mls_state_store.dart';
+import 'safety_number.dart';
 
 /// The MLS implementation (docs/ENCRYPTION.md), over the native OpenMLS
 /// library. Active only when the build sets PEAK_E2EE=mls and the library
@@ -370,6 +371,31 @@ class OpenMlsE2ee implements E2eeService {
         }
         throw StateError('The group kept changing; try again.');
       });
+
+  @override
+  Future<SafetyInfo?> safetyInfo(String conversationId) => _locked(() async {
+    final client = await _open();
+    if (!await _ensureJoined(client, conversationId)) return null;
+    await _catchUp(client, conversationId);
+    final devices = [
+      for (final (id, key) in client.memberKeys(_utf8(conversationId)))
+        SafetyDevice.fromMember(id, key),
+    ];
+    final listed = <String>{
+      for (final r in (await _db.rpc(
+        'conversation_devices',
+        params: {'p_conversation': conversationId},
+      ) as List).cast<Map<String, dynamic>>())
+        r['device_id'] as String,
+    };
+    final inGroup = devices.map((d) => d.deviceId).toSet();
+    return SafetyInfo(
+      number: await safetyNumber(conversationId, devices),
+      devices: devices,
+      notListedByServer: inGroup.difference(listed),
+      notYetInGroup: listed.difference(inGroup),
+    );
+  });
 
   @override
   Future<({Uint8List ciphertext, int epoch})> encryptMessage(

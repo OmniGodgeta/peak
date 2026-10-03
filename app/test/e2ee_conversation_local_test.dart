@@ -77,7 +77,14 @@ class _Harness {
   }
 
   /// A new device (its own session, MLS state and KeyPackages) for [name].
-  Future<({MessagingRepository repo, SupabaseClient db, _TestDevice dev})>
+  Future<
+    ({
+      MessagingRepository repo,
+      SupabaseClient db,
+      _TestDevice dev,
+      OpenMlsE2ee e2ee,
+    })
+  >
   device(String name) async {
     final db = await _signIn(name);
     final dev = _TestDevice(db);
@@ -88,7 +95,7 @@ class _Harness {
       libraryPath: lib,
     );
     await e2ee.ensureDeviceRegistered();
-    return (repo: MessagingRepository(db, e2ee), db: db, dev: dev);
+    return (repo: MessagingRepository(db, e2ee), db: db, dev: dev, e2ee: e2ee);
   }
 
   Future<void> cleanUp() async {
@@ -264,6 +271,13 @@ void main() {
         await alicePhone.send(group, 'one');
         expect(await bodies(bobPhone, group), ['one']);
 
+        // Safety numbers (2.5-6): the same on both phones.
+        final n1a = (await alicePhoneD.e2ee.safetyInfo(group))!;
+        final n1b = (await bobPhoneD.e2ee.safetyInfo(group))!;
+        expect(n1a.number, n1b.number, reason: 'every member sees the same');
+        expect(n1a.devices, hasLength(2));
+        expect(n1a.notListedByServer, isEmpty);
+
         // Alice signs in on a tablet after the group exists. The next send
         // from any member adds the tablet; it reads from then on, and can't
         // read what came before.
@@ -275,6 +289,15 @@ void main() {
           'two',
         ], reason: 'new device joins; earlier messages stay unreadable');
         expect(await bodies(alicePhone, group), ['one', 'two']);
+
+        // A device joined: the number changes, and everyone agrees again.
+        final n2a = (await alicePhoneD.e2ee.safetyInfo(group))!;
+        final n2t = (await aliceTabletD.e2ee.safetyInfo(group))!;
+        final n2b = (await bobPhoneD.e2ee.safetyInfo(group))!;
+        expect(n2a.number, isNot(n1a.number));
+        expect(n2t.number, n2a.number);
+        expect(n2b.number, n2a.number);
+        expect(n2a.devices, hasLength(3));
 
         // Adding a person to an encrypted group: all their devices join and
         // they become a member in one step.

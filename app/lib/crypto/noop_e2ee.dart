@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'e2ee_service.dart';
+import 'safety_number.dart';
 
 /// Transport-only fallback — this is the current Phase 2 behaviour made
 /// explicit. Messages travel over TLS but the server can read their content.
@@ -28,6 +29,9 @@ class NoopE2ee implements E2eeService {
       throw UnsupportedError(
         'Encrypted conversations need the MLS build (PEAK_E2EE=mls).',
       );
+
+  @override
+  Future<SafetyInfo?> safetyInfo(String conversationId) async => null;
 
   @override
   Future<({Uint8List ciphertext, int epoch})> encryptMessage(

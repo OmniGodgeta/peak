@@ -12,6 +12,7 @@ import '../../data/messaging_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../calls/call_room_screen.dart';
 import 'group_settings_screen.dart';
+import 'safety_number_screen.dart';
 import 'voice/voice_note_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -249,11 +250,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             if (_e2ee) ...[
               const SizedBox(width: 6),
-              const Tooltip(
-                message:
+              IconButton(
+                tooltip:
                     'End-to-end encrypted: only the people in this '
-                    'chat can read it, not Peak.',
-                child: Icon(Icons.lock_outline, size: 18),
+                    'chat can read it, not Peak. Tap to verify.',
+                icon: const Icon(Icons.lock_outline, size: 18),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SafetyNumberScreen(
+                      conversationId: widget.conversationId,
+                    ),
+                  ),
+                ),
               ),
             ],
           ],

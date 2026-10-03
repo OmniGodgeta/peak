@@ -8,6 +8,7 @@ import 'device_repository.dart';
 import 'mls/mls.dart';
 import 'noop_e2ee.dart';
 import 'openmls_e2ee.dart';
+import 'safety_number.dart';
 
 /// The seam between Peak's messaging code and the encryption layer.
 ///
@@ -42,6 +43,10 @@ abstract class E2eeService {
   /// group and they become a member, in one step. Throws if they have no
   /// device that supports encrypted chats.
   Future<void> addMember(String conversationId, String userId);
+
+  /// The safety number and device roster of an encrypted conversation, as
+  /// this device sees them (2.5-6). Null if this device isn't in its group.
+  Future<SafetyInfo?> safetyInfo(String conversationId);
 
   /// Encrypt an outgoing text message for an encrypted conversation. Once
   /// the message row exists, call [rememberSent]: the sender can never
