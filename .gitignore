@@ -54,3 +54,6 @@ app/android/build/
 # native MLS build outputs (tool/build_mls.sh)
 native/peak_mls/target/
 app/android/app/src/main/jniLibs/*/libpeak_mls.so
+
+# Build archives (a 17MB web-build tarball got committed once)
+*.tar.gz
