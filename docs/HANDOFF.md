@@ -9,27 +9,43 @@ this file never got updated for.
 
 ## 2026-10-03 — encrypted chats: what the operator does next
 
-E2EE 2.5-3, 2.5-4 and 2.5-6 are in PR #3 (CI green). Off in releases until
-`vars.RELEASE_E2EE=mls`. In order:
+E2EE 2.5-3, 2.5-4 and 2.5-6 are merged (PR #3) and live in
+[v1.4.0](https://github.com/OmniGodgeta/peak/releases/tag/v1.4.0).
+`RELEASE_E2EE=mls` is set. The release workflow built `libpeak_mls.so`,
+signed the APK, and published it. Hosted migrations `20261016000000` and
+`20261017000000` were pushed. Do not redo those steps.
 
-1. **Merge PR #3** on GitHub (Merge pull request -> Confirm).
-2. **Push the two migrations to hosted** (`20261016000000`,
-   `20261017000000`): `cd ~/Work/peak && supabase db push` (an agent can do
-   it). Must happen before any release built from main.
-3. **Turn E2EE on for releases**: `gh variable set RELEASE_E2EE -R
-   OmniGodgeta/peak -b mls` (or GitHub -> Settings -> Secrets and variables ->
-   Actions -> Variables -> New: `RELEASE_E2EE` = `mls`). Everyone who
-   installs the next release gets encrypted *new* chats.
-4. **Tag a release** (bump `app/pubspec.yaml`, tag `v1.4.0`; an agent can do it).
-5. **Two-phone test**: install that release on two phones, sign in to two
+Still on the operator:
+
+1. **Two-phone test.** Install the v1.4.0 APK on two phones, sign in to two
    different accounts, open the app on both (keys publish on launch). Phone A:
    create a NEW group with the other account (an old DM between them stays
    unencrypted). Lock icon in the title = encrypted. Send both ways; tap the
    lock on both phones: the 12 groups of digits must be identical. Then sign
    in on a third device (or reinstall one): after the next message the number
    changes on all of them, and matches again.
-6. Dashboard (unrelated to E2EE, still pending): `app_release` row (SQL in the
-   2026-10-02 section below) and Auth -> URL Configuration.
+2. **In-app updater manifest is still 1.0.5** (version code 6). The v1.4.0
+   workflow skipped "Update app_release manifest" because
+   `SUPABASE_SERVICE_ROLE_KEY` is not a repo secret. Until this row moves,
+   installed apps will not offer 1.4.0. In the hosted SQL editor:
+
+   ```sql
+   update app_release set
+     version_name = '1.4.0',
+     version_code = 23,
+     apk_url = 'https://github.com/OmniGodgeta/peak/releases/download/v1.4.0/peak-1.4.0-release.apk',
+     sha256 = 'cf977dc44ccf57c4c3530c49a6a867fa67af53e531d1e5bc98d56bb36971d575',
+     notes = 'End-to-end encrypted chats.',
+     published_at = now()
+   where platform = 'android';
+   ```
+
+   Optional, so the next tag does this itself:
+   `gh secret set SUPABASE_SERVICE_ROLE_KEY -R OmniGodgeta/peak`
+   (dashboard → Project Settings → API → service_role).
+3. Auth → URL Configuration: Site URL / redirects should be
+   `https://retroverse.tail51f9d6.ts.net:8720` and `peak://auth-callback`
+   if they still say `shadow-1…`.
 
 ## 2026-09-30 — overnight session (read this first)
 
