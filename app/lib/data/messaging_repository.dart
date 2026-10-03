@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../crypto/e2ee_service.dart';
+import '../crypto/noop_e2ee.dart';
+import '../crypto/openmls_e2ee.dart';
 import 'supabase_providers.dart';
 
 /// A row from `conversations_list` — one entry in the Messages tab.
@@ -21,10 +24,14 @@ class ConversationSummary {
     required this.otherHandle,
     required this.otherDomain,
     required this.otherDisplayName,
+    this.e2ee = false,
   });
 
   final String id;
   final bool isGroup;
+
+  /// End-to-end encrypted (MLS): the server only has ciphertext.
+  final bool e2ee;
   final String? title;
   final DateTime lastMessageAt;
   final String state; // 'active' | 'request'
@@ -48,6 +55,8 @@ class ConversationSummary {
 
   String get subtitle => (lastMessageBody?.isNotEmpty == true)
       ? lastMessageBody!
+      : (e2ee && lastMessageSender != null)
+      ? 'Encrypted message'
       : 'No messages yet';
 
   factory ConversationSummary.fromMap(Map<String, dynamic> m) =>
@@ -64,6 +73,7 @@ class ConversationSummary {
         otherHandle: m['other_handle'] as String?,
         otherDomain: m['other_domain'] as String?,
         otherDisplayName: m['other_display_name'] as String?,
+        e2ee: (m['e2ee'] as bool?) ?? false,
       );
 }
 
@@ -104,6 +114,9 @@ class ChatMessage {
     required this.editedAt,
     required this.deletedAt,
     this.media = const [],
+    this.ciphertext,
+    this.encrypted = false,
+    this.unreadable = false,
   });
 
   final String id;
@@ -115,6 +128,27 @@ class ChatMessage {
   final DateTime? editedAt;
   final DateTime? deletedAt;
   final List<ChatMedia> media;
+
+  /// MLS ciphertext as stored (`\\x…`), for encrypted conversations.
+  final String? ciphertext;
+  final bool encrypted;
+
+  /// Encrypted, and this device can't read it (it joined the chat later).
+  final bool unreadable;
+
+  ChatMessage withPlaintext(String? text) => ChatMessage(
+    id: id,
+    body: text ?? '',
+    senderId: senderId,
+    senderHandle: senderHandle,
+    senderDisplayName: senderDisplayName,
+    createdAt: createdAt,
+    editedAt: editedAt,
+    deletedAt: deletedAt,
+    media: media,
+    encrypted: true,
+    unreadable: text == null,
+  );
 
   bool get isDeleted => deletedAt != null;
   bool get isEdited => editedAt != null && !isDeleted;
@@ -139,6 +173,8 @@ class ChatMessage {
       for (final e in (m['media'] as List? ?? const []))
         ChatMedia.fromMap(e as Map<String, dynamic>),
     ],
+    ciphertext: m['ciphertext'] as String?,
+    encrypted: m['ciphertext'] != null,
   );
 }
 
@@ -171,8 +207,44 @@ class ConversationMember {
 }
 
 class MessagingRepository {
-  MessagingRepository(this._db);
+  MessagingRepository(this._db, [this._e2ee = const NoopE2ee()]);
   final SupabaseClient _db;
+  final E2eeService _e2ee;
+
+  /// Whether a conversation is end-to-end encrypted.
+  Future<bool> isEncrypted(String conversationId) async {
+    final row = await _db
+        .from('conversation')
+        .select('e2ee')
+        .eq('id', conversationId)
+        .maybeSingle();
+    return (row?['e2ee'] as bool?) ?? false;
+  }
+
+  /// Encrypt a conversation that was just created, if every member can take
+  /// part (docs/ENCRYPTION.md, 2.5-3). Leaves existing and already-used
+  /// conversations alone; any failure leaves it a normal conversation.
+  Future<void> _maybeEncrypt(String conversationId, List<String> others) async {
+    if (!_e2ee.available) return;
+    try {
+      if (await isEncrypted(conversationId)) return;
+      final started = await _db
+          .from('mls_group_state')
+          .select('conversation_id')
+          .eq('conversation_id', conversationId)
+          .limit(1);
+      if (started.isNotEmpty) return;
+      final used = await _db
+          .from('message')
+          .select('id')
+          .eq('conversation_id', conversationId)
+          .limit(1);
+      if (used.isNotEmpty) return;
+      await _e2ee.setUpConversation(conversationId, others);
+    } catch (_) {
+      // Stays a transport-encrypted conversation; nothing claims E2EE.
+    }
+  }
 
   Future<List<ConversationSummary>> conversations({
     bool includeRequests = true,
@@ -187,8 +259,10 @@ class MessagingRepository {
   }
 
   Future<String> startDm(String otherUserId) async {
-    return await _db.rpc('start_dm', params: {'p_other': otherUserId})
-        as String;
+    final id =
+        await _db.rpc('start_dm', params: {'p_other': otherUserId}) as String;
+    await _maybeEncrypt(id, [otherUserId]);
+    return id;
   }
 
   /// Full message history for a conversation, oldest first (with media + sender
@@ -198,11 +272,33 @@ class MessagingRepository {
       'messages_page',
       params: {'p_conversation': conversationId, 'p_limit': 60},
     );
-    return (rows as List)
+    final list = (rows as List)
         .map((e) => ChatMessage.fromMap(e as Map<String, dynamic>))
         .toList()
         .reversed
         .toList();
+    // Encrypted chat: apply membership/device changes first (2.5-4).
+    if (list.any((m) => m.ciphertext != null)) {
+      try {
+        await _e2ee.syncConversation(conversationId);
+      } catch (_) {
+        // Still show what's already cached / decryptable.
+      }
+    }
+    // Oldest first: MLS decrypts in order, and each message only once (the
+    // E2EE layer caches the result).
+    for (var i = 0; i < list.length; i++) {
+      final m = list[i];
+      if (m.ciphertext == null || m.isDeleted) continue;
+      list[i] = m.withPlaintext(
+        await _e2ee.readMessage(
+          conversationId,
+          m.id,
+          OpenMlsE2ee.bytea(m.ciphertext!),
+        ),
+      );
+    }
+    return list;
   }
 
   Future<void> send(
@@ -212,6 +308,31 @@ class MessagingRepository {
     DateTime? expiresAt,
   }) async {
     final uid = _db.auth.currentUser!.id;
+    if (await isEncrypted(conversationId)) {
+      if (media.isNotEmpty) {
+        throw StateError(
+          'Attachments aren\'t supported in encrypted chats yet.',
+        );
+      }
+      final enc = await _e2ee.encryptMessage(conversationId, body);
+      final hex = enc.ciphertext
+          .map((x) => x.toRadixString(16).padLeft(2, '0'))
+          .join();
+      final row = await _db
+          .from('message')
+          .insert({
+            'conversation_id': conversationId,
+            'sender_id': uid,
+            'body': '',
+            'ciphertext': '\\x$hex',
+            'mls_epoch': enc.epoch,
+            if (expiresAt != null) 'expires_at': expiresAt.toIso8601String(),
+          })
+          .select('id')
+          .single();
+      await _e2ee.rememberSent(row['id'] as String, body);
+      return;
+    }
     final msg = await _db
         .from('message')
         .insert({
@@ -277,16 +398,42 @@ class MessagingRepository {
 
   // ── Groups ──────────────────────────────────────────────────────────────
   Future<String> createGroup(String title, List<String> memberIds) async {
-    return await _db.rpc(
+    final id = await _db.rpc(
       'create_group',
       params: {'p_title': title, 'p_members': memberIds},
     ) as String;
+    final me = _db.auth.currentUser!.id;
+    await _maybeEncrypt(id, [
+      for (final m in memberIds)
+        if (m != me) m,
+    ]);
+    return id;
   }
 
-  Future<void> addGroupMember(String conversationId, String userId) => _db.rpc(
-    'add_group_member',
-    params: {'p_conversation': conversationId, 'p_user': userId},
-  );
+  Future<void> addGroupMember(String conversationId, String userId) async {
+    if (await isEncrypted(conversationId)) {
+      // All their devices join the MLS group and they become a member in one
+      // step (2.5-4).
+      await _e2ee.addMember(conversationId, userId);
+      return;
+    }
+    await _db.rpc(
+      'add_group_member',
+      params: {'p_conversation': conversationId, 'p_user': userId},
+    );
+  }
+
+  /// Device labels by id (for the encryption screen's device list).
+  Future<Map<String, String>> deviceLabels(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    final rows = await _db
+        .from('device')
+        .select('id, label')
+        .inFilter('id', ids);
+    return {
+      for (final r in rows) r['id'] as String: (r['label'] as String?) ?? '',
+    };
+  }
 
   Future<void> leaveConversation(String conversationId) =>
       _db.rpc('leave_conversation', params: {'p_conversation': conversationId});
@@ -347,7 +494,10 @@ class MessagingRepository {
 }
 
 final messagingRepositoryProvider = Provider<MessagingRepository>((ref) {
-  return MessagingRepository(ref.watch(supabaseProvider));
+  return MessagingRepository(
+    ref.watch(supabaseProvider),
+    ref.watch(e2eeServiceProvider),
+  );
 });
 
 /// Bumped when a conversation changes so the list refreshes.

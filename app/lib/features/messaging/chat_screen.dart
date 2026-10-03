@@ -12,6 +12,7 @@ import '../../data/messaging_repository.dart';
 import '../../data/supabase_providers.dart';
 import '../calls/call_room_screen.dart';
 import 'group_settings_screen.dart';
+import 'safety_number_screen.dart';
 import 'voice/voice_note_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -46,6 +47,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Map<String, DateTime> _reads = const {};
   bool? _disappearingEnabled;
 
+  /// End-to-end encrypted (MLS). Attachments, voice notes and edits aren't
+  /// supported in encrypted chats yet (docs/ENCRYPTION.md, 2.5-3).
+  bool _e2ee = false;
+
   MessagingRepository get _repo => ref.read(messagingRepositoryProvider);
   String? get _myId => ref.read(currentUserProvider)?.id;
 
@@ -57,6 +62,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadReads();
     _loadDisappearingStatus();
     _subscribe();
+    _repo.isEncrypted(widget.conversationId).then((v) {
+      if (mounted && v) setState(() => _e2ee = true);
+    });
   }
 
   Future<void> _loadDisappearingStatus() async {
@@ -235,7 +243,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         : _reads.values.reduce((a, b) => a.isAfter(b) ? a : b);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(widget.title, overflow: TextOverflow.ellipsis),
+            ),
+            if (_e2ee) ...[
+              const SizedBox(width: 6),
+              IconButton(
+                tooltip:
+                    'End-to-end encrypted: only the people in this '
+                    'chat can read it, not Peak. Tap to verify.',
+                icon: const Icon(Icons.lock_outline, size: 18),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SafetyNumberScreen(
+                      conversationId: widget.conversationId,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           if (!widget.isGroup && widget.otherId != null)
             IconButton(
@@ -320,10 +351,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               controller: _input,
               pendingCount: _pending.length,
               sending: _sending,
-              onPickImages: _pickImages,
+              onPickImages: _e2ee ? null : _pickImages,
               onSend: _send,
               onChanged: (_) => _notifyTyping(),
-              onVoiceRecord: _toggleVoiceRecording,
+              onVoiceRecord: _e2ee ? null : _toggleVoiceRecording,
               isRecording: _isRecording,
             ),
         ],
@@ -373,11 +404,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Edit'),
-              onTap: () => Navigator.pop(context, 'edit'),
-            ),
+            if (!m.encrypted)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit'),
+                onTap: () => Navigator.pop(context, 'edit'),
+              ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
               title: const Text('Delete for everyone'),
@@ -438,10 +470,12 @@ class _Composer extends StatelessWidget {
   final TextEditingController controller;
   final int pendingCount;
   final bool sending;
-  final VoidCallback onPickImages;
+
+  /// Null hides the button (encrypted chats).
+  final VoidCallback? onPickImages;
   final VoidCallback onSend;
   final ValueChanged<String> onChanged;
-  final VoidCallback onVoiceRecord;
+  final VoidCallback? onVoiceRecord;
   final bool isRecording;
 
   @override
@@ -452,14 +486,17 @@ class _Composer extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
         child: Row(
           children: [
-            IconButton(
-              icon: Badge(
-                isLabelVisible: pendingCount > 0,
-                label: Text('$pendingCount'),
-                child: const Icon(Icons.image_outlined),
-              ),
-              onPressed: onPickImages,
-            ),
+            if (onPickImages != null)
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: pendingCount > 0,
+                  label: Text('$pendingCount'),
+                  child: const Icon(Icons.image_outlined),
+                ),
+                onPressed: onPickImages,
+              )
+            else
+              const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: controller,
@@ -475,14 +512,17 @@ class _Composer extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            IconButton(
-              onPressed: onVoiceRecord,
-              icon: Icon(
-                isRecording ? Icons.mic : Icons.mic_none_outlined,
-                color: isRecording ? Theme.of(context).colorScheme.error : null,
+            if (onVoiceRecord != null)
+              IconButton(
+                onPressed: onVoiceRecord,
+                icon: Icon(
+                  isRecording ? Icons.mic : Icons.mic_none_outlined,
+                  color: isRecording
+                      ? Theme.of(context).colorScheme.error
+                      : null,
+                ),
+                tooltip: isRecording ? 'Stop recording' : 'Record a voice note',
               ),
-              tooltip: isRecording ? 'Stop recording' : 'Record a voice note',
-            ),
             IconButton.filled(
               onPressed: sending ? null : onSend,
               icon: const Icon(Icons.send, size: 18),
@@ -566,6 +606,12 @@ class _Bubble extends StatelessWidget {
                 if (message.isDeleted)
                   Text(
                     'Message deleted',
+                    style: TextStyle(color: fg, fontStyle: FontStyle.italic),
+                  )
+                else if (message.unreadable)
+                  Text(
+                    'Encrypted message: this device joined the chat later, '
+                    'so it can\'t read it',
                     style: TextStyle(color: fg, fontStyle: FontStyle.italic),
                   )
                 else if (message.body.isNotEmpty)

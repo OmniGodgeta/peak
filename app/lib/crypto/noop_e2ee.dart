@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'e2ee_service.dart';
+import 'safety_number.dart';
 
 /// Transport-only fallback — this is the current Phase 2 behaviour made
 /// explicit. Messages travel over TLS but the server can read their content.
@@ -15,22 +16,38 @@ class NoopE2ee implements E2eeService {
   Future<void> ensureDeviceRegistered() async {}
 
   @override
-  Future<void> createGroup(
+  Future<bool> setUpConversation(
     String conversationId,
-    List<String> memberAccountIds,
-  ) async {
-    throw UnsupportedError(
-      'Encrypted conversations require the MLS build (Phase 2.5).',
-    );
-  }
+    List<String> otherMemberIds,
+  ) async => false;
 
   @override
-  Future<Uint8List> encrypt(String conversationId, Uint8List plaintext) async =>
-      plaintext;
+  Future<void> syncConversation(String conversationId) async {}
 
   @override
-  Future<Uint8List> decrypt(
+  Future<void> addMember(String conversationId, String userId) async =>
+      throw UnsupportedError(
+        'Encrypted conversations need the MLS build (PEAK_E2EE=mls).',
+      );
+
+  @override
+  Future<SafetyInfo?> safetyInfo(String conversationId) async => null;
+
+  @override
+  Future<({Uint8List ciphertext, int epoch})> encryptMessage(
     String conversationId,
+    String text,
+  ) async => throw UnsupportedError(
+    'Encrypted conversations need the MLS build (PEAK_E2EE=mls).',
+  );
+
+  @override
+  Future<void> rememberSent(String messageId, String text) async {}
+
+  @override
+  Future<String?> readMessage(
+    String conversationId,
+    String messageId,
     Uint8List ciphertext,
-  ) async => ciphertext;
+  ) async => null;
 }

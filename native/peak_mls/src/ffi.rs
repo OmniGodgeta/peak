@@ -289,3 +289,25 @@ pub unsafe extern "C" fn peak_mls_members(
         Ok(())
     })
 }
+
+/// Member (identity, signature key) pairs, flattened: identity, key,
+/// identity, key, ... each u32-BE length-prefixed, into out.
+#[no_mangle]
+pub unsafe extern "C" fn peak_mls_member_keys(
+    c: *mut Client,
+    gid: *const u8,
+    gid_len: usize,
+    out: *mut PeakBuf,
+) -> i32 {
+    guard(|| {
+        let mut buf = Vec::new();
+        for (id, key) in client(c)?.member_keys(bytes(gid, gid_len))? {
+            for part in [id, key] {
+                buf.extend_from_slice(&(part.len() as u32).to_be_bytes());
+                buf.extend_from_slice(&part);
+            }
+        }
+        put(out, buf);
+        Ok(())
+    })
+}

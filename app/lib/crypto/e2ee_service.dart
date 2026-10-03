@@ -8,6 +8,7 @@ import 'device_repository.dart';
 import 'mls/mls.dart';
 import 'noop_e2ee.dart';
 import 'openmls_e2ee.dart';
+import 'safety_number.dart';
 
 /// The seam between Peak's messaging code and the encryption layer.
 ///
@@ -22,20 +23,50 @@ abstract class E2eeService {
   /// No-op until the native crypto lib is wired.
   Future<void> ensureDeviceRegistered();
 
-  /// Establish an MLS group for a new conversation with the given members'
-  /// devices. Returns the initial group state to persist server-side.
-  /// Throws [UnsupportedError] in the no-op impl.
-  Future<void> createGroup(
+  /// Try to make a brand-new conversation end-to-end encrypted: build its
+  /// MLS group with every device of every other member and send the
+  /// Welcomes. Returns true if the conversation is now encrypted; false
+  /// (and the conversation stays plaintext) if encryption isn't available,
+  /// a member has no encryption-capable device, or messages already exist.
+  Future<bool> setUpConversation(
     String conversationId,
-    List<String> memberAccountIds,
+    List<String> otherMemberIds,
   );
 
-  /// Encrypt an outgoing message for a conversation.
-  /// The no-op impl returns the plaintext bytes unchanged.
-  Future<Uint8List> encrypt(String conversationId, Uint8List plaintext);
+  /// Bring this device's view of an encrypted conversation up to date:
+  /// join from its Welcome if needed, apply other devices' commits, then add
+  /// devices that should be in the group (new devices of members) and remove
+  /// ones that shouldn't (people who left, revoked devices). 2.5-4.
+  Future<void> syncConversation(String conversationId);
 
-  /// Decrypt an incoming ciphertext blob.
-  Future<Uint8List> decrypt(String conversationId, Uint8List ciphertext);
+  /// Add a person to an encrypted group: all their devices join the MLS
+  /// group and they become a member, in one step. Throws if they have no
+  /// device that supports encrypted chats.
+  Future<void> addMember(String conversationId, String userId);
+
+  /// The safety number and device roster of an encrypted conversation, as
+  /// this device sees them (2.5-6). Null if this device isn't in its group.
+  Future<SafetyInfo?> safetyInfo(String conversationId);
+
+  /// Encrypt an outgoing text message for an encrypted conversation. Once
+  /// the message row exists, call [rememberSent]: the sender can never
+  /// decrypt its own MLS messages.
+  Future<({Uint8List ciphertext, int epoch})> encryptMessage(
+    String conversationId,
+    String text,
+  );
+
+  /// Keep the plaintext of a message this device sent.
+  Future<void> rememberSent(String messageId, String text);
+
+  /// The plaintext of an encrypted message, or null if this device can't read
+  /// it (it joined later, or the message predates its membership). Each MLS
+  /// message can be decrypted only once, so results are cached on-device.
+  Future<String?> readMessage(
+    String conversationId,
+    String messageId,
+    Uint8List ciphertext,
+  );
 }
 
 /// MLS only when the build opts in (PEAK_E2EE=mls) and the native library

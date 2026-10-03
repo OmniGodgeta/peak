@@ -34,7 +34,9 @@ Not a phase — the concrete work between here and a public launch:
   transparency report.
 - **Video polish is done** (HLS, EXIF strip, orphan cleanup, audio posts).
 - **Hosted catch-up**: `tool/push-hosted.sh` (migrations + functions), then tag.
-- **E2EE 2.5-3**: encrypted conversations — needs two real devices to verify.
+- **E2EE 2.5-3**: built and tested (two simulated devices against the local
+  stack). 2.5-4 (members/devices) done too. Before flipping `PEAK_E2EE=mls`
+  on for release builds: a two-phone check.
 - **Operator**: run `tool/media-server/` on the storage box; register the
   domain → Cloudflare Pages web host + real email (Resend); lawyer pass on
   `docs/legal/*`. Then set `TURNSTILE_SITE_KEY` (Cloudflare Turnstile needs a
@@ -130,13 +132,14 @@ Full design: [ENCRYPTION.md](ENCRYPTION.md). Staged:
       iOS xcframework and web WASM not built.
 - [x] **2.5-2** — device registration + Devices screen; real KeyPackages
       published to the pool (behind `PEAK_E2EE=mls`)
-- [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
-      messages; feature flag on for new conversations
-- [ ] **2.5-4** — membership/device changes (Add/Remove/Update + Commit),
-      epoch handling, key rotation
+- [x] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
+      messages (behind `PEAK_E2EE=mls`; not yet on in release builds). See
+      ENCRYPTION.md §7.
+- [x] **2.5-4** — membership/device changes (Add/Remove + Commit), epoch
+      handling (compare-and-swap, no forks). Scheduled key rotation not done.
 - [ ] **2.5-5** — encrypted history archive + new-device restore + recovery phrase
-- [ ] **2.5-6** — key-verification / safety-number screen + device-list
-      transparency check
+- [x] **2.5-6** — safety-number screen + device-list transparency check
+      (tap the lock in an encrypted chat)
 - [ ] **2.5-7** — migrate or label the remaining transport-only DMs; flip default
 
 ## Phase 3 — Rich media, stories, articles, data controls  ·  *in progress*

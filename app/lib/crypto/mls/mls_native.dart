@@ -107,7 +107,8 @@ class _Lib {
       encrypt = l.lookupFunction<_Gid2OutN, _Gid2OutD>('peak_mls_encrypt'),
       process = l.lookupFunction<_ProcN, _ProcD>('peak_mls_process'),
       epoch = l.lookupFunction<_EpochN, _EpochD>('peak_mls_epoch'),
-      members = l.lookupFunction<_GidOutN, _GidOutD>('peak_mls_members');
+      members = l.lookupFunction<_GidOutN, _GidOutD>('peak_mls_members'),
+      memberKeys = l.lookupFunction<_GidOutN, _GidOutD>('peak_mls_member_keys');
 
   final _NewD clientNew, clientLoad;
   final _FreeD clientFree;
@@ -117,7 +118,7 @@ class _Lib {
   final _GidD createGroup;
   final _AddD addMembers;
   final _Gid2OutD removeMembers, encrypt;
-  final _GidOutD join, members;
+  final _GidOutD join, members, memberKeys;
   final _ProcD process;
   final _EpochD epoch;
 
@@ -303,6 +304,21 @@ class MlsClient {
     _check(_lib, _lib.members(_h, _copy(a, groupId), groupId.length, out));
     return mlsUnpackList(_take(out));
   });
+
+  /// (identity, signature public key) of every member — what a safety
+  /// number commits to.
+  List<(Uint8List identity, Uint8List key)> memberKeys(Uint8List groupId) =>
+      using((a) {
+        final out = a<_Buf>();
+        _check(
+          _lib,
+          _lib.memberKeys(_h, _copy(a, groupId), groupId.length, out),
+        );
+        final flat = mlsUnpackList(_take(out));
+        return [
+          for (var i = 0; i + 1 < flat.length; i += 2) (flat[i], flat[i + 1]),
+        ];
+      });
 
   void dispose() {
     if (_handle != nullptr) {

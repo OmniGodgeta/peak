@@ -30,5 +30,7 @@ class MlsClient {
       throw UnimplementedError();
   int epoch(Uint8List groupId) => throw UnimplementedError();
   List<Uint8List> members(Uint8List groupId) => throw UnimplementedError();
+  List<(Uint8List identity, Uint8List key)> memberKeys(Uint8List groupId) =>
+      throw UnimplementedError();
   void dispose() {}
 }

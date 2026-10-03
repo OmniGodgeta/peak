@@ -5,10 +5,11 @@ stores **ciphertext only** and never holds a key that can read message content.
 Multi-device is in scope from the start — phone + tablet + web at once, with
 history available on new devices.
 
-Status: **native MLS layer done and verified (2.5-1), device key packages
-done (2.5-2); encrypted conversations (2.5-3) are next.** Messaging still runs
-in the transport-only Phase 2 mode; the MLS layer is behind the `PEAK_E2EE=mls`
-build flag and nothing in the UI claims end-to-end encryption.
+Status: **2.5-1 to 2.5-4 and 2.5-6 done** (2.5-5, history, is next). With the `PEAK_E2EE=mls` build flag,
+new DMs and groups are end-to-end encrypted when every member has an MLS
+device; otherwise they stay transport-only. Release builds don't set the flag
+yet, so nobody gets encrypted chats until it's flipped (after a real
+two-phone check, and 2.5-4 so members can be added).
 
 ---
 
@@ -173,15 +174,62 @@ in the enclave.
       identity (`<account>:<device>`), keeps its state AES-256-GCM encrypted
       on disk (key in the platform keystore), and tops the server pool up to
       20 real KeyPackages whenever it drops below 10.
-- [ ] **2.5-3** — MLS group per new conversation; encrypt/decrypt application
-      messages; server relays `mls_message` blobs; feature flag on for new
-      conversations.
-- [ ] **2.5-4** — membership/device changes (Add/Remove/Update + Commit),
-      epoch handling, key rotation schedule.
+- [x] **2.5-3** — encrypted conversations (`20261016000000_e2ee_conversations`).
+      A new DM/group whose members all have an MLS device gets an MLS group
+      (id = conversation id): the creating device claims it
+      (`begin_conversation_e2ee`), adds every device of every member, leaves a
+      Welcome per device in `mls_message`, then `enable_conversation_e2ee`.
+      Messages keep their `message` row (order, replies, reactions, read
+      state, tombstones) with `body` empty and the MLS ciphertext in
+      `message.ciphertext` (+ `mls_epoch`). Other devices join from their
+      Welcome on first read/send. MLS decrypts a message once and a sender
+      can't decrypt its own, so plaintexts are cached on-device inside the
+      same AES-GCM-encrypted file as the MLS state (one atomic write).
+      Server guards: no plaintext into an encrypted conversation, no
+      ciphertext into a plaintext one, no attachments, edits, or new members
+      in encrypted ones yet (the UI hides those). Verified: pgTAP
+      `40_e2ee_conversations` (13), and `app/test/e2ee_conversation_local_test.dart`
+      — two devices with real OpenMLS against the local stack: encrypted DM
+      both ways (server holds no plaintext), re-fetch from cache, encrypted
+      group, plaintext fallback for a member without an MLS device.
+      **Not yet verified on two real phones.** Encrypted attachments are a
+      follow-up; message reports from encrypted chats carry no content.
+- [x] **2.5-4** — membership and device changes (`20261017000000_e2ee_membership`).
+      Before sending and when reading, a device syncs the group: applies
+      other devices' commits in epoch order, then adds devices that should be
+      in it (a member's newly registered device) and removes ones that
+      shouldn't (someone who left, a revoked device), comparing the MLS
+      roster with `conversation_devices()`. Adding a person to an encrypted
+      group adds all their devices and the membership in one step.
+      Commits only go through `publish_mls_commit`, which accepts a commit
+      only if the group is still at the epoch it was made from; the loser
+      reloads its last saved state, catches up and retries, so concurrent
+      changes can't fork the group. Direct writes to `mls_group_state` and
+      commit rows are refused. Devices keep 5 past epochs' keys
+      (`MAX_PAST_EPOCHS`) so a message sent just before a change still
+      decrypts after it. A new device or member reads from when it joined;
+      earlier messages show as unreadable until 2.5-5's history archive.
+      Verified: Rust `message_from_before_a_commit_still_decrypts_after_it`,
+      pgTAP `41_e2ee_membership` (9), and the local two-device test's
+      membership scenario (new device, added member, leaver, revoked device:
+      exactly 4 commits; a stale commit is refused). Key rotation on a
+      schedule (Update commits) is not done.
 - [ ] **2.5-5** — encrypted history archive + new-device restore + recovery
       phrase UI.
-- [ ] **2.5-6** — key-verification / safety-number screen; device-list
-      transparency check.
+- [x] **2.5-6** — safety number + device list. Tap the lock in an encrypted
+      chat: a 60-digit number (SHA-512 over the conversation id and every
+      member device's identity and MLS signature key, in identity order) that
+      every device in the chat computes identically, so comparing it in
+      person or on a call proves nobody is in the middle; it changes when a
+      device joins or leaves. Below it, every device that can read the chat,
+      by person, with this device marked. Transparency check: devices in the
+      MLS group that the server doesn't list as a member's current device
+      get a red warning (a rogue or not-yet-removed device), and listed
+      devices not yet in the group are counted. Verified: unit tests
+      (`safety_number_test.dart`), Rust `every_member_sees_the_same_keys`,
+      and the local two-device test (numbers match; change when a device
+      joins; all three devices agree again). Not done: marking a contact as
+      verified, or alerting when a verified number changes.
 - [ ] **2.5-7** — migrate remaining transport-only DMs (or leave them, clearly
       labelled) and flip the default.
 

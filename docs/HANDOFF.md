@@ -7,6 +7,30 @@ Last updated: **2026-09-10** for everything below §2's table and §3; **see the
 2026-09-22 status-check note right below** for what's landed since then that
 this file never got updated for.
 
+## 2026-10-03 — encrypted chats: what the operator does next
+
+E2EE 2.5-3, 2.5-4 and 2.5-6 are in PR #3 (CI green). Off in releases until
+`vars.RELEASE_E2EE=mls`. In order:
+
+1. **Merge PR #3** on GitHub (Merge pull request -> Confirm).
+2. **Push the two migrations to hosted** (`20261016000000`,
+   `20261017000000`): `cd ~/Work/peak && supabase db push` (an agent can do
+   it). Must happen before any release built from main.
+3. **Turn E2EE on for releases**: `gh variable set RELEASE_E2EE -R
+   OmniGodgeta/peak -b mls` (or GitHub -> Settings -> Secrets and variables ->
+   Actions -> Variables -> New: `RELEASE_E2EE` = `mls`). Everyone who
+   installs the next release gets encrypted *new* chats.
+4. **Tag a release** (bump `app/pubspec.yaml`, tag `v1.4.0`; an agent can do it).
+5. **Two-phone test**: install that release on two phones, sign in to two
+   different accounts, open the app on both (keys publish on launch). Phone A:
+   create a NEW group with the other account (an old DM between them stays
+   unencrypted). Lock icon in the title = encrypted. Send both ways; tap the
+   lock on both phones: the 12 groups of digits must be identical. Then sign
+   in on a third device (or reinstall one): after the next message the number
+   changes on all of them, and matches again.
+6. Dashboard (unrelated to E2EE, still pending): `app_release` row (SQL in the
+   2026-10-02 section below) and Auth -> URL Configuration.
+
 ## 2026-09-30 — overnight session (read this first)
 
 Everything below is on `main` and CI is green (Flutter app, Supabase schema

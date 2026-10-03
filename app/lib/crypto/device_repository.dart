@@ -52,7 +52,14 @@ class PeakDevice {
 /// When MLS content encryption lands (2.5-3) this same key becomes the device's
 /// MLS credential signing key; since no encrypted conversations exist yet, it
 /// can be rotated for free if the crypto provider needs a different format.
-class DeviceRepository {
+/// What the encryption layer needs from device registration.
+abstract interface class DeviceRegistrar {
+  /// The server id of this install, once [ensureRegistered] has run.
+  String? get thisDeviceId;
+  Future<String> ensureRegistered();
+}
+
+class DeviceRepository implements DeviceRegistrar {
   DeviceRepository(this._db);
 
   final SupabaseClient _db;
@@ -62,6 +69,7 @@ class DeviceRepository {
   String? _deviceId;
 
   /// The server id of *this* install, once [ensureRegistered] has run.
+  @override
   String? get thisDeviceId => _deviceId;
 
   String _key(String suffix) {
@@ -72,6 +80,7 @@ class DeviceRepository {
   /// Load-or-create the local keypair, then register (or re-attach) this
   /// install server-side. Safe to call on every launch — it's idempotent and
   /// also refreshes `last_seen_at`.
+  @override
   Future<String> ensureRegistered() async {
     final knownId = await _store.read(key: _key('id'));
 
